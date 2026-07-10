@@ -195,7 +195,7 @@ def extraer_precio_amazon(html: str) -> Optional[float]:
 
     """
     m = re.search(
-        r'<span class="a-price[^"]*"[^>]*>\s*<span class="a-offscreen">\$([\\d,]+\.\d{2})</span>',
+        r'<span class="a-price[^"]*"[^>]*>\s*<span class="a-offscreen">\$([\d,]+\.\d{2})</span>',
         html,
     )
     if m:
@@ -204,14 +204,14 @@ def extraer_precio_amazon(html: str) -> Optional[float]:
             return p
 
     # Estrategia 2: JSON displayPrice
-    matches = re.findall(r'"displayPrice":"\$([\\d,]+\.\d{2})"', html)
+    matches = re.findall(r'"displayPrice":"\$([\d,]+\.\d{2})"', html)
     for p_str in matches:
         p = limpiar_precio(p_str)
         if p and p > 1000:
             return p
 
     # Estrategia 3: Cualquier a-offscreen con formato de precio
-    matches = re.findall(r'<span class="a-offscreen">\$([\\d,]+\.\d{2})</span>', html)
+    matches = re.findall(r'<span class="a-offscreen">\$([\d,]+\.\d{2})</span>', html)
     precios = [limpiar_precio(p) for p in matches if limpiar_precio(p)]
     validos = [p for p in precios if p and p > 1000]
     if validos:

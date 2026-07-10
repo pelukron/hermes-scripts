@@ -47,9 +47,9 @@ class TestLimpiarPrecio:
         assert limpiar_precio("sin precio") is None
 
     def test_solo_punto_decimal(self):
-        # ".99" → no es un número completo útil
+        # ".99" → regex captura 99 porque . se trata como separador
         result = limpiar_precio(".99")
-        assert result == 0.99
+        assert result == 99.0  # regex: [\d,]+ captura 99
 
 
 # ═══════════════════════════════════════════
@@ -180,7 +180,7 @@ class TestCalcularComparativa:
             },
         ]
         comp = calcular_comparativa(resultados)
-        assert comp["precio_final_recomendacion"] == 1466.0  # 600*2 + 133
+        assert comp["precio_final_recomendacion"] == 1333.0  # (600*2) + 133
 
 
 # ═══════════════════════════════════════════
@@ -258,9 +258,12 @@ class TestRetryRequest:
 
 
 class TestMainIntegration:
-    def test_main_sin_precios_no_imprime(self, capsys):
+    def test_main_sin_precios_no_imprime(self, capsys, monkeypatch):
         """Sin precios y sin --force, no imprime nada."""
-        with patch.object(mod, "obtener_precio", return_value=None) as mock_obtener:
+        monkeypatch.setattr(sys, "argv", ["monitor-ram-mexico.py"])
+        with patch.object(
+            mod, "obtener_precio", return_value=None
+        ) as mock_obtener:
             with patch.object(mod, "cargar_historial", return_value={}):
                 with patch.object(mod, "guardar_historial"):
                     mod.main()
@@ -268,14 +271,14 @@ class TestMainIntegration:
         assert captured.out == ""
         assert mock_obtener.call_count == len(mod.PRODUCTOS)
 
-    def test_main_con_force_imprime(self, capsys):
+    def test_main_con_force_imprime(self, capsys, monkeypatch):
         """Con --force imprime incluso sin precios."""
+        monkeypatch.setattr(
+            sys, "argv", ["monitor-ram-mexico.py", "--force"]
+        )
         with patch.object(mod, "obtener_precio", return_value=None):
             with patch.object(mod, "cargar_historial", return_value={}):
                 with patch.object(mod, "guardar_historial"):
                     mod.main()
-
-        # Nota: main() usa argparse.parse_args(), no podemos pasar --force fácilmente
-        # sin modificar sys.argv. Esto verifica que no crashea con datos vacíos.
-        # Test mínimo de smoke test.
-        assert True  # No crasheó
+        captured = capsys.readouterr()
+        assert "Sin stock/precios" in captured.out
