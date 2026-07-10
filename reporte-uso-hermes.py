@@ -4,8 +4,8 @@ Reporte de uso de Hermes con tablas, porcentajes y gráficas ASCII.
 Sin imágenes. Enviado como texto plano al canal de alertas.
 """
 
-import sqlite3
 import os
+import sqlite3
 import sys
 from datetime import datetime
 
@@ -14,6 +14,15 @@ DB_PATH = os.path.join(HERMES_HOME, "state.db")
 
 
 def fetch_daily_stats(days=7):
+    """Fetch daily session statistics for the last N days.
+
+    Args:
+        days: Number of days to look back. Defaults to 7.
+
+    Returns:
+        list[tuple]: Rows of (date, session_count, input_tokens,
+            output_tokens, total_tokens).
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -35,6 +44,15 @@ def fetch_daily_stats(days=7):
 
 
 def fetch_model_stats(days=7):
+    """Fetch session statistics grouped by model for the last N days.
+
+    Args:
+        days: Number of days to look back. Defaults to 7.
+
+    Returns:
+        list[tuple]: Rows of (model, session_count, input_tokens,
+            output_tokens, total_tokens), sorted by total_tokens descending.
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -56,6 +74,15 @@ def fetch_model_stats(days=7):
 
 
 def fetch_total_stats(days=7):
+    """Fetch aggregate session statistics for the last N days.
+
+    Args:
+        days: Number of days to look back. Defaults to 7.
+
+    Returns:
+        tuple: (total_sessions, total_input_tokens, total_output_tokens,
+            total_tokens).
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -74,6 +101,14 @@ def fetch_total_stats(days=7):
 
 
 def fmt(n):
+    """Format a number as human-readable string (k/M).
+
+    Args:
+        n: Integer to format.
+
+    Returns:
+        str: Formatted string, e.g. "1.5k", "3.2M", or "42".
+    """
     if n >= 1_000_000:
         return f"{n / 1_000_000:.2f}M"
     elif n >= 1_000:
@@ -82,12 +117,31 @@ def fmt(n):
 
 
 def pct(part, total):
+    """Calculate percentage string.
+
+    Args:
+        part: Numerator.
+        total: Denominator.
+
+    Returns:
+        str: Percentage formatted as "X.X%". Returns "0.0%" if total is 0.
+    """
     if total == 0:
         return "0.0%"
     return f"{part / total * 100:.1f}%"
 
 
 def bar(value, max_value, width=20):
+    """Generate an ASCII bar chart string.
+
+    Args:
+        value: Current value to represent.
+        max_value: Maximum value for scaling.
+        width: Bar width in characters. Defaults to 20.
+
+    Returns:
+        str: ASCII bar made of █ (filled) and ░ (empty) characters.
+    """
     if max_value == 0:
         return "░" * width
     filled = int(value / max_value * width)
@@ -95,6 +149,12 @@ def bar(value, max_value, width=20):
 
 
 def main():
+    """Generate and print the weekly Hermes usage report.
+
+    Queries the sessions database for the last 7 days and outputs
+    a Markdown-formatted report with summary table, per-model breakdown,
+    and ASCII charts for tokens and sessions per day.
+    """
     if not os.path.exists(DB_PATH):
         print("No se encontró state.db.")
         sys.exit(1)
@@ -115,9 +175,8 @@ def main():
     output = []
     output.append("📊 **Reporte de uso de Hermes**")
     output.append("")
-    output.append(
-        f"_Período: últimos 7 días · Generado el {datetime.now().strftime('%Y-%m-%d %H:%M')} México_"
-    )
+    fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+    output.append(f"_Período: últimos 7 días · Generado el {fecha} México_")
     output.append("")
 
     # Tabla resumen

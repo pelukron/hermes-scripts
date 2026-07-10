@@ -1,38 +1,30 @@
 # Changelog
 
-Todas las cambios notables documentados aquí.
+Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-El formato sigue [Conventional Commits](https://www.conventionalcommits.org/).
+## [0.1.0] - 2026-07-10
 
-## Tipos de commit
-
-| Prefijo | Cuándo usar |
-|---|---|
-| `feat:` | Nueva funcionalidad |
-| `fix:` | Corrección de bug |
-| `refactor:` | Refactorización sin cambio funcional |
-| `test:` | Tests nuevos o modificados |
-| `docs:` | Documentación |
-| `chore:` | Tareas de mantenimiento (ruff, uv, CI) |
-| `perf:` | Mejora de rendimiento |
-
-## v0.1.0 (2026-07-10)
-
-### feat
-- Script `resumen-noticias-diario.py` con 12 secciones, 39 fuentes RSS multi-ideología
+### Added
+- Script `resumen-noticias-diario.py` con 12 secciones y 39 fuentes RSS multi-ideología
 - Sección `🔍 INVESTIGACIÓN & ANÁLISIS` vía blogwatcher (The Intercept, Stratechery)
-- Sección `🤖 IA & TECH` (TechCrunch, MIT AI, Wired)
+- Sección `🤖 IA & TECH` con TechCrunch, MIT AI y Wired
 - `retry_request()` con exponential backoff + jitter para 39 endpoints HTTP
-- `FeedStats` dataclass con tracking de fallos
-- `feeds.json` externo para configuración editable sin tocar código
+- `FeedStats` dataclass con tracking de fuentes fallidas
+- `feeds.json` externo para configuración editable sin tocar código Python
 - Footer stats: `📊 36/39 OK (3 fallos: X, Y, Z)`
-
-### test
-- 29 tests pytest para `clean_title`, `escape_link`, `retry_request`, `fetch_rss`
-
-### chore
-- Ruff lint + format (0 warnings)
-- UV con `pyproject.toml` + `uv.lock`
-- Makefile con `test`, `lint`, `format`, `run`
-- Git init + commitizen para versionado semántico
+- 29 tests pytest para funciones clave
 - Skills `python-error-handling` y `python-resilience` de wshobson/agents
+- Git + commitizen para versionado semántico con conventional commits
+- Skill `conventional-commits` con flujo de trabajo documentado
+- Skill `keep-a-changelog` con formato estándar
+
+### Changed
+- `fetch_rss()`, `fetch_crypto()`, `fetch_currencies()` usan `retry_request()` con backoff
+- Formato de salida atomizado con `time.sleep()` entre secciones
+- URLs de Google News acortadas vía TinyURL
+- Configuración de feeds extraída a `feeds.json`
+
+### Fixed
+- Tracking de fuentes fallidas ahora reporta nombres reales en footer
+- URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
+- Títulos con `[]` limpiados para evitar conflicto con sintaxis de links

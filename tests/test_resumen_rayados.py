@@ -1,4 +1,5 @@
 """Tests para funciones clave de resumen-rayados-diario.py"""
+
 import importlib.util
 import os
 import sys
@@ -56,9 +57,7 @@ class TestCleanUrl:
         assert clean_url(url) == url
 
     def test_combinacion_params(self):
-        url = (
-            "https://news.google.com/rss/articles/CBMi?oc=5&utm_source=web&ceid=MX:es-419"
-        )
+        url = "https://news.google.com/rss/articles/CBMi?oc=5&utm_source=web&ceid=MX:es-419"
         result = clean_url(url)
         assert "oc=" not in result
         assert "utm_" not in result
@@ -84,7 +83,10 @@ class TestCleanTitle:
         assert clean_title("Rayados - Tigres - Clásico Regio - Mediotiempo") == "Rayados"
 
     def test_reemplaza_brackets(self):
-        assert clean_title("[OFICIAL] Rayados anuncia refuerzo") == "(OFICIAL) Rayados anuncia refuerzo"
+        assert (
+            clean_title("[OFICIAL] Rayados anuncia refuerzo")
+            == "(OFICIAL) Rayados anuncia refuerzo"
+        )
 
     def test_sin_suffix_sin_cambio(self):
         assert clean_title("Rayados gana el clásico") == "Rayados gana el clásico"
@@ -350,9 +352,7 @@ class TestRetryRequest:
         mock_503 = Mock(status_code=503)
         mock_200 = Mock(status_code=200)
         mock_200.raise_for_status.return_value = None
-        with patch(
-            "requests.get", side_effect=[mock_503, mock_200]
-        ) as mock_get:
+        with patch("requests.get", side_effect=[mock_503, mock_200]) as mock_get:
             with patch("time.sleep", return_value=None):
                 result = retry_request(self.URL)
             assert result == mock_200
@@ -397,9 +397,7 @@ class TestRetryRequest:
 
         mock_200 = Mock(status_code=200)
         mock_200.raise_for_status.return_value = None
-        with patch(
-            "requests.get", side_effect=[req_mod.Timeout("timeout"), mock_200]
-        ) as mock_get:
+        with patch("requests.get", side_effect=[req_mod.Timeout("timeout"), mock_200]) as mock_get:
             with patch("time.sleep", return_value=None):
                 result = retry_request(self.URL)
             assert result == mock_200
@@ -443,16 +441,31 @@ GOOGLE_NEWS_ENTRIES = [
         title="Rayados gana 3-0 al América",
         link="https://news.google.com/rss/articles/1?oc=5",
         source=Mock(title="ESPN"),
+        author="ESPN",
     ),
     Mock(
         title="Rumor: Rayados busca fichaje estrella - Mediotiempo",
         link="https://news.google.com/rss/articles/2",
         source=Mock(title="Mediotiempo"),
+        author="Mediotiempo",
     ),
 ]
-# Configure .get() for Mock entries (feedparser entries support dict-like .get)
+
+
+def _mock_get_factory(mock_obj):
+    """Crea función .get() para Mock que emula dict.get usando atributos."""
+
+    def _get(key, default=""):
+        return getattr(mock_obj, key, default)
+
+    return _get
+
+
+# Configure .get() for Mock entries and their nested source mocks
 for entry in GOOGLE_NEWS_ENTRIES:
-    entry.get = lambda key, default="", _entry=entry: getattr(_entry, key, default)
+    entry.get = _mock_get_factory(entry)
+    if hasattr(entry, "source") and hasattr(entry.source, "title"):
+        entry.source.get = _mock_get_factory(entry.source)
 
 
 class TestFetchGoogleNews:
@@ -470,10 +483,13 @@ class TestFetchGoogleNews:
 
     def test_detecta_oficial(self):
         mock_feed = Mock()
+        source_mock = Mock(title="rayados.com")
+        source_mock.get = lambda key, default="", _s=source_mock: getattr(_s, key, default)
         entry_oficial = Mock(
             title="Noticia oficial",
             link="https://rayados.com/es/noticias/123",
-            source=Mock(title="rayados.com"),
+            source=source_mock,
+            author="rayados.com",
         )
         entry_oficial.get = lambda key, default="", _e=entry_oficial: getattr(_e, key, default)
         mock_feed.entries = [entry_oficial]
@@ -483,9 +499,7 @@ class TestFetchGoogleNews:
             assert items[0]["oficial"] is True
 
     def test_excepcion_retorna_error_item(self):
-        with patch.object(
-            mod.feedparser, "parse", side_effect=Exception("timeout")
-        ):
+        with patch.object(mod.feedparser, "parse", side_effect=Exception("timeout")):
             items = fetch_google_news("Rayados", "confirmadas")
             assert len(items) == 1
             assert items[0]["title"].startswith("[Error")

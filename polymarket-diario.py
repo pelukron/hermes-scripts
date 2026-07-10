@@ -1,12 +1,60 @@
 #!/usr/bin/env python3
 """Polymarket diario — mercados activos trending para noticias.
+
 Output: Markdown. $0 tokens. API pública sin auth.
 """
 
-import json, urllib.request, sys
+import json
+import random
+import time
+
+import requests
 
 API = "https://gamma-api.polymarket.com"
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+
+
+def retry_request(url, timeout=15, max_attempts=3):
+    """Fetch URL with exponential backoff + jitter. Retries on transient failures only.
+
+    Args:
+        url (str): URL a consultar.
+        timeout (int): Timeout en segundos por intento.
+        max_attempts (int): Número máximo de intentos.
+
+    Returns:
+        requests.Response: Respuesta HTTP exitosa.
+
+    Raises:
+        requests.ConnectionError: Si se agotan reintentos por error de conexión.
+        requests.Timeout: Si se agotan reintentos por timeout.
+        requests.HTTPError: Si el status code no es 2xx y no es reintentable.
+
+    """
+    retry_status = {429, 500, 502, 503, 504}
+    for attempt in range(max_attempts):
+        try:
+            r = requests.get(
+                url,
+                timeout=timeout,
+                headers={"User-Agent": UA, "Accept": "application/json"},
+            )
+            if r.status_code in retry_status and attempt < max_attempts - 1:
+                wait = (2**attempt) + random.uniform(0, 0.5)
+                time.sleep(wait)
+                continue
+            r.raise_for_status()
+            return r
+        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
+            if attempt < max_attempts - 1:
+                wait = (2**attempt) + random.uniform(0, 0.5)
+                time.sleep(wait)
+            else:
+                raise
+        except requests.HTTPError:
+            raise
+    return None
+
 
 TAGS_GEO = [
     "politics",
@@ -55,22 +103,52 @@ TAGS_ELE = [
 
 
 def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.loads(r.read().decode())
+    """Obtiene JSON desde API Polymarket con reintentos ante fallos transitorios.
+
+    Args:
+        url (str): URL completa del endpoint.
+
+    Returns:
+        dict: Respuesta JSON parseada.
+
+    Raises:
+        requests.HTTPError: Si la API responde con error no recuperable.
+        requests.ConnectionError: Si se agotan reintentos de conexión.
+
+    """
+    r = retry_request(url, timeout=15)
+    return r.json()
 
 
 def pct(prices_json):
+    """Convierte outcomePrices de Polymarket a porcentaje.
+
+    Args:
+        prices_json (str | list | None): JSON con array de precios.
+
+    Returns:
+        Optional[float]: Porcentaje (0-100), o None si no hay datos.
+
+    """
     if not prices_json:
         return None
     try:
         p = json.loads(prices_json) if isinstance(prices_json, str) else prices_json
         return round(float(p[0]) * 100, 1) if p else None
-    except:
+    except Exception:
         return None
 
 
 def fmt_vol(v):
+    """Formatea volumen a formato legible (B/M/K).
+
+    Args:
+        v (float | str | None): Volumen numérico.
+
+    Returns:
+        str: String formateado (ej. \"$2.5M\", \"$500K\", \"—\").
+
+    """
     try:
         v = float(v) if v else 0
         if v >= 1e9:
@@ -80,11 +158,23 @@ def fmt_vol(v):
         if v >= 1e3:
             return f"${v / 1e3:.0f}K"
         return f"${v:.0f}"
-    except:
+    except Exception:
         return "—"
 
 
 def classify(title, tags_raw):
+    """Clasifica mercado en categoría: geopolitica, elecciones, deportes.
+
+    Busca keywords en título + tags contra TAGS_GEO, TAGS_DEP, TAGS_ELE.
+
+    Args:
+        title (str | None): Título del evento.
+        tags_raw (list | None): Lista de tags del evento.
+
+    Returns:
+        Optional[str]: Categoría asignada, o None si no clasifica.
+
+    """
     text = (title or "").lower()
     for t in tags_raw or []:
         if isinstance(t, dict):
@@ -115,6 +205,12 @@ def best_market(markets):
 
 
 def main():
+    """Punto de entrada: consulta Polymarket, clasifica mercados, imprime reporte Markdown.
+
+    Secciones: Geopolítica, Elecciones 2028, Deportes.
+    Filtra mercados con probabilidad entre 5% y 95%.
+
+    """
     print()
     print("█ 🔮 MERCADOS DE PREDICCIÓN █")
     print()

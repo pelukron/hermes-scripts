@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
+import argparse
+import json
 import os
+import random
 import re
 import sys
-import json
 import time
-import requests
-import argparse
 from datetime import datetime
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional
+
+import requests
 
 # Import hermes_common
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -17,6 +19,50 @@ from hermes_common import get_headers, smart_truncate
 UMBRAL_ALERTA_PORCENTAJE = 5.0  # Alerta si baja más del 5% del precio mínimo histórico
 UMBRAL_BAJADA_REPENTINA = 15.0  # Alerta si baja más del 15% respecto al último precio visto
 COSTO_ENVIO_CYBERPUERTA = 133.00
+
+
+def retry_request(url, timeout=15, max_attempts=3):
+    """Fetch URL with exponential backoff + jitter. Retries on transient failures only.
+
+    Args:
+        url (str): URL a consultar.
+        timeout (int): Timeout en segundos por intento.
+        max_attempts (int): Número máximo de intentos.
+
+    Returns:
+        requests.Response: Respuesta HTTP exitosa.
+
+    Raises:
+        requests.ConnectionError: Si se agotan reintentos por error de conexión.
+        requests.Timeout: Si se agotan reintentos por timeout.
+        requests.HTTPError: Si el status code no es 2xx y no es reintentable.
+
+    """
+    retry_status = {429, 500, 502, 503, 504}
+    for attempt in range(max_attempts):
+        try:
+            r = requests.get(
+                url,
+                timeout=timeout,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+            )
+            if r.status_code in retry_status and attempt < max_attempts - 1:
+                wait = (2**attempt) + random.uniform(0, 0.5)
+                time.sleep(wait)
+                continue
+            r.raise_for_status()
+            return r
+        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
+            if attempt < max_attempts - 1:
+                wait = (2**attempt) + random.uniform(0, 0.5)
+                time.sleep(wait)
+            else:
+                raise
+        except requests.HTTPError:
+            raise
+    return None
+
+
 HISTORICO_PATH = os.path.expanduser("~/.hermes/ram-mexico-history.json")
 
 AMAZON_HEADERS = get_headers("amazon")
@@ -65,11 +111,20 @@ PRODUCTOS = [
 
 
 def cargar_historial() -> Dict[str, Any]:
+    """Carga histórico de precios desde JSON con migración de formato.
+
+    Si el archivo no existe o está corrupto, retorna dict vacío.
+    Convierte formato viejo (float) a nuevo (dict con min/last/ultimo_alerta).
+
+    Returns:
+        Dict[str, Any]: Diccionario producto_id -> {min, last, ultimo_alerta}.
+
+    """
     if os.path.exists(HISTORICO_PATH):
         try:
             with open(HISTORICO_PATH, "r") as f:
                 data = json.load(f)
-                # Migración: convertir formato viejo (float) al nuevo (dict con min/last/ultimo_alerta)
+                # Migración: formato viejo (float) → nuevo (dict con min/last/ultimo_alerta)
                 migrado = {}
                 for k, v in data.items():
                     if isinstance(v, dict):
@@ -81,12 +136,20 @@ def cargar_historial() -> Dict[str, Any]:
                         # Formato viejo: float → migrar
                         migrado[k] = {"min": float(v), "last": float(v), "ultimo_alerta": 0}
                 return migrado
-        except:
+        except Exception:
             return {}
     return {}
 
 
 def guardar_historial(historial: Dict[str, Any]):
+    """Guarda histórico de precios a JSON, limpiando entradas obsoletas.
+
+    Elimina productos sin update en más de 7 días.
+
+    Args:
+        historial (Dict[str, Any]): Diccionario a persistir.
+
+    """
     os.makedirs(os.path.dirname(HISTORICO_PATH), exist_ok=True)
     # Limpiar stats vacíos o muy antiguos (>7 días sin update)
     ahora = time.time()
@@ -100,17 +163,37 @@ def guardar_historial(historial: Dict[str, Any]):
 
 
 def limpiar_precio(texto: str) -> Optional[float]:
+    """Extrae valor numérico de string de precio.
+
+    Args:
+        texto (str): String con formato de precio (ej. \"$2,549.00\").
+
+    Returns:
+        Optional[float]: Precio como float, o None si no se puede parsear.
+
+    """
     if not texto:
         return None
     nums = re.findall(r"[\d,]+\.?\d*", texto.replace(",", ""))
     try:
         return float(nums[0]) if nums else None
-    except:
+    except Exception:
         return None
 
 
 def extraer_precio_amazon(html: str) -> Optional[float]:
-    # Estrategia 1: precio principal (a-offscreen dentro de a-price)
+    """Extrae precio de HTML de página de producto Amazon.
+
+    Prueba 3 estrategias en orden: a-price > displayPrice JSON > cualquier a-offscreen.
+    Descarta precios <= 1000 (falsos positivos).
+
+    Args:
+        html (str): HTML completo de la página de producto.
+
+    Returns:
+        Optional[float]: Precio detectado, o None.
+
+    """
     m = re.search(
         r'<span class="a-price[^"]*"[^>]*>\s*<span class="a-offscreen">\$([\\d,]+\.\d{2})</span>',
         html,
@@ -138,34 +221,59 @@ def extraer_precio_amazon(html: str) -> Optional[float]:
 
 
 def precio_cyberpuerta(url: str) -> Optional[float]:
+    """Obtiene precio de producto en Cyberpuerta vía scraping HTML.
+
+    Args:
+        url (str): URL del producto en Cyberpuerta.
+
+    Returns:
+        Optional[float]: Precio detectado, o None si falla.
+
+    """
     try:
-        r = requests.get(url, headers=CYBER_HEADERS, timeout=15)
-        m = re.search(r"<h2[^>]*>.*?\$([\d,]+\.\d{2}).*?</h2>", r.text, re.S)
+        r = retry_request(url, timeout=15)
+        m = re.search(r"<h2[^>]*>.*?\$([\d,]+\\.\d{2}).*?</h2>", r.text, re.S)
         if m:
             return limpiar_precio(m.group(1))
         return None
-    except:
+    except Exception:
         return None
 
 
 def precio_amazon(producto: Dict[str, Any]) -> Optional[float]:
+    """Obtiene precio de producto en Amazon México vía scraping HTML.
+
+    Args:
+        producto (Dict[str, Any]): Diccionario con clave 'url'.
+
+    Returns:
+        Optional[float]: Precio detectado, o None si falla/timeout.
+
+    """
     try:
-        r = requests.get(
+        r = retry_request(
             producto["url"],
-            headers=get_headers("amazon"),
-            timeout=5,  # Timeout más corto
+            timeout=5,
         )
         if r.status_code == 200:
             return extraer_precio_amazon(r.text)
         return None
-    except requests.Timeout:
-        # Si timeout, usar precio del historial
+    except (requests.Timeout, requests.ConnectionError):
         return None
     except Exception:
         return None
 
 
 def obtener_precio(producto: Dict[str, Any]) -> Optional[float]:
+    """Despacha a scraper correcto según tienda del producto.
+
+    Args:
+        producto (Dict[str, Any]): Diccionario con claves 'tienda' y 'url'.
+
+    Returns:
+        Optional[float]: Precio detectado, o None.
+
+    """
     if producto["tienda"] == "Amazon México":
         return precio_amazon(producto)
     if producto["tienda"] == "Cyberpuerta":
@@ -174,6 +282,16 @@ def obtener_precio(producto: Dict[str, Any]) -> Optional[float]:
 
 
 def calcular_comparativa(resultados: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Calcula mejor opción para 32 GB comparando combos vs 2 individuales.
+
+    Args:
+        resultados (List[Dict[str, Any]]): Lista de productos con precios.
+
+    Returns:
+        Dict con claves: recomendado, precio_final_recomendacion,
+        recomendacion_texto, mejor_combo, costo_dos_individuales, ahorro.
+
+    """
     for r in resultados:
         if r["precio"] is not None:
             if r["type"] == "individual":
@@ -224,6 +342,11 @@ def calcular_comparativa(resultados: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def main():
+    """Punto de entrada: monitorea precios RAM, detecta ofertas y genera reporte.
+
+    Solo imprime salida si: hay alerta de oferta, hora de resumen (9 AM), o --force.
+
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="Forzar salida del reporte")
     args = parser.parse_args()
@@ -263,9 +386,11 @@ def main():
                     hay_oferta_nueva = True
                     ahorro_vs_hist = precio_min_previo - precio_actual
                     detalles_alerta.append(
-                        f"🔥 **NUEVO MÍNIMO HISTÓRICO** en {prod['tienda']}\n"
-                        f"📦 {prod['name']}\n"
-                        f"💰 Precio: **${precio_actual:,.2f}** (Bajó ${ahorro_vs_hist:,.2f} del mínimo anterior)"
+                        f"🔥 **NUEVO MÍNIMO HISTÓRICO** en {prod['tienda']}\\n"
+                        f"📦 {prod['name']}\\n"
+                        "💰 Precio: **${:,.2f}** (Bajó ${:,.2f} del mínimo)".format(
+                            precio_actual, ahorro_vs_hist
+                        )
                     )
                     stats["ultimo_alerta"] = ahora
 
@@ -316,7 +441,9 @@ def main():
     # Output report
     print(f"🛒 RAM Monitor - {ahora_str}")
     print(
-        f"💰 Mejor: **{comp['recomendacion_texto']}** - **${comp['precio_final_recomendacion']:,.2f}**"
+        "💰 Mejor: **{}** - **${:,.2f}**".format(
+            comp["recomendacion_texto"], comp["precio_final_recomendacion"]
+        )
     )
 
     print("\n| Tienda | Producto | Unit | Total |")

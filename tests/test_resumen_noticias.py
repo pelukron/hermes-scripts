@@ -1,4 +1,5 @@
 """Tests para funciones clave de resumen-noticias-diario.py"""
+
 import importlib.util  # noqa: E402
 import os
 import sys
@@ -144,6 +145,7 @@ class TestRetryRequest:
     def test_max_retries_agotados_503(self):
         """3 intentos, todos 503 → lanza HTTPError en el último"""
         import requests as req_mod
+
         mock_503 = Mock(status_code=503)
         mock_503.raise_for_status.side_effect = req_mod.HTTPError("503 Server Error")
         with patch("requests.get", return_value=mock_503) as mock_get:
