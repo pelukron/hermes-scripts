@@ -1,0 +1,295 @@
+{
+  "sections": [
+    {
+      "name": "🌍 GEOPOLÍTICA & GLOBAL",
+      "subsections": [
+        {
+          "name": "Mainstream / Wires",
+          "sources": [
+            {
+              "name": "Reuters",
+              "url": "https://news.google.com/rss/search?q=site:reuters.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            },
+            {
+              "name": "AP",
+              "url": "https://news.google.com/rss/search?q=site:apnews.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            },
+            {
+              "name": "Financial Times",
+              "url": "https://news.google.com/rss/search?q=site:ft.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            }
+          ]
+        },
+        {
+          "name": "Multipolar / Contrarian",
+          "sources": [
+            {
+              "name": "Al Jazeera",
+              "url": "https://www.aljazeera.com/xml/rss/all.xml"
+            },
+            {
+              "name": "SCMP (HK/CN)",
+              "url": "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            },
+            {
+              "name": "ZeroHedge",
+              "url": "https://news.google.com/rss/search?q=site:zerohedge.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🇪🇺 EUROPA",
+      "subsections": [
+        {
+          "name": "Pro-UE / Centrista",
+          "sources": [
+            {
+              "name": "France 24 (🇫🇷)",
+              "url": "https://www.france24.com/en/rss"
+            },
+            {
+              "name": "Le Monde EN (🇫🇷)",
+              "url": "https://www.lemonde.fr/en/rss/une.xml"
+            },
+            {
+              "name": "DW (🇩🇪)",
+              "url": "https://rss.dw.com/rdf/rss-en-all"
+            },
+            {
+              "name": "The Guardian (🇬🇧)",
+              "url": "https://www.theguardian.com/world/rss"
+            },
+            {
+              "name": "BBC Mundo",
+              "url": "http://feeds.bbci.co.uk/mundo/rss.xml"
+            },
+            {
+              "name": "Euronews",
+              "url": "https://www.euronews.com/rss"
+            }
+          ]
+        },
+        {
+          "name": "Euroescéptica / Alt",
+          "sources": [
+            {
+              "name": "RT",
+              "url": "https://actualidad.rt.com/rss"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🇺🇸 AMÉRICAS",
+      "subsections": [
+        {
+          "name": "Mainstream US",
+          "sources": [
+            {
+              "name": "NYT",
+              "url": "https://news.google.com/rss/search?q=site:nytimes.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            },
+            {
+              "name": "WaPo",
+              "url": "https://news.google.com/rss/search?q=site:washingtonpost.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            }
+          ]
+        },
+        {
+          "name": "Derecha / Conservador",
+          "sources": [
+            {
+              "name": "Breitbart",
+              "url": "https://www.breitbart.com/feed/"
+            },
+            {
+              "name": "Fox News",
+              "url": "https://news.google.com/rss/search?q=site:foxnews.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            }
+          ]
+        },
+        {
+          "name": "Izquierda Radical",
+          "sources": [
+            {
+              "name": "WSWS",
+              "url": "https://www.wsws.org/en/rss.xml"
+            }
+          ]
+        },
+        {
+          "name": "Latinoamérica",
+          "sources": [
+            {
+              "name": "El País (🇪🇸)",
+              "url": "https://news.google.com/rss/search?q=site:english.elpais.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🇷🇺 RUSIA",
+      "subsections": [
+        {
+          "name": "Estatal / Pro-Kremlin",
+          "sources": [
+            {
+              "name": "RT EN",
+              "url": "https://www.rt.com/rss/"
+            },
+            {
+              "name": "Sputnik",
+              "url": "https://news.google.com/rss/search?q=site:sputnikglobe.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🌏 ASIA-PACÍFICO",
+      "subsections": [
+        {
+          "name": "Asia-Pacífico",
+          "sources": [
+            {
+              "name": "SCMP (🇭🇰)",
+              "url": "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            },
+            {
+              "name": "Nikkei Asia (🇯🇵)",
+              "url": "https://news.google.com/rss/search?q=site:nikkei.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            },
+            {
+              "name": "NHK World (🇯🇵)",
+              "url": "https://news.google.com/rss/search?q=site:nhk.or.jp+when:24h&hl=en-US&gl=US&ceid=US:en"
+            },
+            {
+              "name": "Times of India (🇮🇳)",
+              "url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"
+            },
+            {
+              "name": "Xinhua (🇨🇳)",
+              "url": "https://news.google.com/rss/search?q=site:xinhuanet.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💻 TECNOLOGÍA",
+      "subsections": [
+        {
+          "name": "Vanguardia",
+          "sources": [
+            {
+              "name": "Hacker News",
+              "url": "https://hnrss.org/frontpage"
+            },
+            {
+              "name": "Ars Technica",
+              "url": "http://feeds.arstechnica.com/arstechnica/index"
+            },
+            {
+              "name": "Xataka",
+              "url": "https://www.xataka.com/feed.xml"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🤖 IA & TECH",
+      "subsections": [
+        {
+          "name": "Startups / Valley",
+          "sources": [
+            {
+              "name": "TechCrunch",
+              "url": "https://techcrunch.com/feed/"
+            }
+          ]
+        },
+        {
+          "name": "Research / Academia",
+          "sources": [
+            {
+              "name": "MIT AI",
+              "url": "https://news.mit.edu/rss/topic/artificial-intelligence2"
+            }
+          ]
+        },
+        {
+          "name": "Tech Culture",
+          "sources": [
+            {
+              "name": "Wired",
+              "url": "https://www.wired.com/feed/rss"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🇲🇽 MÉXICO",
+      "subsections": [
+        {
+          "name": "Crítica / Mercados",
+          "sources": [
+            {
+              "name": "Reforma",
+              "url": "https://news.google.com/rss/search?q=site:reforma.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+            },
+            {
+              "name": "El Financiero",
+              "url": "https://www.elfinanciero.com.mx/arc/outboundfeeds/rss/"
+            }
+          ]
+        },
+        {
+          "name": "Oficialista",
+          "sources": [
+            {
+              "name": "La Jornada",
+              "url": "https://news.google.com/rss/search?q=site:jornada.com.mx+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+            },
+            {
+              "name": "SinEmbargo",
+              "url": "https://www.sinembargo.mx/feed"
+            }
+          ]
+        },
+        {
+          "name": "Local MTY",
+          "sources": [
+            {
+              "name": "El Norte",
+              "url": "https://news.google.com/rss/search?q=site:elnorte.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "⚽ DEPORTES",
+      "subsections": [
+        {
+          "name": "Liga MX / Rayados",
+          "sources": [
+            {
+              "name": "MedioTiempo",
+              "url": "https://news.google.com/rss/search?q=site:mediotiempo.com+Rayados+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+            },
+            {
+              "name": "ESPN",
+              "url": "https://news.google.com/rss/search?q=site:espn.com.mx+Rayados+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

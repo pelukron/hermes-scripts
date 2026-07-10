@@ -1,0 +1,28 @@
+[project]
+name = "resumen-noticias-diario"
+version = "0.1.0"
+description = "Script de resumen diario de noticias multi-región"
+requires-python = ">=3.11"
+dependencies = [
+    "requests",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_files = ["pyproject.toml:version"]
+changelog_file = "CHANGELOG.md"
+update_changelog_on_bump = true
