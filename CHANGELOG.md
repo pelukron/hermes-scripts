@@ -2,6 +2,20 @@
 
 Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-07-10
+
+### Added
+- `retry_request()` en `polymarket-diario.py` y `monitor-ram-mexico.py` para llamadas HTTP
+- Docstrings Google-style en todos los scripts
+- Tests pytest: 128 tests (resumen-noticias, rayados, reporte-uso, backup, polymarket, monitor-ram)
+- Skills importadas de awesome-copilot: `conventional-commit`, `git-commit`, `github-release`
+- CHANGELOG.md en formato Keep a Changelog
+
+### Changed
+- ruff format + ruff check en 5 scripts (0 warnings)
+- `resumen-rayados-diario.py` reformateado (556→560 líneas)
+- `polymarket-diario.py` migrado de `urllib` a `requests` con `retry_request()`
+
 ## [0.1.0] - 2026-07-10
 
 ### Added
