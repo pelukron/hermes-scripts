@@ -43,15 +43,13 @@ jobs:
           STATUS="${{ needs.test.result }}"
           if [ "$STATUS" = "success" ]; then
             EMOJI="✅"
-            MSG="CI pasó: ${{ github.repository }}"
-            DETAIL="Branch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}"
+            TEXT="CI pasó: ${{ github.repository }}%0A%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}"
           else
             EMOJI="❌"
-            MSG="CI falló: ${{ github.repository }}"
-            DETAIL="Branch: ${{ github.ref_name }}\nCommit: ${{ github.sha }}\nURL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            TEXT="CI falló: ${{ github.repository }}%0A%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}%0AURL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
           curl -s -X POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TELEGRAM_CHAT_ID}" \
-            -d "text=${EMOJI} ${MSG}%0A%0A${DETAIL}" \
+            -d "text=${EMOJI} ${TEXT}" \
             -d "parse_mode=HTML"
