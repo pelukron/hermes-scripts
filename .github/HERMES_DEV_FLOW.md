@@ -1,82 +1,79 @@
 ---
 name: hermes-dev-flow
-description: "Flujo completo de desarrollo para repos Hermes: grill, plan, bump-and-pr, code-review, merge. Usar antes de cualquier cambio en scripts, skills o configuracion."
+description: "Pipeline de desarrollo para repos Hermes: grill, plan, bump-and-pr, code-review, merge."
 disable-model-invocation: true
 related_skills: [mattpocock-grill, plan, mattpocock-code-review]
 ---
 
-# Flujo de Desarrollo Hermes
+# Pipeline de Desarrollo
 
-Workflow completo para cambios en repos Hermes. Una skill que orquesta todo el ciclo.
+Un pipeline deterministico para cambios en repos Hermes. Cinco puertas. Cada puerta tiene un completion criterion verificable.
 
-## Skills requeridas
+## Puertas del pipeline
 
-| Paso | Skill | Cuando |
-|---|---|---|
-| 1. Alinear | `/mattpocock-grill` | Antes de empezar cualquier feature |
-| 2. Planear | `plan` skill | Despues del grill, antes de tocar codigo |
-| 3. Ejecutar | `bump-and-pr.sh` | Para crear rama + bump + changelog + PR |
-| 4. Revisar | `/mattpocock-code-review` | Antes de mergear, con sub-agentes |
-| 5. Merge | Manual en GitHub | Solo si CI pasa y review OK |
+### Puerta 1: Alinear
+**Skill:** `/mattpocock-grill`
+**Criterion:** Diego confirma "entendimiento compartido".
 
-## Flujo paso a paso
+- Entrevista una pregunta a la vez.
+- Decisiones son del usuario, hechos del codebase.
+- No continuar sin confirmacion explicita.
 
-### 1. Alinear (`/mattpocock-grill`)
-```
-/mattpocock-grill
-```
-- Entrevista una pregunta a la vez
-- Define alcance, enfoque, riesgos
-- NO ejecutar sin confirmacion
+### Puerta 2: Planear
+**Skill:** `plan`
+**Criterion:** Plan escrito en `.hermes/plans/` con tasks bite-sized. Diego aprueba.
 
-### 2. Planear
-```
-Escribe plan a .hermes/plans/YYYY-MM-DD_HHMMSS-descripcion.md
-```
-- Tasks bite-sized (2-5 min)
-- Paths exactos, codigo completo
-- Esperar aprobacion antes de ejecutar
+- Tasks de 2-5 minutos.
+- Paths exactos, codigo completo, verificacion por paso.
+- No tocar codigo hasta aprobacion.
 
-### 3. Ejecutar (`bump-and-pr.sh`)
+### Puerta 3: Ejecutar
+**Script:** `bump-and-pr.sh`
+**Criterion:** PR creado en GitHub con CI en verde.
+
 ```bash
 cd ~/.hermes/scripts
-./bump-and-pr.sh <patch|minor|major> "tipo: descripcion" "- cambio 1" "- cambio 2"
+./bump-and-pr.sh <patch|minor|major> "tipo: descripcion" "- cambio"
 ```
-Que hace:
-- Crea Issue en GitHub (con label automatico)
-- Crea rama `tipo/descripcion`
-- Bump version en pyproject.toml
-- Actualiza CHANGELOG.md (formato Keep a Changelog)
-- Commit con `Closes #N`
-- Push + crea PR vinculado al Issue
 
-### 4. Revisar (`/mattpocock-code-review`)
-```
-/mattpocock-code-review
-```
-- Fixed point: tag anterior a HEAD
-- 2 sub-agentes en paralelo: Standards + Spec
-- Reporte con hallazgos
-- Corregir issues antes de mergear
+El script crea: Issue, rama semantica, bump version, CHANGELOG, commit con Closes #N, push, PR.
+Commit message usa conventional commits.
 
-### 5. Merge
-- Revisar PR en GitHub
-- CI debe pasar (ruff + pytest + notify)
-- Merge manual: Issue se cierra solo
-- Crear tag: `git tag -a vX.Y.Z -m "vX.Y.Z: descripcion" && git push --tags`
+### Puerta 4: Revisar
+**Skill:** `/mattpocock-code-review`
+**Criterion:** 0 hallazgos hard de Standards. Spec conforme al commit message.
+
+- Fixed point: tag anterior a HEAD.
+- Dos sub-agentes en paralelo: Standards + Spec.
+- Corregir issues encontrados antes de mergear.
+
+### Puerta 5: Merge
+**Accion:** Manual en GitHub.
+**Criterion:** CI verde + review OK + Diego aprueba.
+
+- Merge via GitHub UI.
+- Issue se cierra automaticamente (Closes #N).
+- Tag manual: `git tag -a vX.Y.Z && git push --tags`.
 
 ## Reglas
 
-- No push directo a main
-- PR obligatorio
-- CHANGELOG actualizado en cada cambio
-- Conventional commits (`feat:`, `fix:`, `docs:`, etc.)
-- Tests pasan antes de merge
-- Grill antes de empezar
+- No push directo a main.
+- CHANGELOG actualizado en cada cambio.
+- Conventional commits.
+- Tests pasan antes de merge.
+
+## Pitfalls
+
+| Problema | Causa | Solucion |
+|---|---|---|
+| Saltar grill | Creer que el cambio es obvio | Grill SIEMPRE, incluso cambios pequenos |
+| Premature completion | Paso parece hecho pero no | Verificar criterion antes de avanzar |
+| CI rojo en PR | No correr tests local | `uv run pytest` antes de pushear |
+| sed falla en changelog | Guiones en entrada | Usar python3 (ya corregido en bump-and-pr) |
 
 ## Referencias
 
-- Repo: `~/.hermes/scripts/` - [pelukron/hermes-scripts](https://github.com/pelukron/hermes-scripts)
-- Scripts externos: `~/.hermes/skills/external/`
-- Update externals: `~/.hermes/scripts/update-external-skills.sh`
-- Planes: `.hermes/plans/`
+- [pelukron/hermes-scripts](https://github.com/pelukron/hermes-scripts)
+- `~/.hermes/scripts/bump-and-pr.sh`
+- `~/.hermes/skills/external/` (mattpocock skills)
+- `.hermes/plans/`
