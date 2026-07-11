@@ -1,6 +1,11 @@
 # Changelog
 
 Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+## [0.3.3] - 2026-07-11
+
+### Added
+- CI: changelog check bloquea PRs sin actualizar CHANGELOG.md
+
 
 ## [0.3.2] - 2026-07-11
 
