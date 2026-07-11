@@ -72,4 +72,4 @@ Todos los cambios notables documentados aquí. Formato basado en [Keep a Changel
 ### Fixed
 - Tracking de fuentes fallidas ahora reporta nombres reales en footer
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
-- Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
+- Títulos con `[]` limpiados para evitar conflicto con sintaxis de links# test
