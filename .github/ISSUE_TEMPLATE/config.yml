@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Pregunta o idea
+    url: https://github.com/pelukron/hermes-scripts/discussions/new
+    about: Usa Discussions para ideas, preguntas o feedback
