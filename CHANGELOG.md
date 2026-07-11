@@ -4,6 +4,11 @@ Todos los cambios notables documentados aquí. Formato basado en [Keep a Changel
 
 ## [0.3.2] - 2026-07-11
 
+### Added
+- Script setup.sh: configura git hooks, uv sync, pre-commit, verifica GITHUB_TOKEN
+
+## [0.3.2] - 2026-07-11
+
 ### Documentation
 - Verificar flujo completo: Issue automático + PR vinculado + Closes #N
 
