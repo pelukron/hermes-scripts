@@ -1,0 +1,39 @@
+name: 🐛 Bug Report
+description: Reportar un bug o error
+title: "fix: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "## Describe el bug"
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: ¿Qué está pasando?
+      placeholder: "Ej: El script bump-and-pr.sh falla al crear el issue..."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. Ejecutar `./bump-and-pr.sh patch "fix: algo" "- cambio"`
+        2. Ver error...
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento esperado
+      placeholder: "Ej: Debería crear el issue y el PR correctamente"
+  - type: input
+    id: version
+    attributes:
+      label: Versión
+      placeholder: "0.3.1"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs o screenshots
+      description: Pega el output relevante aquí
+      render: shell
