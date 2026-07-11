@@ -2,7 +2,7 @@ import json
 import os
 import random
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import requests
 
@@ -37,13 +37,12 @@ def retry_request(url, timeout=15, max_attempts=3, headers=None):
                 continue
             r.raise_for_status()
             return r
-        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
+        except (requests.ConnectionError, requests.Timeout):
             if attempt < max_attempts - 1:
                 wait = (2**attempt) + random.uniform(0, 0.5)
                 time.sleep(wait)
             else:
                 raise
-    return None
 
 
 def premium_link(text: str, url: str) -> str:

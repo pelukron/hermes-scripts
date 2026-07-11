@@ -2,7 +2,6 @@
 """Diario Global Hermes — fuentes multiregión, multi-ideología."""
 import json
 import os
-import random
 import re
 import subprocess
 import sys

@@ -91,8 +91,8 @@ class TestRetryRequest:
             call_kwargs = mock_get.call_args[1]
             assert "User-Agent" in call_kwargs["headers"]
 
-    def test_return_none_cuando_falla_silencioso(self):
-        """Excepciones que no sean Connection/Timeout/HTTP → None."""
+    def test_propaga_excepcion_no_retryable(self):
+        """ValueError no está en la lista de reintentos → se propaga."""
         with patch("hermes_common.requests.get", side_effect=ValueError("boom")):
             with pytest.raises(ValueError):  # No capturamos ValueError
                 retry_request(URL)
