@@ -119,7 +119,16 @@ CHANGELOG_BLOCK="## [$NEW_VERSION] - $TODAY
 $CHANGELOG_ENTRY
 
 "
-    sed -i "4i$CHANGELOG_BLOCK" CHANGELOG.md
+    python3 -c "
+import sys
+block = '''$CHANGELOG_BLOCK'''
+with open('CHANGELOG.md', 'r') as f:
+    lines = f.readlines()
+# Insert after header line (line 4 = after '# Changelog\n\nTodos...')
+lines.insert(4, block)
+with open('CHANGELOG.md', 'w') as f:
+    f.writelines(lines)
+"
 
 # ── Commit ──
 # Run pre-commit hooks if installed
