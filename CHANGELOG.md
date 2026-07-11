@@ -1,6 +1,11 @@
 # Changelog
 
 Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+## [0.3.3] - 2026-07-11
+
+### Fixed
+- pre-push hook: permite tags, solo bloquea refs/heads/main
+
 
 ## [0.3.2] - 2026-07-11
 
