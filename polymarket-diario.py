@@ -5,56 +5,16 @@ Output: Markdown. $0 tokens. API pública sin auth.
 """
 
 import json
-import random
+import sys
 import time
+from pathlib import Path
 
 import requests
 
+sys.path.insert(0, str(Path(__file__).parent))
+from hermes_common import retry_request
+
 API = "https://gamma-api.polymarket.com"
-UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
-
-
-def retry_request(url, timeout=15, max_attempts=3):
-    """Fetch URL with exponential backoff + jitter. Retries on transient failures only.
-
-    Args:
-        url (str): URL a consultar.
-        timeout (int): Timeout en segundos por intento.
-        max_attempts (int): Número máximo de intentos.
-
-    Returns:
-        requests.Response: Respuesta HTTP exitosa.
-
-    Raises:
-        requests.ConnectionError: Si se agotan reintentos por error de conexión.
-        requests.Timeout: Si se agotan reintentos por timeout.
-        requests.HTTPError: Si el status code no es 2xx y no es reintentable.
-
-    """
-    retry_status = {429, 500, 502, 503, 504}
-    for attempt in range(max_attempts):
-        try:
-            r = requests.get(
-                url,
-                timeout=timeout,
-                headers={"User-Agent": UA, "Accept": "application/json"},
-            )
-            if r.status_code in retry_status and attempt < max_attempts - 1:
-                wait = (2**attempt) + random.uniform(0, 0.5)
-                time.sleep(wait)
-                continue
-            r.raise_for_status()
-            return r
-        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
-            if attempt < max_attempts - 1:
-                wait = (2**attempt) + random.uniform(0, 0.5)
-                time.sleep(wait)
-            else:
-                raise
-        except requests.HTTPError:
-            raise
-    return None
-
 
 TAGS_GEO = [
     "politics",
@@ -101,7 +61,6 @@ TAGS_ELE = [
     "presidential nominee",
 ]
 
-
 def fetch(url):
     """Obtiene JSON desde API Polymarket con reintentos ante fallos transitorios.
 
@@ -118,7 +77,6 @@ def fetch(url):
     """
     r = retry_request(url, timeout=15)
     return r.json()
-
 
 def pct(prices_json):
     """Convierte outcomePrices de Polymarket a porcentaje.
@@ -137,7 +95,6 @@ def pct(prices_json):
         return round(float(p[0]) * 100, 1) if p else None
     except Exception:
         return None
-
 
 def fmt_vol(v):
     """Formatea volumen a formato legible (B/M/K).
@@ -160,7 +117,6 @@ def fmt_vol(v):
         return f"${v:.0f}"
     except Exception:
         return "—"
-
 
 def classify(title, tags_raw):
     """Clasifica mercado en categoría: geopolitica, elecciones, deportes.
@@ -191,7 +147,6 @@ def classify(title, tags_raw):
             return "geopolitica"
     return None
 
-
 def best_market(markets):
     """Find market with highest probability from active markets."""
     best, best_p = None, -1
@@ -202,7 +157,6 @@ def best_market(markets):
         if prob is not None and prob > best_p:
             best_p, best = prob, m
     return best, best_p
-
 
 def main():
     """Punto de entrada: consulta Polymarket, clasifica mercados, imprime reporte Markdown.
@@ -268,7 +222,6 @@ def main():
 
     total = sum(float(ev.get("volume", 0) or 0) for ev in events[:10])
     print(f"_Volumen top 10: {fmt_vol(total)} • Fuente: Polymarket_")
-
 
 if __name__ == "__main__":
     main()

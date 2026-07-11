@@ -1,7 +1,49 @@
 import json
 import os
+import random
 import time
 from typing import Dict, List, Optional
+
+import requests
+
+
+def retry_request(url, timeout=15, max_attempts=3, headers=None):
+    """Fetch URL with exponential backoff + jitter. Retries on transient failures only.
+
+    Args:
+        url: URL a solicitar.
+        timeout: Timeout en segundos por intento.
+        max_attempts: Número máximo de intentos.
+        headers: Dict de headers HTTP opcionales. Default: User-Agent estándar.
+
+    Returns:
+        requests.Response: Respuesta HTTP exitosa, o None si falla silenciosamente.
+
+    Raises:
+        requests.ConnectionError: Si se agotan reintentos por error de conexión.
+        requests.Timeout: Si se agotan reintentos por timeout.
+        requests.HTTPError: Si el status code no es 2xx y no es reintentable.
+    """
+    if headers is None:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+
+    retry_status = {429, 500, 502, 503, 504}
+    for attempt in range(max_attempts):
+        try:
+            r = requests.get(url, timeout=timeout, headers=headers)
+            if r.status_code in retry_status and attempt < max_attempts - 1:
+                wait = (2**attempt) + random.uniform(0, 0.5)
+                time.sleep(wait)
+                continue
+            r.raise_for_status()
+            return r
+        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
+            if attempt < max_attempts - 1:
+                wait = (2**attempt) + random.uniform(0, 0.5)
+                time.sleep(wait)
+            else:
+                raise
+    return None
 
 
 def premium_link(text: str, url: str) -> str:

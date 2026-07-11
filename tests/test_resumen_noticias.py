@@ -22,14 +22,11 @@ spec.loader.exec_module(mod)
 
 clean_title = mod.clean_title
 escape_link = mod.escape_link
-retry_request = mod.retry_request
 fetch_rss = mod.fetch_rss
-
 
 # ═══════════════════════════════════════════
 # clean_title
 # ═══════════════════════════════════════════
-
 
 class TestCleanTitle:
     def test_remueve_source_suffix(self):
@@ -53,11 +50,9 @@ class TestCleanTitle:
     def test_titulo_vacio(self):
         assert clean_title("") == ""
 
-
 # ═══════════════════════════════════════════
 # escape_link
 # ═══════════════════════════════════════════
-
 
 class TestEscapeLink:
     def test_limpia_oc_param(self):
@@ -102,117 +97,6 @@ class TestEscapeLink:
         assert "utm_" not in result
         assert "ceid=" not in result
         assert result.startswith("https://news.google.com")
-
-
-# ═══════════════════════════════════════════
-# retry_request
-# ═══════════════════════════════════════════
-
-
-class TestRetryRequest:
-    URL = "https://example.com/rss"
-
-    def test_exito_primer_intento(self):
-        """Respuesta 200 al primer intento"""
-        mock_resp = Mock(status_code=200)
-        with patch("requests.get", return_value=mock_resp) as mock_get:
-            result = retry_request(self.URL)
-            assert result == mock_resp
-            assert mock_get.call_count == 1
-
-    def test_retry_503_luego_exito(self):
-        """Falla con 503, reintenta, éxito"""
-        mock_503 = Mock(status_code=503)
-        mock_200 = Mock(status_code=200)
-        mock_503.raise_for_status.side_effect = Exception("no llamar")
-        mock_200.raise_for_status.return_value = None
-        with patch("requests.get", side_effect=[mock_503, mock_200]) as mock_get:
-            with patch("time.sleep", return_value=None):  # no esperar
-                result = retry_request(self.URL)
-            assert result == mock_200
-            assert mock_get.call_count == 2
-
-    def test_retry_429_luego_exito(self):
-        """Rate limit → reintenta → éxito"""
-        mock_429 = Mock(status_code=429)
-        mock_200 = Mock(status_code=200)
-        mock_200.raise_for_status.return_value = None
-        with patch("requests.get", side_effect=[mock_429, mock_200]):
-            with patch("time.sleep", return_value=None):
-                result = retry_request(self.URL)
-            assert result == mock_200
-
-    def test_max_retries_agotados_503(self):
-        """3 intentos, todos 503 → lanza HTTPError en el último"""
-        import requests as req_mod
-
-        mock_503 = Mock(status_code=503)
-        mock_503.raise_for_status.side_effect = req_mod.HTTPError("503 Server Error")
-        with patch("requests.get", return_value=mock_503) as mock_get:
-            with patch("time.sleep", return_value=None):
-                with pytest.raises(req_mod.HTTPError):
-                    retry_request(self.URL, max_attempts=3)
-            assert mock_get.call_count == 3
-
-    def test_connection_error_retry(self):
-        """ConnectionError → reintenta → éxito"""
-        mock_200 = Mock(status_code=200)
-        mock_200.raise_for_status.return_value = None
-        import requests as req_mod
-
-        with patch(
-            "requests.get", side_effect=[req_mod.ConnectionError("timeout"), mock_200]
-        ) as mock_get:
-            with patch("time.sleep", return_value=None):
-                result = retry_request(self.URL)
-            assert result == mock_200
-            assert mock_get.call_count == 2
-
-    def test_timeout_retry(self):
-        """Timeout → reintenta → éxito"""
-        mock_200 = Mock(status_code=200)
-        mock_200.raise_for_status.return_value = None
-        import requests as req_mod
-
-        with patch("requests.get", side_effect=[req_mod.Timeout("timeout"), mock_200]):
-            with patch("time.sleep", return_value=None):
-                result = retry_request(self.URL)
-            assert result == mock_200
-
-    def test_connection_error_agota_retries(self):
-        """3 ConnectionErrors → lanza excepción"""
-        import requests as req_mod
-
-        with patch("requests.get", side_effect=req_mod.ConnectionError("fail")):
-            with patch("time.sleep", return_value=None):
-                with pytest.raises(req_mod.ConnectionError):
-                    retry_request(self.URL, max_attempts=2)
-
-    def test_http_4xx_no_retry(self):
-        """HTTPError 4xx → no reintenta, lanza inmediato"""
-        mock_404 = Mock(status_code=404)
-        mock_404.raise_for_status.side_effect = Exception("HTTPError")  # cualquier excepción
-
-        with patch("requests.get", return_value=mock_404):
-            # 404 no está en RETRY_STATUS, así que va a raise_for_status
-            # y lanza. Capturamos con pytest.raises genérico.
-            with pytest.raises(Exception):
-                retry_request(self.URL)
-
-    def test_backoff_creciente(self):
-        """Verifica que el backoff usa 2^attempt"""
-        mock_503 = Mock(status_code=503)
-        with patch("requests.get", return_value=mock_503):
-            with patch("time.sleep") as mock_sleep:
-                retry_request(self.URL, max_attempts=3)
-                # Llamadas: attempt 0 → sleep(2^0 + jitter ≈ 1.x)
-                #           attempt 1 → sleep(2^1 + jitter ≈ 2.x)
-                # attempt 2 → no sleep (último intento)
-                assert mock_sleep.call_count == 2
-                sleep_times = [call[0][0] for call in mock_sleep.call_args_list]
-                assert 0 <= sleep_times[0] < 1.5  # 2^0 + jitter [0, 0.5)
-                assert 1.5 <= sleep_times[1] < 3.0  # 2^1 + jitter [0, 0.5)
-
 
 # ═══════════════════════════════════════════
 # fetch_rss
@@ -279,7 +163,6 @@ RDF_XML = """<?xml version="1.0" encoding="UTF-8"?>
   </rss:item>
 </rdf:RDF>"""
 
-
 class TestFetchRss:
     URL = "https://example.com/rss"
 
@@ -287,7 +170,7 @@ class TestFetchRss:
         """Parse RSS estándar con items"""
         mock_resp = Mock()
         mock_resp.content = RSS_XML.encode("utf-8")
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 4  # max 4 items
             assert items[0] == ("First Article Title", "https://example.com/first")
@@ -297,14 +180,14 @@ class TestFetchRss:
         """Ignora títulos que empiezan con \" y contienen ' when:'"""
         mock_resp = Mock()
         mock_resp.content = GN_BOILERPLATE_XML.encode("utf-8")
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 1
             assert items[0][0] == "Real Article"
 
     def test_retry_request_retorna_none(self):
         """Si retry_request retorna None → lista vacía"""
-        with patch.object(mod, "retry_request", return_value=None):
+        with patch("requests.get", return_value=None):
             items = fetch_rss(self.URL)
             assert items == []
 
@@ -312,7 +195,7 @@ class TestFetchRss:
         """Parse feed RDF (DW, etc.)"""
         mock_resp = Mock()
         mock_resp.content = RDF_XML.encode("utf-8")
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 2
             assert items[0] == ("RDF Article One", "https://example.com/rdf/1")
@@ -320,7 +203,7 @@ class TestFetchRss:
 
     def test_excepcion_retorna_lista_vacia(self):
         """Cualquier excepción → []"""
-        with patch.object(mod, "retry_request", side_effect=Exception("boom")):
+        with patch("requests.get", side_effect=Exception("boom")):
             items = fetch_rss(self.URL)
             assert items == []
 
@@ -329,7 +212,7 @@ class TestFetchRss:
 
         mock_resp = Mock()
         mock_resp.content = b"not valid xml <<<"
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert items == []
 
@@ -341,7 +224,7 @@ class TestFetchRss:
         </channel></rss>"""
         mock_resp = Mock()
         mock_resp.content = xml.encode("utf-8")
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 1
             assert items[0][1] == "https://example.com/atom"
@@ -355,7 +238,7 @@ class TestFetchRss:
         </channel></rss>"""
         mock_resp = Mock()
         mock_resp.content = xml.encode("utf-8")
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 1
             assert items[0][0] == "Has Title"

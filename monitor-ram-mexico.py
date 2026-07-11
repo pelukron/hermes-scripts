@@ -13,55 +13,12 @@ import requests
 
 # Import hermes_common
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from hermes_common import get_headers, smart_truncate
+from hermes_common import get_headers, retry_request, smart_truncate
 
 # ------------------------------- CONFIGURACIÓN -------------------------------
 UMBRAL_ALERTA_PORCENTAJE = 5.0  # Alerta si baja más del 5% del precio mínimo histórico
 UMBRAL_BAJADA_REPENTINA = 15.0  # Alerta si baja más del 15% respecto al último precio visto
 COSTO_ENVIO_CYBERPUERTA = 133.00
-
-
-def retry_request(url, timeout=15, max_attempts=3):
-    """Fetch URL with exponential backoff + jitter. Retries on transient failures only.
-
-    Args:
-        url (str): URL a consultar.
-        timeout (int): Timeout en segundos por intento.
-        max_attempts (int): Número máximo de intentos.
-
-    Returns:
-        requests.Response: Respuesta HTTP exitosa.
-
-    Raises:
-        requests.ConnectionError: Si se agotan reintentos por error de conexión.
-        requests.Timeout: Si se agotan reintentos por timeout.
-        requests.HTTPError: Si el status code no es 2xx y no es reintentable.
-
-    """
-    retry_status = {429, 500, 502, 503, 504}
-    for attempt in range(max_attempts):
-        try:
-            r = requests.get(
-                url,
-                timeout=timeout,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
-            )
-            if r.status_code in retry_status and attempt < max_attempts - 1:
-                wait = (2**attempt) + random.uniform(0, 0.5)
-                time.sleep(wait)
-                continue
-            r.raise_for_status()
-            return r
-        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
-            if attempt < max_attempts - 1:
-                wait = (2**attempt) + random.uniform(0, 0.5)
-                time.sleep(wait)
-            else:
-                raise
-        except requests.HTTPError:
-            raise
-    return None
-
 
 HISTORICO_PATH = os.path.expanduser("~/.hermes/ram-mexico-history.json")
 
@@ -109,7 +66,6 @@ PRODUCTOS = [
 
 # ---------------------------------------------------------------------------
 
-
 def cargar_historial() -> Dict[str, Any]:
     """Carga histórico de precios desde JSON con migración de formato.
 
@@ -140,7 +96,6 @@ def cargar_historial() -> Dict[str, Any]:
             return {}
     return {}
 
-
 def guardar_historial(historial: Dict[str, Any]):
     """Guarda histórico de precios a JSON, limpiando entradas obsoletas.
 
@@ -161,7 +116,6 @@ def guardar_historial(historial: Dict[str, Any]):
     with open(HISTORICO_PATH, "w") as f:
         json.dump(limpio, f, indent=2)
 
-
 def limpiar_precio(texto: str) -> Optional[float]:
     """Extrae valor numérico de string de precio.
 
@@ -179,7 +133,6 @@ def limpiar_precio(texto: str) -> Optional[float]:
         return float(nums[0]) if nums else None
     except Exception:
         return None
-
 
 def extraer_precio_amazon(html: str) -> Optional[float]:
     """Extrae precio de HTML de página de producto Amazon.
@@ -219,7 +172,6 @@ def extraer_precio_amazon(html: str) -> Optional[float]:
 
     return None
 
-
 def precio_cyberpuerta(url: str) -> Optional[float]:
     """Obtiene precio de producto en Cyberpuerta vía scraping HTML.
 
@@ -238,7 +190,6 @@ def precio_cyberpuerta(url: str) -> Optional[float]:
         return None
     except Exception:
         return None
-
 
 def precio_amazon(producto: Dict[str, Any]) -> Optional[float]:
     """Obtiene precio de producto en Amazon México vía scraping HTML.
@@ -263,7 +214,6 @@ def precio_amazon(producto: Dict[str, Any]) -> Optional[float]:
     except Exception:
         return None
 
-
 def obtener_precio(producto: Dict[str, Any]) -> Optional[float]:
     """Despacha a scraper correcto según tienda del producto.
 
@@ -279,7 +229,6 @@ def obtener_precio(producto: Dict[str, Any]) -> Optional[float]:
     if producto["tienda"] == "Cyberpuerta":
         return precio_cyberpuerta(producto["url"])
     return None
-
 
 def calcular_comparativa(resultados: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Calcula mejor opción para 32 GB comparando combos vs 2 individuales.
@@ -339,7 +288,6 @@ def calcular_comparativa(resultados: List[Dict[str, Any]]) -> Dict[str, Any]:
         "costo_dos_individuales": costo_2_indivs,
         "ahorro": ahorro,
     }
-
 
 def main():
     """Punto de entrada: monitorea precios RAM, detecta ofertas y genera reporte.
@@ -465,7 +413,6 @@ def main():
             nombre_corto = smart_truncate(r["name"], 15)
             tienda = tienda_map.get(r["tienda"], r["tienda"])
             print(f"- [🛒 {tienda} - {nombre_corto} (${r['precio']:,.0f})]({r['url']})")
-
 
 if __name__ == "__main__":
     main()

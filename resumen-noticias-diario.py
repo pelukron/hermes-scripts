@@ -13,6 +13,9 @@ from datetime import datetime
 
 import requests
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from hermes_common import retry_request
+
 # ═══════════════════════════════════════════
 # FEEDS: región → subsección → [(nombre, url_rss), ...]
 # ═══════════════════════════════════════════
@@ -107,7 +110,6 @@ class FeedItem:
     title: str
     link: str
 
-
 @dataclass
 class FeedStats:
     ok: int = 0
@@ -121,9 +123,7 @@ class FeedStats:
         self.fail += 1
         self.failed.append(name)
 
-
 _stats = FeedStats()
-
 
 def load_feeds(path="feeds.json"):
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -144,38 +144,12 @@ def load_feeds(path="feeds.json"):
         for s in data["sections"]
     ]
 
-
 # Namespaces for RDF feeds (DW, etc.)
 RDF_NS = {
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
     "rss": "http://purl.org/rss/1.0/",
     "dc": "http://purl.org/dc/elements/1.1/",
 }
-
-def retry_request(url, timeout=15, max_attempts=3):
-    """Fetch URL with exponential backoff + jitter. Retries on transient failures only."""
-    RETRY_STATUS = {429, 500, 502, 503, 504}
-    for attempt in range(max_attempts):
-        try:
-            r = requests.get(url, timeout=timeout,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-            if r.status_code in RETRY_STATUS and attempt < max_attempts - 1:
-                wait = (2 ** attempt) + random.uniform(0, 0.5)
-                time.sleep(wait)
-                continue
-            r.raise_for_status()
-            return r
-        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
-            if attempt < max_attempts - 1:
-                wait = (2 ** attempt) + random.uniform(0, 0.5)
-                time.sleep(wait)
-            else:
-                raise
-        except requests.HTTPError:
-            raise
-    return None
-
-
 
 def fetch_rss(url, source_name=""):
     try:
@@ -266,7 +240,6 @@ def escape_link(link):
     link = link.replace(")", "%29")
     return link
 
-
 # Cache global para URLs acortadas (evita llamadas repetidas a TinyURL)
 _URL_CACHE = {}
 
@@ -344,7 +317,6 @@ def main():
         footer_line += "_\n"
         print(footer_line)
         time.sleep(1)
-
 
     # Polymarket predictions
     try:

@@ -25,6 +25,7 @@ from urllib.parse import quote, urljoin
 
 sys.path.append(os.path.dirname(__file__))
 import hermes_common
+from hermes_common import retry_request
 
 # Cron job uses the Hermes venv by default; ensure deps are installed if missing.
 try:
@@ -59,51 +60,6 @@ TELEGRAM_MAX_CHARS = 3000
 # Configuración
 # ---------------------------------------------------------------------------
 TIMEOUT = 20
-
-
-# ── HTTP retry ──
-def retry_request(url, timeout=15, max_attempts=3, headers=None):
-    """Fetch URL with exponential backoff + jitter. Retries on transient failures only.
-
-    Args:
-        url: URL a solicitar.
-        timeout: Timeout en segundos para cada intento.
-        max_attempts: Número máximo de intentos (incluyendo el original).
-        headers: Diccionario de headers HTTP opcionales.
-
-    Returns:
-        Objeto Response de requests si la solicitud es exitosa.
-
-    Raises:
-        requests.HTTPError: Si la respuesta tiene un status code de error no transitorio.
-        requests.ConnectionError: Si se agotan los reintentos en errores de conexión.
-        requests.Timeout: Si se agotan los reintentos en timeouts.
-    """
-    retry_status = {429, 500, 502, 503, 504}
-    for attempt in range(max_attempts):
-        try:
-            kwargs = {"url": url, "timeout": timeout}
-            if headers:
-                kwargs["headers"] = headers
-            else:
-                kwargs["headers"] = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-            r = requests.get(**kwargs)
-            if r.status_code in retry_status and attempt < max_attempts - 1:
-                wait = (2**attempt) + random.uniform(0, 0.5)
-                time.sleep(wait)
-                continue
-            r.raise_for_status()
-            return r
-        except (requests.ConnectionError, requests.Timeout, ConnectionError, TimeoutError):
-            if attempt < max_attempts - 1:
-                wait = (2**attempt) + random.uniform(0, 0.5)
-                time.sleep(wait)
-            else:
-                raise
-        except requests.HTTPError:
-            raise
-    return None
-
 
 # Palabras clave para cada categoría en Google News RSS México
 QUERIES = {
@@ -169,7 +125,6 @@ RUMOR_KEYWORDS = [
     "lesionado",
 ]
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -181,7 +136,6 @@ def now_str():
     """
     tz = datetime.now().astimezone().tzname() or "hora local"
     return f"{datetime.now().strftime('%Y-%m-%d %H:%M')} {tz}"
-
 
 def normalize(url: str) -> str:
     """Limpia URL para comparación de dominio.
@@ -198,7 +152,6 @@ def normalize(url: str) -> str:
     elif url.startswith("https://"):
         url = url[8:]
     return url
-
 
 def domain_of(url: str) -> str:
     """Extrae el dominio de una URL (sin protocolo ni www).
@@ -218,7 +171,6 @@ def domain_of(url: str) -> str:
         host = host[4:]
     return host
 
-
 def is_oficial(url: str) -> bool:
     """Determina si la URL pertenece a un sitio oficial de Rayados.
 
@@ -230,7 +182,6 @@ def is_oficial(url: str) -> bool:
     """
     return any(d in domain_of(url) for d in SITIOS_OFICIALES)
 
-
 def is_confiable_by_url(url: str) -> bool:
     """Determina si la URL es de un medio confiable (oficial o establecido).
 
@@ -241,7 +192,6 @@ def is_confiable_by_url(url: str) -> bool:
         bool: True si el dominio está en SITIOS_OFICIALES o SITIOS_CONFIABLES.
     """
     return is_oficial(url) or any(d in domain_of(url) for d in SITIOS_CONFIABLES)
-
 
 def is_confiable(source: str, url: str) -> bool:
     """Confiable si el source o el dominio del link es conocido.
@@ -258,7 +208,6 @@ def is_confiable(source: str, url: str) -> bool:
         return True
     return is_confiable_by_url(url)
 
-
 def smells_like_rumor(title: str) -> bool:
     """Detecta si un título contiene palabras clave de rumor/filtración.
 
@@ -270,7 +219,6 @@ def smells_like_rumor(title: str) -> bool:
     """
     t = title.lower()
     return any(kw in t for kw in RUMOR_KEYWORDS)
-
 
 def dedupe(items, key=lambda x: x["link"] or x["title"]):
     """Elimina duplicados conservando el orden. Usa URL normalizada.
@@ -293,7 +241,6 @@ def dedupe(items, key=lambda x: x["link"] or x["title"]):
             out.append(item)
     return out
 
-
 def clean_url(url: str) -> str:
     """Quita tracking params y normaliza URL Google News.
 
@@ -307,7 +254,6 @@ def clean_url(url: str) -> str:
     url = re.sub(r"[?&]utm_[^&]+", "", url)
     url = re.sub(r"[?&]ceid=[^&]+", "", url)
     return url.rstrip("?&")
-
 
 def title_similar(t1: str, t2: str, threshold: float = 0.85) -> bool:
     """Dos titulares son suficientemente similares (misma noticia).
@@ -328,7 +274,6 @@ def title_similar(t1: str, t2: str, threshold: float = 0.85) -> bool:
         return False
     return SequenceMatcher(None, a, b).ratio() > threshold
 
-
 def dedupe_by_title(items, threshold: float = 0.85):
     """Elimina items con títulos muy similares (misma noticia, distinta URL).
 
@@ -346,7 +291,6 @@ def dedupe_by_title(items, threshold: float = 0.85):
             out.append(item)
     return out
 
-
 def clean_title(title: str) -> str:
     """Limpia título: quita source suffix, escapa [] para Markdown.
 
@@ -362,7 +306,6 @@ def clean_title(title: str) -> str:
     title = title.replace("[", "(").replace("]", ")")
     return title
 
-
 def normalize_urls(items):
     """Normaliza URLs de todos los items in-place.
 
@@ -377,10 +320,8 @@ def normalize_urls(items):
             item["link"] = clean_url(item["link"])
     return items
 
-
 # Cache global para URLs acortadas
 _URL_CACHE = {}
-
 
 def shorten_url(long_url, timeout=5):
     """Acorta URL con TinyURL (gratis, sin API key). Cachea resultados.
@@ -409,7 +350,6 @@ def shorten_url(long_url, timeout=5):
         pass
     return long_url
 
-
 def resolve_url(google_news_url: str, timeout: int = 5) -> str:
     """Resuelve redirect de Google News a URL real del artículo.
 
@@ -436,7 +376,6 @@ def resolve_url(google_news_url: str, timeout: int = 5) -> str:
         pass
     return google_news_url
 
-
 # ---------------------------------------------------------------------------
 # Google News RSS
 # ---------------------------------------------------------------------------
@@ -451,7 +390,6 @@ def build_google_news_url(query: str) -> str:
     """
     encoded = quote(query)
     return f"https://news.google.com/rss/search?q={encoded}&hl=es-419&gl=MX&ceid=MX:es-419"
-
 
 def fetch_google_news(query: str, category: str) -> list:
     """Obtiene noticias de Google News RSS para una consulta.
@@ -520,7 +458,6 @@ def fetch_google_news(query: str, category: str) -> list:
                 "category": category,
             }
         ]
-
 
 # ---------------------------------------------------------------------------
 # rayados.com scraping
@@ -596,7 +533,6 @@ def fetch_rayados_com() -> list:
             }
         ]
 
-
 # ---------------------------------------------------------------------------
 # Clasificación y ensamble
 # ---------------------------------------------------------------------------
@@ -642,7 +578,6 @@ def classify(all_items: list) -> tuple:
             confirmadas.append(item)
 
     return dedupe(confirmadas), dedupe(rumores)
-
 
 # ---------------------------------------------------------------------------
 # Salida
@@ -752,7 +687,6 @@ def build_report_blocks() -> list:
 
     return blocks
 
-
 def main():
     """Punto de entrada: genera y envía reporte de noticias Rayados a Telegram.
 
@@ -767,7 +701,6 @@ def main():
         print(hermes_common.smart_truncate(block, limit=TELEGRAM_MAX_CHARS))
         print("\n---\n")  # Separador para el gateway
         time.sleep(1.5)
-
 
 if __name__ == "__main__":
     main()

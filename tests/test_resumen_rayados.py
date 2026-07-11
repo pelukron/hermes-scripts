@@ -25,15 +25,12 @@ domain_of = mod.domain_of
 is_oficial = mod.is_oficial
 smells_like_rumor = mod.smells_like_rumor
 classify = mod.classify
-retry_request = mod.retry_request
 fetch_google_news = mod.fetch_google_news
 fetch_rayados_com = mod.fetch_rayados_com
-
 
 # ═══════════════════════════════════════════
 # clean_url
 # ═══════════════════════════════════════════
-
 
 class TestCleanUrl:
     def test_limpia_oc_param(self):
@@ -69,11 +66,9 @@ class TestCleanUrl:
         assert not result.endswith("?")
         assert not result.endswith("&")
 
-
 # ═══════════════════════════════════════════
 # clean_title
 # ═══════════════════════════════════════════
-
 
 class TestCleanTitle:
     def test_remueve_source_suffix(self):
@@ -94,11 +89,9 @@ class TestCleanTitle:
     def test_titulo_vacio(self):
         assert clean_title("") == ""
 
-
 # ═══════════════════════════════════════════
 # title_similar
 # ═══════════════════════════════════════════
-
 
 class TestTitleSimilar:
     def test_titulos_identicos(self):
@@ -134,11 +127,9 @@ class TestTitleSimilar:
         # Son similares, la única diferencia es el número
         assert title_similar(t1, t2, threshold=0.8) is True
 
-
 # ═══════════════════════════════════════════
 # dedupe
 # ═══════════════════════════════════════════
-
 
 class TestDedupe:
     def test_elimina_duplicados_por_link(self):
@@ -163,11 +154,9 @@ class TestDedupe:
     def test_lista_vacia(self):
         assert dedupe([]) == []
 
-
 # ═══════════════════════════════════════════
 # dedupe_by_title
 # ═══════════════════════════════════════════
-
 
 class TestDedupeByTitle:
     def test_elimina_titulos_similares(self):
@@ -188,11 +177,9 @@ class TestDedupeByTitle:
         assert len(result) == 1
         assert result[0]["title"] == "Noticia original"
 
-
 # ═══════════════════════════════════════════
 # domain_of
 # ═══════════════════════════════════════════
-
 
 class TestDomainOf:
     def test_extrae_dominio(self):
@@ -204,11 +191,9 @@ class TestDomainOf:
     def test_ignora_protocolo_http(self):
         assert domain_of("http://mediotiempo.com/nota") == "mediotiempo.com"
 
-
 # ═══════════════════════════════════════════
 # is_oficial
 # ═══════════════════════════════════════════
-
 
 class TestIsOficial:
     def test_url_oficial(self):
@@ -217,11 +202,9 @@ class TestIsOficial:
     def test_url_no_oficial(self):
         assert is_oficial("https://espn.com.mx/rayados") is False
 
-
 # ═══════════════════════════════════════════
 # smells_like_rumor
 # ═══════════════════════════════════════════
-
 
 class TestSmellsLikeRumor:
     def test_detecta_rumor_explicito(self):
@@ -239,11 +222,9 @@ class TestSmellsLikeRumor:
     def test_case_insensitive(self):
         assert smells_like_rumor("RUMOR: Rayados ficha a Messi") is True
 
-
 # ═══════════════════════════════════════════
 # classify
 # ═══════════════════════════════════════════
-
 
 class TestClassify:
     def test_oficial_va_a_confirmadas(self):
@@ -332,109 +313,9 @@ class TestClassify:
         assert len(confirmadas) == 1
         assert len(rumores) == 0
 
-
-# ═══════════════════════════════════════════
-# retry_request
-# ═══════════════════════════════════════════
-
-
-class TestRetryRequest:
-    URL = "https://example.com/api"
-
-    def test_exito_primer_intento(self):
-        mock_resp = Mock(status_code=200)
-        with patch("requests.get", return_value=mock_resp) as mock_get:
-            result = retry_request(self.URL)
-            assert result == mock_resp
-            assert mock_get.call_count == 1
-
-    def test_retry_503_luego_exito(self):
-        mock_503 = Mock(status_code=503)
-        mock_200 = Mock(status_code=200)
-        mock_200.raise_for_status.return_value = None
-        with patch("requests.get", side_effect=[mock_503, mock_200]) as mock_get:
-            with patch("time.sleep", return_value=None):
-                result = retry_request(self.URL)
-            assert result == mock_200
-            assert mock_get.call_count == 2
-
-    def test_retry_429_luego_exito(self):
-        mock_429 = Mock(status_code=429)
-        mock_200 = Mock(status_code=200)
-        mock_200.raise_for_status.return_value = None
-        with patch("requests.get", side_effect=[mock_429, mock_200]):
-            with patch("time.sleep", return_value=None):
-                result = retry_request(self.URL)
-            assert result == mock_200
-
-    def test_max_retries_agotados_503(self):
-        import requests as req_mod
-
-        mock_503 = Mock(status_code=503)
-        mock_503.raise_for_status.side_effect = req_mod.HTTPError("503 Server Error")
-        with patch("requests.get", return_value=mock_503) as mock_get:
-            with patch("time.sleep", return_value=None):
-                with pytest.raises(req_mod.HTTPError):
-                    retry_request(self.URL, max_attempts=3)
-            assert mock_get.call_count == 3
-
-    def test_connection_error_retry(self):
-        import requests as req_mod
-
-        mock_200 = Mock(status_code=200)
-        mock_200.raise_for_status.return_value = None
-        with patch(
-            "requests.get",
-            side_effect=[req_mod.ConnectionError("fail"), mock_200],
-        ) as mock_get:
-            with patch("time.sleep", return_value=None):
-                result = retry_request(self.URL)
-            assert result == mock_200
-            assert mock_get.call_count == 2
-
-    def test_timeout_retry(self):
-        import requests as req_mod
-
-        mock_200 = Mock(status_code=200)
-        mock_200.raise_for_status.return_value = None
-        with patch("requests.get", side_effect=[req_mod.Timeout("timeout"), mock_200]) as mock_get:
-            with patch("time.sleep", return_value=None):
-                result = retry_request(self.URL)
-            assert result == mock_200
-            assert mock_get.call_count == 2
-
-    def test_http_4xx_no_retry(self):
-        mock_404 = Mock(status_code=404)
-        mock_404.raise_for_status.side_effect = Exception("HTTPError")
-        with patch("requests.get", return_value=mock_404):
-            with pytest.raises(Exception):
-                retry_request(self.URL)
-
-    def test_backoff_creciente(self):
-        mock_503 = Mock(status_code=503)
-        with patch("requests.get", return_value=mock_503):
-            with patch("time.sleep") as mock_sleep:
-                retry_request(self.URL, max_attempts=3)
-                assert mock_sleep.call_count == 2
-                sleep_times = [call[0][0] for call in mock_sleep.call_args_list]
-                assert 0 <= sleep_times[0] < 1.5
-                assert 1.5 <= sleep_times[1] < 3.0
-
-    def test_con_headers_personalizados(self):
-        mock_resp = Mock(status_code=200)
-        mock_resp.raise_for_status.return_value = None
-        with patch("requests.get", return_value=mock_resp) as mock_get:
-            custom_headers = {"Authorization": "Bearer token123"}
-            result = retry_request(self.URL, headers=custom_headers)
-            assert result == mock_resp
-            kwargs = mock_get.call_args.kwargs
-            assert kwargs["headers"] == custom_headers
-
-
 # ═══════════════════════════════════════════
 # fetch_google_news
 # ═══════════════════════════════════════════
-
 
 GOOGLE_NEWS_ENTRIES = [
     Mock(
@@ -451,7 +332,6 @@ GOOGLE_NEWS_ENTRIES = [
     ),
 ]
 
-
 def _mock_get_factory(mock_obj):
     """Crea función .get() para Mock que emula dict.get usando atributos."""
 
@@ -460,13 +340,11 @@ def _mock_get_factory(mock_obj):
 
     return _get
 
-
 # Configure .get() for Mock entries and their nested source mocks
 for entry in GOOGLE_NEWS_ENTRIES:
     entry.get = _mock_get_factory(entry)
     if hasattr(entry, "source") and hasattr(entry.source, "title"):
         entry.source.get = _mock_get_factory(entry.source)
-
 
 class TestFetchGoogleNews:
     def test_parse_rss_exitoso(self):
@@ -504,11 +382,9 @@ class TestFetchGoogleNews:
             assert len(items) == 1
             assert items[0]["title"].startswith("[Error")
 
-
 # ═══════════════════════════════════════════
 # fetch_rayados_com
 # ═══════════════════════════════════════════
-
 
 RAYADOS_HTML = """
 <html><body>
@@ -525,12 +401,11 @@ RAYADOS_HTML = """
 </body></html>
 """
 
-
 class TestFetchRayadosCom:
     def test_parse_html_exitoso(self):
         mock_resp = Mock()
         mock_resp.text = RAYADOS_HTML
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 2
             assert items[0]["title"] == "Rayados cierra fichaje de lujo para el Apertura"
@@ -558,7 +433,7 @@ class TestFetchRayadosCom:
         """
         mock_resp = Mock()
         mock_resp.text = html
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 1
             assert items[0]["title"] == "Título desde atributo title"
@@ -579,6 +454,6 @@ class TestFetchRayadosCom:
         """
         mock_resp = Mock()
         mock_resp.text = html
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 1

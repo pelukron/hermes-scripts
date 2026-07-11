@@ -19,14 +19,11 @@ pct = mod.pct
 fmt_vol = mod.fmt_vol
 classify = mod.classify
 best_market = mod.best_market
-retry_request = mod.retry_request
 fetch = mod.fetch
-
 
 # ═══════════════════════════════════════════
 # pct
 # ═══════════════════════════════════════════
-
 
 class TestPct:
     def test_json_string(self):
@@ -50,11 +47,9 @@ class TestPct:
     def test_porcentaje_extremo(self):
         assert pct('[0.995, 0.005]') == 99.5
 
-
 # ═══════════════════════════════════════════
 # fmt_vol
 # ═══════════════════════════════════════════
-
 
 class TestFmtVol:
     def test_billones(self):
@@ -81,11 +76,9 @@ class TestFmtVol:
     def test_string_invalido(self):
         assert fmt_vol("abc") == "—"
 
-
 # ═══════════════════════════════════════════
 # classify
 # ═══════════════════════════════════════════
-
 
 class TestClassify:
     def test_geopolitica_russia(self):
@@ -134,11 +127,9 @@ class TestClassify:
     def test_titulo_none(self):
         assert classify(None, [{"label": "war"}]) == "geopolitica"
 
-
 # ═══════════════════════════════════════════
 # best_market
 # ═══════════════════════════════════════════
-
 
 class TestBestMarket:
     def test_mejor_de_dos(self):
@@ -196,50 +187,9 @@ class TestBestMarket:
         best, prob = best_market(None)
         assert best is None
 
-
-# ═══════════════════════════════════════════
-# retry_request
-# ═══════════════════════════════════════════
-
-
-class TestRetryRequest:
-    URL = "https://gamma-api.polymarket.com/events"
-
-    def test_exito_primer_intento(self):
-        mock_resp = Mock(status_code=200)
-        with patch("requests.get", return_value=mock_resp) as mock_get:
-            result = retry_request(self.URL)
-            assert result == mock_resp
-            assert mock_get.call_count == 1
-
-    def test_retry_429_luego_exito(self):
-        mock_429 = Mock(status_code=429)
-        mock_200 = Mock(status_code=200)
-        mock_200.raise_for_status.return_value = None
-        with patch(
-            "requests.get", side_effect=[mock_429, mock_200]
-        ) as mock_get:
-            with patch("time.sleep", return_value=None):
-                result = retry_request(self.URL)
-            assert result == mock_200
-            assert mock_get.call_count == 2
-
-    def test_backoff_creciente(self):
-        mock_503 = Mock(status_code=503)
-        mock_503.raise_for_status.return_value = None
-        with patch("requests.get", return_value=mock_503):
-            with patch("time.sleep") as mock_sleep:
-                retry_request(self.URL, max_attempts=3)
-                assert mock_sleep.call_count == 2
-                sleep_times = [call[0][0] for call in mock_sleep.call_args_list]
-                assert 0 <= sleep_times[0] < 1.5
-                assert 1.5 <= sleep_times[1] < 3.0
-
-
 # ═══════════════════════════════════════════
 # fetch (usa retry_request internamente)
 # ═══════════════════════════════════════════
-
 
 class TestFetch:
     URL = "https://gamma-api.polymarket.com/events"
@@ -247,7 +197,7 @@ class TestFetch:
     def test_respuesta_json_valida(self):
         mock_resp = Mock(status_code=200)
         mock_resp.json.return_value = [{"id": 1, "title": "Test"}]
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             result = fetch(self.URL)
             assert result == [{"id": 1, "title": "Test"}]
 
@@ -262,11 +212,9 @@ class TestFetch:
             with pytest.raises(req_mod.HTTPError):
                 fetch(self.URL)
 
-
 # ═══════════════════════════════════════════
 # Integración: main() con API mockeada
 # ═══════════════════════════════════════════
-
 
 class TestMainIntegration:
     def test_main_con_datos(self, capsys):
@@ -314,7 +262,7 @@ class TestMainIntegration:
         ]
         mock_resp = Mock(status_code=200)
         mock_resp.json.return_value = mock_events
-        with patch.object(mod, "retry_request", return_value=mock_resp):
+        with patch("requests.get", return_value=mock_resp):
             mod.main()
         captured = capsys.readouterr()
         # Debe contener las 3 secciones
