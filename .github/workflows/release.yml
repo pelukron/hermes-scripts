@@ -1,0 +1,65 @@
+name: Auto-release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: ver
+        run: |
+          VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v${{ steps.ver.outputs.version }}" &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract changelog
+        if: steps.check.outputs.exists == 'false'
+        id: changelog
+        run: |
+          NOTES=$(sed -n "/## \[${{ steps.ver.outputs.version }}\]/,/## \[/p" CHANGELOG.md | head -n -1)
+          if [ -z "$NOTES" ]; then NOTES="Release v${{ steps.ver.outputs.version }}"; fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create tag + release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.ver.outputs.version }}" -m "Release v${{ steps.ver.outputs.version }}"
+          git push origin "v${{ steps.ver.outputs.version }}"
+          gh release create "v${{ steps.ver.outputs.version }}" \
+            --title "v${{ steps.ver.outputs.version }}" \
+            --notes "${{ steps.changelog.outputs.notes }}" \
+            --generate-notes=false
+
+      - name: Comment on linked issue
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          ISSUE=$(echo "$COMMIT_MSG" | grep -oP 'Closes #\K\d+' | head -1)
+          if [ -n "$ISSUE" ]; then
+            gh issue comment "$ISSUE" --body "✅ Released in [v${{ steps.ver.outputs.version }}](https://github.com/${{ github.repository }}/releases/tag/v${{ steps.ver.outputs.version }})"
+          fi
