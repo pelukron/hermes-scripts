@@ -158,22 +158,24 @@ def fetch_rss(url, source_name=""):
             return []
         root = ET.fromstring(r.content)
         items = []
-        
+
         # Try standard RSS first, fall back to RDF
         item_elements = root.findall(".//item")
         if not item_elements:
             item_elements = root.findall(".//rss:item", RDF_NS)
-        
+
         for item in item_elements[:4]:
             # Try standard title, then RDF title
             title = item.find("title")
             if title is None:
                 title = item.find("rss:title", RDF_NS)
-            if title is None or not title.text: continue
+            if title is None or not title.text:
+                continue
             title_text = title.text.strip()
             # Skip "Google News" boilerplate titles
-            if title_text.startswith('"') and ' when:' in title_text: continue
-            
+            if title_text.startswith('"') and ' when:' in title_text:
+                continue
+
             # Try standard link, then RDF link
             link_node = item.find("link")
             if link_node is None:
@@ -206,7 +208,8 @@ def fetch_crypto():
                 emoji = "🟢" if change >= 0 else "🔴"
                 result.append((display, price, change, emoji))
         return result
-    except: return []
+    except Exception:
+        return []
 
 def fetch_currencies():
     try:
@@ -217,7 +220,8 @@ def fetch_currencies():
         base = r.json().get("rates", {})
         mxn = base.get("MXN", 0)
         return [("💵 USD/MXN", mxn, "Base USD")] if mxn else []
-    except: return []
+    except Exception:
+        return []
 
 def clean_title(title):
     """Limpia título: remueve source suffix, escapa caracteres."""
@@ -229,7 +233,6 @@ def clean_title(title):
 
 def escape_link(link):
     """Normaliza URLs de Google News: quita tracking params y protege caracteres especiales."""
-    import re
     link = re.sub(r"[?&]oc=\d+", "", link)
     link = re.sub(r"[?&]utm_[^&]+", "", link)
     link = re.sub(r"[?&]ceid=[^&]+", "", link)
@@ -263,25 +266,23 @@ def shorten_url(long_url, timeout=5):
     return long_url
 
 def main():
-    now = time.time()
-    
     print(f"🪨 **DIARIO GLOBAL HERMES** 🪨\n_Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}_\n")
     time.sleep(0.5)
 
-    FEEDS = load_feeds()
-    for section_name, subsections in FEEDS:
+    feeds = load_feeds()
+    for section_name, subsections in feeds:
         section_has_content = False
         section_lines = [f"**{section_name}**"]
-        
+
         for sub_name, sources in subsections:
             sub_lines = []
             sub_has_content = False
-            
+
             for source_name, url in sources:
                 items = fetch_rss(url, source_name)
                 if not items:
                     continue
-                
+
                 if not sub_has_content:
                     sub_lines.append(f"_{sub_name}_")
                     sub_has_content = True
@@ -293,11 +294,11 @@ def main():
                     source_lines.append(f"  [{clean}]({short_link})")
                 sub_lines.append("\n".join(source_lines))
                 time.sleep(0.8)
-            
+
             if sub_has_content:
                 section_lines.append("\n".join(sub_lines))
                 section_has_content = True
-        
+
         if section_has_content:
             print("\n".join(section_lines))
             print("")
@@ -333,6 +334,6 @@ def main():
             print(f"• {emoji} {sym}: ${price:,.2f} ({change:+.2f}%)")
         for label, rate, note in curr:
             print(f"• {label}: ${rate:,.2f} ({note})")
-        
+
 if __name__ == "__main__":
     main()

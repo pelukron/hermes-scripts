@@ -81,7 +81,7 @@ def smart_truncate(text: str, limit: int = 3000) -> str:
 
 def get_headers(store: str) -> Dict[str, str]:
     """Returns request headers for specific stores."""
-    common_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    common_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"  # noqa: E501
 
     headers = {
         "User-Agent": common_ua,
@@ -92,7 +92,7 @@ def get_headers(store: str) -> Dict[str, str]:
     if store == "amazon":
         headers.update(
             {
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",  # noqa: E501
                 "Device-Memory": "8",
                 "Service-Worker-Navigation-Preload": "true",
             }
@@ -100,13 +100,13 @@ def get_headers(store: str) -> Dict[str, str]:
     elif store == "cyberpuerta":
         headers.update(
             {
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",  # noqa: E501
                 "Referer": "https://www.cyberpuerta.mx/",
             }
         )
     elif store == "mobile":
         headers["User-Agent"] = (
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"  # noqa: E501
         )
 
     return headers

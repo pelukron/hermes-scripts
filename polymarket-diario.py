@@ -8,8 +8,6 @@ import json
 import sys
 from pathlib import Path
 
-import requests
-
 sys.path.insert(0, str(Path(__file__).parent))
 from hermes_common import retry_request
 

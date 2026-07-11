@@ -3,9 +3,7 @@
 import importlib.util
 import os
 import sys
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 SCRIPT_DIR = os.path.expanduser("~/.hermes/scripts")
 sys.path.insert(0, SCRIPT_DIR)

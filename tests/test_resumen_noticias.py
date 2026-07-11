@@ -5,8 +5,6 @@ import os
 import sys
 from unittest.mock import Mock, patch
 
-import pytest
-
 # Add script dir to path para importar
 SCRIPT_DIR = os.path.expanduser("~/.hermes/scripts")
 sys.path.insert(0, SCRIPT_DIR)
