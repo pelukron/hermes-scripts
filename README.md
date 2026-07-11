@@ -1,69 +1,72 @@
-# Proyecto: Resumen Noticias Diario
+# Hermes Scripts
 
-## Flujo recomendado
+Scripts Python para automatización diaria de Hermes Agent. Monorepo con tests, lint, y versionado semántico.
 
-### 1. Primer setup
+## Scripts
+
+| Script | Descripción | Cron |
+|---|---|---|
+| `resumen-noticias-diario.py` | Noticias multi-región 12 secciones 39 fuentes | 8:30 AM |
+| `resumen-rayados-diario.py` | Noticias Rayados de Monterrey | 9:00 AM |
+| `monitor-ram-mexico.py` | Monitoreo precios RAM en Amazon/Cyberpuerta | Cada 30 min |
+| `polymarket-diario.py` | Mercados de predicción (geopolítica, elecciones, deportes) | Subprocess de noticias |
+| `reporte-uso-hermes.py` | Reporte diario de uso de Hermes | 8:00 AM |
+| `backup-diario.py` | Backup de state.db + config | 2:00 AM |
+| `sistema-alertas-y-resumen.sh` | Alertas disco/CPU/memoria | Cada 30 min |
+
+## Stack
+
+- **Python** >= 3.11
+- **uv** para dependencias y virtualenv
+- **pytest** (149 tests)
+- **ruff** para lint + format
+- **commitizen** para conventional commits + versionado
+
+## Setup
+
 ```bash
-cd ~/.hermes/scripts
-make sync       # uv sync → crea .venv + instala todo
+git clone <repo-url>
+cd hermes-scripts
+uv sync
 ```
 
-### 2. Desarrollo diario
+## Desarrollo
+
 ```bash
-# Editar código...
-
-# Lint
-make lint       # ruff check .
-
-# Formatear
-make format     # ruff format .
-
-# Tests
+make lint       # ruff check
+make format     # ruff format
 make test       # pytest -v
 ```
 
-### 3. Ejecutar script
-```bash
-make run        # uv run python resumen-noticias-diario.py
+## Estructura
+
+```
+.
+├── hermes_common.py          # Utilidades compartidas (retry_request, get_headers, HistoryManager)
+├── resumen-noticias-diario.py
+├── resumen-rayados-diario.py
+├── monitor-ram-mexico.py
+├── polymarket-diario.py
+├── reporte-uso-hermes.py
+├── backup-diario.py
+├── sistema-alertas-y-resumen.sh
+├── update-external-skills.sh
+├── pyproject.toml
+├── uv.lock
+├── CHANGELOG.md
+├── Makefile
+└── tests/
+    ├── test_hermes_common.py
+    ├── test_resumen_noticias.py
+    ├── test_resumen_rayados.py
+    ├── test_monitor_ram.py
+    ├── test_polymarket_diario.py
+    ├── test_reporte_uso_hermes.py
+    └── test_backup_diario.py
 ```
 
-## Comandos Makefile
+## CI/CD
 
-| Target  | Comando                       | Descripción                     |
-|---------|-------------------------------|----------------------------------|
-| `sync`  | `uv sync`                     | Instalar dependencias del lock  |
-| `lock`  | `uv lock`                     | Regenerar lock file             |
-| `lint`  | `uv run ruff check .`         | Verificar estilo                |
-| `format`| `uv run ruff format .`        | Auto-formatear                  |
-| `test`  | `uv run pytest -v`            | Ejecutar tests                  |
-| `run`   | `uv run python resumen-noticias-diario.py` | Ejecutar script |
-| `clean` | `rm -rf .pytest_cache ...`    | Limpiar cachés                  |
-
-## Dependencias
-
-- **runtime:** `requests`
-- **dev:** `pytest`, `ruff`
-- **Python:** >= 3.11
-
-## uv sync (detalle)
-
-`uv sync` hace:
-1. Lee `pyproject.toml` → dependencias
-2. Usa `uv.lock` para versiones exactas
-3. Crea/actualiza `.venv` con todas las dependencias
-4. Instala el proyecto como editable (`pip install -e .`)
-
-## pytest (detalle)
-
-`make test` ejecuta:
-- `uv run pytest -v` → busca `test_*.py` o `*_test.py`
-- Salida verbose con nombre de cada test
-- Convención: tests en `tests/` o raíz del proyecto
-
-## ruff (detalle)
-
-| Comando              | Qué hace                           |
-|----------------------|-------------------------------------|
-| `ruff check .`       | Lint: errores, imports sin uso, etc |
-| `ruff format .`      | Formateo: comillas, espacios, líneas|
-| `ruff check --fix .` | Lint + auto-fix                     |
+- GitHub Actions: pytest + ruff en cada push
+- Conventional commits con commitizen
+- Keep a Changelog

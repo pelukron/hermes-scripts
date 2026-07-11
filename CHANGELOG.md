@@ -2,7 +2,33 @@
 
 Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.2.0] - 2026-07-10
+## [0.3.1] - 2026-07-11
+
+### Fixed
+- Eliminados `import random` muertos en 3 scripts (monitor-ram, noticias, rayados)
+- Eliminado `import time` muerto en `polymarket-diario.py`
+- Eliminado `typing.Optional` no usado en `hermes_common.py`
+- Eliminado `return None` inalcanzable en `retry_request()`
+- Simplificada cláusula `except`: removidos `ConnectionError`/`TimeoutError` redundantes
+- Renombrado test `test_return_none_cuando_falla_silencioso` → `test_propaga_excepcion_no_retryable`
+
+## [0.3.0] - 2026-07-11
+
+### Added
+- `retry_request()` unificada en `hermes_common.py` (exponential backoff + jitter)
+- `test_hermes_common.py` con 9 tests dedicados a `retry_request()`
+- Adaptadores de skills mattpocock: `grill`, `grill-docs`, `code-review`, `diagnosing-bugs`, `handoff`
+- `update-external-skills.sh` para sincronizar repos externos
+
+### Changed
+- `retry_request()` centralizada: eliminadas 5 copias duplicadas en 5 scripts
+- Tests migrados de `patch.object(mod, "retry_request")` a `patch("requests.get")` directo
+- `hermes_common.py` ahora expone `retry_request()` junto a `get_headers()`, `smart_truncate()`, `HistoryManager`
+- 149 tests (reducido de 167 por eliminación de tests duplicados, más robustos)
+
+### Fixed
+- `resumen-rayados-diario.py` usa `retry_request()` desde `hermes_common` en vez de copia local
+- `polymarket-diario.py` usa `retry_request()` desde `hermes_common` con headers API
 
 ### Added
 - `retry_request()` en `polymarket-diario.py` y `monitor-ram-mexico.py` para llamadas HTTP
