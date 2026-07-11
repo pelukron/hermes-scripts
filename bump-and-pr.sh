@@ -1,7 +1,8 @@
 #!/bin/bash
 # bump-and-pr.sh — Automatiza: rama → bump → commit → push → PR
-# Uso: bump-and-pr.sh <patch|minor|major> "<tipo>: <descripción>" "<entrada changelog>"
+# Uso: bump-and-pr.sh <patch|minor|major> "<tipo>: <descripción>" "<entrada changelog>" [--body-file <path>]
 # Ej:  bump-and-pr.sh patch "fix: corregir imports muertos" "- Eliminados imports sin uso"
+#      bump-and-pr.sh patch "feat: nuevo endpoint" "- Add GET /api/v2/users" --body-file /tmp/issue.md
 
 set -euo pipefail
 
@@ -28,6 +29,21 @@ API="https://api.github.com/repos/$GH_USER/$GH_REPO"
 BUMP="${1:-}"
 COMMIT_MSG="${2:-}"
 CHANGELOG_ENTRY="${3:-}"
+ISSUE_BODY_FILE=""  # Opcional: archivo con cuerpo de issue enriquecido
+
+# Parse optional --body-file argument
+shift 3 2>/dev/null || true
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --body-file)
+            ISSUE_BODY_FILE="${2:-}"
+            shift 2
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
 
 if [ -z "$BUMP" ] || [ -z "$COMMIT_MSG" ]; then
     echo "Uso: $0 <patch|minor|major> \"tipo: descripción\" [\"entrada changelog\"]"
@@ -72,7 +88,32 @@ echo "  Commit: $COMMIT_MSG"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# ── Crear Issue ──
+# ── Crear Issue con cuerpo enriquecido (awesome-copilot style) ──
+echo "Generando cuerpo de issue..."
+BODY_FILE="/tmp/issue-body-$$.md"
+
+if [ -n "$ISSUE_BODY_FILE" ] && [ -f "$ISSUE_BODY_FILE" ]; then
+    # Usar archivo proporcionado por el usuario
+    cp "$ISSUE_BODY_FILE" "$BODY_FILE"
+    echo "  Usando body file: $ISSUE_BODY_FILE"
+else
+    # Auto-generar cuerpo enriquecido con generate-issue-body.py
+    python3 "$SCRIPT_DIR/generate-issue-body.py" \
+        "$COMMIT_MSG" \
+        "$CHANGELOG_ENTRY" \
+        --branch "$BRANCH" \
+        --output "$BODY_FILE" 2>/dev/null || {
+        # Fallback: body mínimo si el script falla
+        echo "## Summary" > "$BODY_FILE"
+        echo "$COMMIT_MSG" >> "$BODY_FILE"
+        echo "" >> "$BODY_FILE"
+        echo "## Changes" >> "$BODY_FILE"
+        echo "$CHANGELOG_ENTRY" >> "$BODY_FILE"
+        echo "  ⚠️  Fallback a body mínimo"
+    }
+    echo "  Body auto-generado: $BODY_FILE"
+fi
+
 echo "Creando Issue..."
 ISSUE_LABEL=$(echo "$TYPE" | sed 's/fix/bug/;s/feat/enhancement/;s/docs/documentation/;s/refactor/enhancement/;s/ci/CI/;s/test/tests/')
 
@@ -82,15 +123,20 @@ ISSUE_RESPONSE=$(curl -s -X POST \
     "$API/issues" \
     -d "$(python3 -c "
 import json, sys
+with open('$BODY_FILE') as f:
+    body = f.read()
 print(json.dumps({
     'title': '$COMMIT_MSG',
-    'body': '$CHANGELOG_ENTRY',
+    'body': body,
     'labels': ['$ISSUE_LABEL']
 }))
 ")")
 
 ISSUE_NUMBER=$(echo "$ISSUE_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('number','?'))" 2>/dev/null)
 echo "  Issue: #$ISSUE_NUMBER"
+
+# Cleanup
+rm -f "$BODY_FILE"
 
 git checkout -b "$BRANCH"
 
