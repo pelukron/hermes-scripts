@@ -28,6 +28,7 @@ Scripts Python para automatización diaria de Hermes Agent. Monorepo con tests, 
 git clone <repo-url>
 cd hermes-scripts
 uv sync
+uv run pre-commit install
 ```
 
 ## Desarrollo

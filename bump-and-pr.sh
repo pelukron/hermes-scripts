@@ -90,6 +90,11 @@ $CHANGELOG_ENTRY
 fi
 
 # ── Commit ──
+# Run pre-commit hooks if installed
+if command -v pre-commit &>/dev/null || uv run pre-commit --version &>/dev/null 2>&1; then
+    echo "Running pre-commit hooks..."
+    uv run pre-commit run --all-files || echo "⚠️  pre-commit found issues (CI will catch them)"
+fi
 git add pyproject.toml CHANGELOG.md
 git commit -m "$COMMIT_MSG
 
