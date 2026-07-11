@@ -1,0 +1,44 @@
+name: ✨ Feature Request
+description: Proponer una nueva funcionalidad o mejora
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: "## Describe la feature"
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema que resuelve
+      description: ¿Qué necesidad cubre? ¿Qué limitación actual hay?
+      placeholder: "Ej: Actualmente los issues se crean sin body enriquecido..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solución propuesta
+      description: ¿Cómo debería funcionar?
+      placeholder: "Ej: Generar un body markdown automático con Summary, Changes, AC..."
+  - type: textarea
+    id: ac
+    attributes:
+      label: Acceptance Criteria
+      placeholder: |
+        - [ ] El issue se crea con body completo
+        - [ ] Incluye Summary, Changes, AC, Risks
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridad
+      options:
+        - Baja
+        - Media
+        - Alta
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto adicional
+      placeholder: Links, referencias, screenshots...
