@@ -61,8 +61,8 @@ esac
 # ── Crear rama ──
 TYPE=$(echo "$COMMIT_MSG" | cut -d: -f1 | tr -d ' ')
 SLUG=$(echo "$COMMIT_MSG" | cut -d: -f2- | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
-BRANCH="${TYPE}/v${NEW_VERSION}-${SLUG}"
-BRANCH=$(echo "$BRANCH" | cut -c1-80)  # GitHub limita a ~250, 80 es seguro
+BRANCH="${TYPE}/${SLUG}"
+BRANCH=$(echo "$BRANCH" | cut -c1-80)
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -71,6 +71,26 @@ echo "  Rama:  $BRANCH"
 echo "  Commit: $COMMIT_MSG"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
+
+# ── Crear Issue ──
+echo "Creando Issue..."
+ISSUE_LABEL=$(echo "$TYPE" | sed 's/fix/bug/;s/feat/enhancement/;s/docs/documentation/;s/refactor/enhancement/;s/ci/CI/;s/test/tests/')
+
+ISSUE_RESPONSE=$(curl -s -X POST \
+    -H "Authorization: token $GITHUB_TOKEN" \
+    -H "Accept: application/vnd.github+json" \
+    "$API/issues" \
+    -d "$(python3 -c "
+import json, sys
+print(json.dumps({
+    'title': '$COMMIT_MSG',
+    'body': '$CHANGELOG_ENTRY',
+    'labels': ['$ISSUE_LABEL']
+}))
+")")
+
+ISSUE_NUMBER=$(echo "$ISSUE_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('number','?'))" 2>/dev/null)
+echo "  Issue: #$ISSUE_NUMBER"
 
 git checkout -b "$BRANCH"
 
@@ -110,7 +130,8 @@ fi
 git add pyproject.toml CHANGELOG.md
 git commit -m "$COMMIT_MSG
 
-Bump: $CURRENT_VERSION → $NEW_VERSION"
+Bump: $CURRENT_VERSION → $NEW_VERSION
+Closes #$ISSUE_NUMBER"
 
 # ── Push ──
 git push -u origin "$BRANCH"
