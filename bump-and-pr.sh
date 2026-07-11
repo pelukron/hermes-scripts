@@ -195,21 +195,34 @@ git push -u origin "$BRANCH"
 echo ""
 echo "Creando Pull Request..."
 
-PR_BODY="Bump: \`$CURRENT_VERSION\` → \`$NEW_VERSION\`
+PR_BODY="## Changes
 
-$CHANGELOG_ENTRY"
+$CHANGELOG_ENTRY
+
+## Version
+
+\`$CURRENT_VERSION\` → \`$NEW_VERSION\` ($BUMP)
+
+## Changelog
+
+See [CHANGELOG.md](https://github.com/$GH_USER/$GH_REPO/blob/$BRANCH/CHANGELOG.md)
+
+## Linked Issue
+
+Closes #$ISSUE_NUMBER"
 
 PR_RESPONSE=$(curl -s -X POST \
     -H "Authorization: token $GITHUB_TOKEN" \
     -H "Accept: application/vnd.github+json" \
     "$API/pulls" \
     -d "$(python3 -c "
-import json, sys
+import json
+body = '''$PR_BODY'''
 print(json.dumps({
     'title': '$COMMIT_MSG',
     'head': '$BRANCH',
     'base': 'main',
-    'body': '$PR_BODY'
+    'body': body
 }))
 ")")
 
