@@ -26,6 +26,7 @@ fetch_rss = mod.fetch_rss
 # clean_title
 # ═══════════════════════════════════════════
 
+
 class TestCleanTitle:
     def test_remueve_source_suffix(self):
         """Quita ' - SourceName' del final"""
@@ -48,9 +49,11 @@ class TestCleanTitle:
     def test_titulo_vacio(self):
         assert clean_title("") == ""
 
+
 # ═══════════════════════════════════════════
 # escape_link
 # ═══════════════════════════════════════════
+
 
 class TestEscapeLink:
     def test_limpia_oc_param(self):
@@ -95,6 +98,7 @@ class TestEscapeLink:
         assert "utm_" not in result
         assert "ceid=" not in result
         assert result.startswith("https://news.google.com")
+
 
 # ═══════════════════════════════════════════
 # fetch_rss
@@ -160,6 +164,7 @@ RDF_XML = """<?xml version="1.0" encoding="UTF-8"?>
     <rss:link>https://example.com/rdf/2</rss:link>
   </rss:item>
 </rdf:RDF>"""
+
 
 class TestFetchRss:
     URL = "https://example.com/rss"

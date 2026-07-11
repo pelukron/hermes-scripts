@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Diario Global Hermes — fuentes multiregión, multi-ideología."""
+
 import json
 import os
 import re
@@ -19,95 +20,226 @@ from hermes_common import retry_request
 # FEEDS: región → subsección → [(nombre, url_rss), ...]
 # ═══════════════════════════════════════════
 FEEDS = [
-    ("🌍 GEOPOLÍTICA & GLOBAL", [
-        ("Mainstream / Wires", [
-            ("Reuters", "https://news.google.com/rss/search?q=site:reuters.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-            ("AP", "https://news.google.com/rss/search?q=site:apnews.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-            ("Financial Times", "https://news.google.com/rss/search?q=site:ft.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-        ]),
-        ("Multipolar / Contrarian", [
-            ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
-            ("SCMP (HK/CN)", "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-            ("ZeroHedge", "https://news.google.com/rss/search?q=site:zerohedge.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-        ])
-    ]),
-    ("🇪🇺 EUROPA", [
-        ("Pro-UE / Centrista", [
-            ("France 24 (🇫🇷)", "https://www.france24.com/en/rss"),
-            ("Le Monde EN (🇫🇷)", "https://www.lemonde.fr/en/rss/une.xml"),
-            ("DW (🇩🇪)", "https://rss.dw.com/rdf/rss-en-all"),
-            ("The Guardian (🇬🇧)", "https://www.theguardian.com/world/rss"),
-            ("BBC Mundo", "http://feeds.bbci.co.uk/mundo/rss.xml"),
-            ("Euronews", "https://www.euronews.com/rss"),
-        ]),
-        ("Euroescéptica / Alt", [
-            ("RT", "https://actualidad.rt.com/rss"),
-        ])
-    ]),
-    ("🇺🇸 AMÉRICAS", [
-        ("Mainstream US", [
-            ("NYT", "https://news.google.com/rss/search?q=site:nytimes.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-            ("WaPo", "https://news.google.com/rss/search?q=site:washingtonpost.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-        ]),
-        ("Derecha / Conservador", [
-            ("Breitbart", "https://www.breitbart.com/feed/"),
-            ("Fox News", "https://news.google.com/rss/search?q=site:foxnews.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-        ]),
-        ("Izquierda Radical", [
-            ("WSWS", "https://www.wsws.org/en/rss.xml"),
-        ]),
-        ("Latinoamérica", [
-            ("El País (🇪🇸)", "https://news.google.com/rss/search?q=site:english.elpais.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-        ])
-    ]),
-    ("🇷🇺 RUSIA", [
-        ("Estatal / Pro-Kremlin", [
-            ("RT EN", "https://www.rt.com/rss/"),
-            ("Sputnik", "https://news.google.com/rss/search?q=site:sputnikglobe.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-        ])
-    ]),
-    ("🌏 ASIA-PACÍFICO", [
-        ("Asia-Pacífico", [
-            ("SCMP (🇭🇰)", "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-            ("Nikkei Asia (🇯🇵)", "https://news.google.com/rss/search?q=site:nikkei.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-            ("NHK World (🇯🇵)", "https://news.google.com/rss/search?q=site:nhk.or.jp+when:24h&hl=en-US&gl=US&ceid=US:en"),
-            ("Times of India (🇮🇳)", "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"),
-            ("Xinhua (🇨🇳)", "https://news.google.com/rss/search?q=site:xinhuanet.com+when:24h&hl=en-US&gl=US&ceid=US:en"),
-        ])
-    ]),
-    ("💻 TECNOLOGÍA", [
-        ("Vanguardia", [
-            ("Hacker News", "https://hnrss.org/frontpage"),
-            ("Ars Technica", "http://feeds.arstechnica.com/arstechnica/index"),
-            ("Xataka", "https://www.xataka.com/feed.xml"),
-        ])
-    ]),
-    ("🇲🇽 MÉXICO", [
-        ("Crítica / Mercados", [
-            ("Reforma", "https://news.google.com/rss/search?q=site:reforma.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"),
-            ("El Financiero", "https://www.elfinanciero.com.mx/arc/outboundfeeds/rss/"),
-        ]),
-        ("Oficialista", [
-            ("La Jornada", "https://news.google.com/rss/search?q=site:jornada.com.mx+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"),
-            ("SinEmbargo", "https://www.sinembargo.mx/feed"),
-        ]),
-        ("Local MTY", [
-            ("El Norte", "https://news.google.com/rss/search?q=site:elnorte.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"),
-        ])
-    ]),
-    ("⚽ DEPORTES", [
-        ("Liga MX / Rayados", [
-            ("MedioTiempo", "https://news.google.com/rss/search?q=site:mediotiempo.com+Rayados+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"),
-            ("ESPN", "https://news.google.com/rss/search?q=site:espn.com.mx+Rayados+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"),
-        ])
-    ])
+    (
+        "🌍 GEOPOLÍTICA & GLOBAL",
+        [
+            (
+                "Mainstream / Wires",
+                [
+                    (
+                        "Reuters",
+                        "https://news.google.com/rss/search?q=site:reuters.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                    (
+                        "AP",
+                        "https://news.google.com/rss/search?q=site:apnews.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                    (
+                        "Financial Times",
+                        "https://news.google.com/rss/search?q=site:ft.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                ],
+            ),
+            (
+                "Multipolar / Contrarian",
+                [
+                    ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
+                    (
+                        "SCMP (HK/CN)",
+                        "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                    (
+                        "ZeroHedge",
+                        "https://news.google.com/rss/search?q=site:zerohedge.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                ],
+            ),
+        ],
+    ),
+    (
+        "🇪🇺 EUROPA",
+        [
+            (
+                "Pro-UE / Centrista",
+                [
+                    ("France 24 (🇫🇷)", "https://www.france24.com/en/rss"),
+                    ("Le Monde EN (🇫🇷)", "https://www.lemonde.fr/en/rss/une.xml"),
+                    ("DW (🇩🇪)", "https://rss.dw.com/rdf/rss-en-all"),
+                    ("The Guardian (🇬🇧)", "https://www.theguardian.com/world/rss"),
+                    ("BBC Mundo", "http://feeds.bbci.co.uk/mundo/rss.xml"),
+                    ("Euronews", "https://www.euronews.com/rss"),
+                ],
+            ),
+            (
+                "Euroescéptica / Alt",
+                [
+                    ("RT", "https://actualidad.rt.com/rss"),
+                ],
+            ),
+        ],
+    ),
+    (
+        "🇺🇸 AMÉRICAS",
+        [
+            (
+                "Mainstream US",
+                [
+                    (
+                        "NYT",
+                        "https://news.google.com/rss/search?q=site:nytimes.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                    (
+                        "WaPo",
+                        "https://news.google.com/rss/search?q=site:washingtonpost.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                ],
+            ),
+            (
+                "Derecha / Conservador",
+                [
+                    ("Breitbart", "https://www.breitbart.com/feed/"),
+                    (
+                        "Fox News",
+                        "https://news.google.com/rss/search?q=site:foxnews.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                ],
+            ),
+            (
+                "Izquierda Radical",
+                [
+                    ("WSWS", "https://www.wsws.org/en/rss.xml"),
+                ],
+            ),
+            (
+                "Latinoamérica",
+                [
+                    (
+                        "El País (🇪🇸)",
+                        "https://news.google.com/rss/search?q=site:english.elpais.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                ],
+            ),
+        ],
+    ),
+    (
+        "🇷🇺 RUSIA",
+        [
+            (
+                "Estatal / Pro-Kremlin",
+                [
+                    ("RT EN", "https://www.rt.com/rss/"),
+                    (
+                        "Sputnik",
+                        "https://news.google.com/rss/search?q=site:sputnikglobe.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                ],
+            )
+        ],
+    ),
+    (
+        "🌏 ASIA-PACÍFICO",
+        [
+            (
+                "Asia-Pacífico",
+                [
+                    (
+                        "SCMP (🇭🇰)",
+                        "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                    (
+                        "Nikkei Asia (🇯🇵)",
+                        "https://news.google.com/rss/search?q=site:nikkei.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                    (
+                        "NHK World (🇯🇵)",
+                        "https://news.google.com/rss/search?q=site:nhk.or.jp+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                    (
+                        "Times of India (🇮🇳)",
+                        "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
+                    ),
+                    (
+                        "Xinhua (🇨🇳)",
+                        "https://news.google.com/rss/search?q=site:xinhuanet.com+when:24h&hl=en-US&gl=US&ceid=US:en",
+                    ),
+                ],
+            )
+        ],
+    ),
+    (
+        "💻 TECNOLOGÍA",
+        [
+            (
+                "Vanguardia",
+                [
+                    ("Hacker News", "https://hnrss.org/frontpage"),
+                    ("Ars Technica", "http://feeds.arstechnica.com/arstechnica/index"),
+                    ("Xataka", "https://www.xataka.com/feed.xml"),
+                ],
+            )
+        ],
+    ),
+    (
+        "🇲🇽 MÉXICO",
+        [
+            (
+                "Crítica / Mercados",
+                [
+                    (
+                        "Reforma",
+                        "https://news.google.com/rss/search?q=site:reforma.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
+                    ),
+                    ("El Financiero", "https://www.elfinanciero.com.mx/arc/outboundfeeds/rss/"),
+                ],
+            ),
+            (
+                "Oficialista",
+                [
+                    (
+                        "La Jornada",
+                        "https://news.google.com/rss/search?q=site:jornada.com.mx+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
+                    ),
+                    ("SinEmbargo", "https://www.sinembargo.mx/feed"),
+                ],
+            ),
+            (
+                "Local MTY",
+                [
+                    (
+                        "El Norte",
+                        "https://news.google.com/rss/search?q=site:elnorte.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
+                    ),
+                ],
+            ),
+        ],
+    ),
+    (
+        "⚽ DEPORTES",
+        [
+            (
+                "Liga MX / Rayados",
+                [
+                    (
+                        "MedioTiempo",
+                        "https://news.google.com/rss/search?q=site:mediotiempo.com+Rayados+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
+                    ),
+                    (
+                        "ESPN",
+                        "https://news.google.com/rss/search?q=site:espn.com.mx+Rayados+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
+                    ),
+                ],
+            )
+        ],
+    ),
 ]
+
 
 # ── Dataclasses ──
 @dataclass
 class FeedItem:
     title: str
     link: str
+
 
 @dataclass
 class FeedStats:
@@ -122,7 +254,9 @@ class FeedStats:
         self.fail += 1
         self.failed.append(name)
 
+
 _stats = FeedStats()
+
 
 def load_feeds(path="feeds.json"):
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -143,12 +277,14 @@ def load_feeds(path="feeds.json"):
         for s in data["sections"]
     ]
 
+
 # Namespaces for RDF feeds (DW, etc.)
 RDF_NS = {
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
     "rss": "http://purl.org/rss/1.0/",
     "dc": "http://purl.org/dc/elements/1.1/",
 }
+
 
 def fetch_rss(url, source_name=""):
     try:
@@ -173,7 +309,7 @@ def fetch_rss(url, source_name=""):
                 continue
             title_text = title.text.strip()
             # Skip "Google News" boilerplate titles
-            if title_text.startswith('"') and ' when:' in title_text:
+            if title_text.startswith('"') and " when:" in title_text:
                 continue
 
             # Try standard link, then RDF link
@@ -190,6 +326,7 @@ def fetch_rss(url, source_name=""):
     except Exception:
         _stats.track_fail(source_name)
         return []
+
 
 def fetch_crypto():
     try:
@@ -211,6 +348,7 @@ def fetch_crypto():
     except Exception:
         return []
 
+
 def fetch_currencies():
     try:
         url = "https://api.exchangerate-api.com/v4/latest/USD"
@@ -223,6 +361,7 @@ def fetch_currencies():
     except Exception:
         return []
 
+
 def clean_title(title):
     """Limpia título: remueve source suffix, escapa caracteres."""
     # Remove " - SourceName" suffix
@@ -230,6 +369,7 @@ def clean_title(title):
     # Replace brackets that break markdown
     title = title.replace("[", "(").replace("]", ")")
     return title
+
 
 def escape_link(link):
     """Normaliza URLs de Google News: quita tracking params y protege caracteres especiales."""
@@ -242,8 +382,10 @@ def escape_link(link):
     link = link.replace(")", "%29")
     return link
 
+
 # Cache global para URLs acortadas (evita llamadas repetidas a TinyURL)
 _URL_CACHE = {}
+
 
 def shorten_url(long_url, timeout=5):
     """Acorta URL con TinyURL (gratis, sin API key). Cachea resultados."""
@@ -253,9 +395,7 @@ def shorten_url(long_url, timeout=5):
         return _URL_CACHE[long_url]
     try:
         r = requests.get(
-            "https://tinyurl.com/api-create.php",
-            params={"url": long_url},
-            timeout=timeout
+            "https://tinyurl.com/api-create.php", params={"url": long_url}, timeout=timeout
         )
         if r.status_code == 200 and r.text.startswith("http"):
             short = r.text.strip()
@@ -264,6 +404,7 @@ def shorten_url(long_url, timeout=5):
     except Exception:
         pass
     return long_url
+
 
 def main():
     print(f"🪨 **DIARIO GLOBAL HERMES** 🪨\n_Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}_\n")
@@ -334,6 +475,7 @@ def main():
             print(f"• {emoji} {sym}: ${price:,.2f} ({change:+.2f}%)")
         for label, rate, note in curr:
             print(f"• {label}: ${rate:,.2f} ({note})")
+
 
 if __name__ == "__main__":
     main()

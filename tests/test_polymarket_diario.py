@@ -1,4 +1,5 @@
 """Tests para polymarket-diario.py: mock HTTP, test parseo, clasificación."""
+
 import importlib.util
 import os
 import sys
@@ -25,9 +26,10 @@ fetch = mod.fetch
 # pct
 # ═══════════════════════════════════════════
 
+
 class TestPct:
     def test_json_string(self):
-        assert pct('[0.65, 0.35]') == 65.0
+        assert pct("[0.65, 0.35]") == 65.0
 
     def test_lista_directa(self):
         assert pct([0.42, 0.58]) == 42.0
@@ -45,11 +47,13 @@ class TestPct:
         assert pct("not json") is None
 
     def test_porcentaje_extremo(self):
-        assert pct('[0.995, 0.005]') == 99.5
+        assert pct("[0.995, 0.005]") == 99.5
+
 
 # ═══════════════════════════════════════════
 # fmt_vol
 # ═══════════════════════════════════════════
+
 
 class TestFmtVol:
     def test_billones(self):
@@ -76,16 +80,15 @@ class TestFmtVol:
     def test_string_invalido(self):
         assert fmt_vol("abc") == "—"
 
+
 # ═══════════════════════════════════════════
 # classify
 # ═══════════════════════════════════════════
 
+
 class TestClassify:
     def test_geopolitica_russia(self):
-        assert (
-            classify("Russia Ukraine war", [{"label": "war"}])
-            == "geopolitica"
-        )
+        assert classify("Russia Ukraine war", [{"label": "war"}]) == "geopolitica"
 
     def test_geopolitica_china(self):
         assert classify("China trade deal", None) == "geopolitica"
@@ -119,17 +122,16 @@ class TestClassify:
         )
 
     def test_tags_dict_con_slug(self):
-        assert (
-            classify("War update", [{"slug": "war", "label": "Ukraine"}])
-            == "geopolitica"
-        )
+        assert classify("War update", [{"slug": "war", "label": "Ukraine"}]) == "geopolitica"
 
     def test_titulo_none(self):
         assert classify(None, [{"label": "war"}]) == "geopolitica"
 
+
 # ═══════════════════════════════════════════
 # best_market
 # ═══════════════════════════════════════════
+
 
 class TestBestMarket:
     def test_mejor_de_dos(self):
@@ -187,9 +189,11 @@ class TestBestMarket:
         best, prob = best_market(None)
         assert best is None
 
+
 # ═══════════════════════════════════════════
 # fetch (usa retry_request internamente)
 # ═══════════════════════════════════════════
+
 
 class TestFetch:
     URL = "https://gamma-api.polymarket.com/events"
@@ -212,9 +216,11 @@ class TestFetch:
             with pytest.raises(req_mod.HTTPError):
                 fetch(self.URL)
 
+
 # ═══════════════════════════════════════════
 # Integración: main() con API mockeada
 # ═══════════════════════════════════════════
+
 
 class TestMainIntegration:
     def test_main_con_datos(self, capsys):

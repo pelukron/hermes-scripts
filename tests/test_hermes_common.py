@@ -79,9 +79,7 @@ class TestRetryRequest:
         with patch("hermes_common.requests.get", return_value=mock_resp) as mock_get:
             result = retry_request(URL, headers=custom_headers)
             assert result == mock_resp
-            mock_get.assert_called_once_with(
-                URL, timeout=15, headers=custom_headers
-            )
+            mock_get.assert_called_once_with(URL, timeout=15, headers=custom_headers)
 
     def test_headers_default(self):
         """Sin headers → usa User-Agent default."""

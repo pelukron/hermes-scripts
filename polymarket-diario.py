@@ -58,6 +58,7 @@ TAGS_ELE = [
     "presidential nominee",
 ]
 
+
 def fetch(url):
     """Obtiene JSON desde API Polymarket con reintentos ante fallos transitorios.
 
@@ -74,6 +75,7 @@ def fetch(url):
     """
     r = retry_request(url, timeout=15)
     return r.json()
+
 
 def pct(prices_json):
     """Convierte outcomePrices de Polymarket a porcentaje.
@@ -92,6 +94,7 @@ def pct(prices_json):
         return round(float(p[0]) * 100, 1) if p else None
     except Exception:
         return None
+
 
 def fmt_vol(v):
     """Formatea volumen a formato legible (B/M/K).
@@ -114,6 +117,7 @@ def fmt_vol(v):
         return f"${v:.0f}"
     except Exception:
         return "—"
+
 
 def classify(title, tags_raw):
     """Clasifica mercado en categoría: geopolitica, elecciones, deportes.
@@ -144,6 +148,7 @@ def classify(title, tags_raw):
             return "geopolitica"
     return None
 
+
 def best_market(markets):
     """Find market with highest probability from active markets."""
     best, best_p = None, -1
@@ -154,6 +159,7 @@ def best_market(markets):
         if prob is not None and prob > best_p:
             best_p, best = prob, m
     return best, best_p
+
 
 def main():
     """Punto de entrada: consulta Polymarket, clasifica mercados, imprime reporte Markdown.
@@ -219,6 +225,7 @@ def main():
 
     total = sum(float(ev.get("volume", 0) or 0) for ev in events[:10])
     print(f"_Volumen top 10: {fmt_vol(total)} • Fuente: Polymarket_")
+
 
 if __name__ == "__main__":
     main()

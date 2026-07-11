@@ -30,6 +30,7 @@ fetch_rayados_com = mod.fetch_rayados_com
 # clean_url
 # ═══════════════════════════════════════════
 
+
 class TestCleanUrl:
     def test_limpia_oc_param(self):
         url = "https://news.google.com/rss/articles/CBMi?oc=5"
@@ -64,9 +65,11 @@ class TestCleanUrl:
         assert not result.endswith("?")
         assert not result.endswith("&")
 
+
 # ═══════════════════════════════════════════
 # clean_title
 # ═══════════════════════════════════════════
+
 
 class TestCleanTitle:
     def test_remueve_source_suffix(self):
@@ -87,9 +90,11 @@ class TestCleanTitle:
     def test_titulo_vacio(self):
         assert clean_title("") == ""
 
+
 # ═══════════════════════════════════════════
 # title_similar
 # ═══════════════════════════════════════════
+
 
 class TestTitleSimilar:
     def test_titulos_identicos(self):
@@ -125,9 +130,11 @@ class TestTitleSimilar:
         # Son similares, la única diferencia es el número
         assert title_similar(t1, t2, threshold=0.8) is True
 
+
 # ═══════════════════════════════════════════
 # dedupe
 # ═══════════════════════════════════════════
+
 
 class TestDedupe:
     def test_elimina_duplicados_por_link(self):
@@ -152,9 +159,11 @@ class TestDedupe:
     def test_lista_vacia(self):
         assert dedupe([]) == []
 
+
 # ═══════════════════════════════════════════
 # dedupe_by_title
 # ═══════════════════════════════════════════
+
 
 class TestDedupeByTitle:
     def test_elimina_titulos_similares(self):
@@ -175,9 +184,11 @@ class TestDedupeByTitle:
         assert len(result) == 1
         assert result[0]["title"] == "Noticia original"
 
+
 # ═══════════════════════════════════════════
 # domain_of
 # ═══════════════════════════════════════════
+
 
 class TestDomainOf:
     def test_extrae_dominio(self):
@@ -189,9 +200,11 @@ class TestDomainOf:
     def test_ignora_protocolo_http(self):
         assert domain_of("http://mediotiempo.com/nota") == "mediotiempo.com"
 
+
 # ═══════════════════════════════════════════
 # is_oficial
 # ═══════════════════════════════════════════
+
 
 class TestIsOficial:
     def test_url_oficial(self):
@@ -200,9 +213,11 @@ class TestIsOficial:
     def test_url_no_oficial(self):
         assert is_oficial("https://espn.com.mx/rayados") is False
 
+
 # ═══════════════════════════════════════════
 # smells_like_rumor
 # ═══════════════════════════════════════════
+
 
 class TestSmellsLikeRumor:
     def test_detecta_rumor_explicito(self):
@@ -220,9 +235,11 @@ class TestSmellsLikeRumor:
     def test_case_insensitive(self):
         assert smells_like_rumor("RUMOR: Rayados ficha a Messi") is True
 
+
 # ═══════════════════════════════════════════
 # classify
 # ═══════════════════════════════════════════
+
 
 class TestClassify:
     def test_oficial_va_a_confirmadas(self):
@@ -311,6 +328,7 @@ class TestClassify:
         assert len(confirmadas) == 1
         assert len(rumores) == 0
 
+
 # ═══════════════════════════════════════════
 # fetch_google_news
 # ═══════════════════════════════════════════
@@ -330,6 +348,7 @@ GOOGLE_NEWS_ENTRIES = [
     ),
 ]
 
+
 def _mock_get_factory(mock_obj):
     """Crea función .get() para Mock que emula dict.get usando atributos."""
 
@@ -338,11 +357,13 @@ def _mock_get_factory(mock_obj):
 
     return _get
 
+
 # Configure .get() for Mock entries and their nested source mocks
 for entry in GOOGLE_NEWS_ENTRIES:
     entry.get = _mock_get_factory(entry)
     if hasattr(entry, "source") and hasattr(entry.source, "title"):
         entry.source.get = _mock_get_factory(entry.source)
+
 
 class TestFetchGoogleNews:
     def test_parse_rss_exitoso(self):
@@ -380,6 +401,7 @@ class TestFetchGoogleNews:
             assert len(items) == 1
             assert items[0]["title"].startswith("[Error")
 
+
 # ═══════════════════════════════════════════
 # fetch_rayados_com
 # ═══════════════════════════════════════════
@@ -398,6 +420,7 @@ RAYADOS_HTML = """
 </ul>
 </body></html>
 """
+
 
 class TestFetchRayadosCom:
     def test_parse_html_exitoso(self):

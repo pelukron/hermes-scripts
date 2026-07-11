@@ -22,6 +22,7 @@ calcular_comparativa = mod.calcular_comparativa
 # limpiar_precio
 # ═══════════════════════════════════════════
 
+
 class TestLimpiarPrecio:
     def test_precio_simple(self):
         assert limpiar_precio("$2,549.00") == 2549.0
@@ -46,6 +47,7 @@ class TestLimpiarPrecio:
         result = limpiar_precio(".99")
         assert result == 99.0  # regex: [\d,]+ captura 99
 
+
 # ═══════════════════════════════════════════
 # extraer_precio_amazon
 # ═══════════════════════════════════════════
@@ -67,6 +69,7 @@ HTML_AMAZON_OFFSCREEN = """
 <span class="a-offscreen">$1,899.00</span>
 <span class="a-offscreen">$2,099.00</span>
 """
+
 
 class TestExtraerPrecioAmazon:
     def test_estrategia1_a_price(self):
@@ -90,9 +93,11 @@ class TestExtraerPrecioAmazon:
         html = '<span class="a-offscreen">$999.00</span>'
         assert extraer_precio_amazon(html) is None
 
+
 # ═══════════════════════════════════════════
 # calcular_comparativa
 # ═══════════════════════════════════════════
+
 
 class TestCalcularComparativa:
     def test_solo_individuales(self):
@@ -173,17 +178,17 @@ class TestCalcularComparativa:
         comp = calcular_comparativa(resultados)
         assert comp["precio_final_recomendacion"] == 1333.0  # (600*2) + 133
 
+
 # ═══════════════════════════════════════════
 # Integración: main() con mocks completos
 # ═══════════════════════════════════════════
+
 
 class TestMainIntegration:
     def test_main_sin_precios_no_imprime(self, capsys, monkeypatch):
         """Sin precios y sin --force, no imprime nada."""
         monkeypatch.setattr(sys, "argv", ["monitor-ram-mexico.py"])
-        with patch.object(
-            mod, "obtener_precio", return_value=None
-        ) as mock_obtener:
+        with patch.object(mod, "obtener_precio", return_value=None) as mock_obtener:
             with patch.object(mod, "cargar_historial", return_value={}):
                 with patch.object(mod, "guardar_historial"):
                     mod.main()
@@ -193,9 +198,7 @@ class TestMainIntegration:
 
     def test_main_con_force_imprime(self, capsys, monkeypatch):
         """Con --force imprime incluso sin precios."""
-        monkeypatch.setattr(
-            sys, "argv", ["monitor-ram-mexico.py", "--force"]
-        )
+        monkeypatch.setattr(sys, "argv", ["monitor-ram-mexico.py", "--force"])
         with patch.object(mod, "obtener_precio", return_value=None):
             with patch.object(mod, "cargar_historial", return_value={}):
                 with patch.object(mod, "guardar_historial"):

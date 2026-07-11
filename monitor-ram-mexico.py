@@ -65,6 +65,7 @@ PRODUCTOS = [
 
 # ---------------------------------------------------------------------------
 
+
 def cargar_historial() -> Dict[str, Any]:
     """Carga histórico de precios desde JSON con migración de formato.
 
@@ -95,6 +96,7 @@ def cargar_historial() -> Dict[str, Any]:
             return {}
     return {}
 
+
 def guardar_historial(historial: Dict[str, Any]):
     """Guarda histórico de precios a JSON, limpiando entradas obsoletas.
 
@@ -115,6 +117,7 @@ def guardar_historial(historial: Dict[str, Any]):
     with open(HISTORICO_PATH, "w") as f:
         json.dump(limpio, f, indent=2)
 
+
 def limpiar_precio(texto: str) -> Optional[float]:
     """Extrae valor numérico de string de precio.
 
@@ -132,6 +135,7 @@ def limpiar_precio(texto: str) -> Optional[float]:
         return float(nums[0]) if nums else None
     except Exception:
         return None
+
 
 def extraer_precio_amazon(html: str) -> Optional[float]:
     """Extrae precio de HTML de página de producto Amazon.
@@ -171,6 +175,7 @@ def extraer_precio_amazon(html: str) -> Optional[float]:
 
     return None
 
+
 def precio_cyberpuerta(url: str) -> Optional[float]:
     """Obtiene precio de producto en Cyberpuerta vía scraping HTML.
 
@@ -189,6 +194,7 @@ def precio_cyberpuerta(url: str) -> Optional[float]:
         return None
     except Exception:
         return None
+
 
 def precio_amazon(producto: Dict[str, Any]) -> Optional[float]:
     """Obtiene precio de producto en Amazon México vía scraping HTML.
@@ -213,6 +219,7 @@ def precio_amazon(producto: Dict[str, Any]) -> Optional[float]:
     except Exception:
         return None
 
+
 def obtener_precio(producto: Dict[str, Any]) -> Optional[float]:
     """Despacha a scraper correcto según tienda del producto.
 
@@ -228,6 +235,7 @@ def obtener_precio(producto: Dict[str, Any]) -> Optional[float]:
     if producto["tienda"] == "Cyberpuerta":
         return precio_cyberpuerta(producto["url"])
     return None
+
 
 def calcular_comparativa(resultados: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Calcula mejor opción para 32 GB comparando combos vs 2 individuales.
@@ -287,6 +295,7 @@ def calcular_comparativa(resultados: List[Dict[str, Any]]) -> Dict[str, Any]:
         "costo_dos_individuales": costo_2_indivs,
         "ahorro": ahorro,
     }
+
 
 def main():
     """Punto de entrada: monitorea precios RAM, detecta ofertas y genera reporte.
@@ -412,6 +421,7 @@ def main():
             nombre_corto = smart_truncate(r["name"], 15)
             tienda = tienda_map.get(r["tienda"], r["tienda"])
             print(f"- [🛒 {tienda} - {nombre_corto} (${r['precio']:,.0f})]({r['url']})")
+
 
 if __name__ == "__main__":
     main()
