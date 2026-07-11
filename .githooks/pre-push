@@ -1,10 +1,19 @@
 #!/bin/bash
 # Pre-push hook: bloquea push directo a main
 # Regla: solo se permite push a main desde ramas de PR (no push directo)
+# Tags siempre permitidos.
 
 branch=$(git rev-parse --abbrev-ref HEAD)
 
-if [ "$branch" = "main" ]; then
+# Leer refs del push desde stdin
+blocked=false
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if [ "$remote_ref" = "refs/heads/main" ] && [ "$branch" = "main" ]; then
+        blocked=true
+    fi
+done
+
+if $blocked; then
     echo ""
     echo "🚫 PUSH DIRECTO A MAIN BLOQUEADO"
     echo ""
