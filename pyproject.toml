@@ -1,6 +1,6 @@
 [project]
 name = "resumen-noticias-diario"
-version = "0.3.1"
+version = "0.3.2"
 description = "Script de resumen diario de noticias multi-región"
 requires-python = ">=3.11"
 dependencies = [
