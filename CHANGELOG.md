@@ -5,6 +5,11 @@ Todos los cambios notables documentados aquí. Formato basado en [Keep a Changel
 
 ### Added
 - Auto-release: tag + release + issue comment automático al mergear a main
+Todos los cambios notables
+## [0.3.4] - 2026-07-11
+
+### Added
+- CI: changelog check bloquea PRs sin actualizar CHANGELOG.md
 
  documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.3] - 2026-07-11

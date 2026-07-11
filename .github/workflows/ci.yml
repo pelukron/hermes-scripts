@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -20,6 +22,17 @@ jobs:
 
       - name: Install deps
         run: uv sync
+
+      - name: Changelog check
+        if: github.event_name == 'pull_request'
+        run: |
+          git diff --name-only origin/main..HEAD | grep -q "^CHANGELOG.md$" && echo "✅ CHANGELOG.md actualizado" || {
+            echo "❌ CHANGELOG.md NO fue modificado en este PR"
+            echo ""
+            echo "   Todo cambio debe reflejarse en CHANGELOG.md."
+            echo "   Usa: bump-and-pr.sh para actualizarlo automáticamente."
+            exit 1
+          }
 
       - name: Lint
         run: uv run ruff check .
