@@ -78,16 +78,28 @@ git checkout -b "$BRANCH"
 sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" pyproject.toml
 
 # ── Changelog ──
-TODAY=$(date +%Y-%m-%d)
-if [ -n "$CHANGELOG_ENTRY" ]; then
-    CHANGELOG_BLOCK="## [$NEW_VERSION] - $TODAY
+if [ -z "$CHANGELOG_ENTRY" ]; then
+    echo "ERROR: Entrada de changelog requerida."
+    echo "Uso: $0 <patch|minor|major> \"tipo: descripción\" \"- cambio 1\" \"- cambio 2\""
+    exit 1
+fi
 
-### $(echo "$TYPE" | sed 's/.*/\u&/')
+# Validar formato Keep a Changelog
+if ! echo "$CHANGELOG_ENTRY" | grep -qE '^[-*] '; then
+    echo "ERROR: Entrada de changelog debe empezar con '- ' o '* ' (formato Keep a Changelog)"
+    echo "Recibido: $CHANGELOG_ENTRY"
+    exit 1
+fi
+
+TODAY=$(date +%Y-%m-%d)
+CATEGORY=$(echo "$TYPE" | sed 's/fix/Fixed/;s/feat/Added/;s/docs/Documentation/;s/refactor/Changed/;s/style/Styling/;s/ci/CI/;s/test/Tests/;s/chore/Misc/')
+CHANGELOG_BLOCK="## [$NEW_VERSION] - $TODAY
+
+### $CATEGORY
 $CHANGELOG_ENTRY
 
 "
     sed -i "4i$CHANGELOG_BLOCK" CHANGELOG.md
-fi
 
 # ── Commit ──
 # Run pre-commit hooks if installed
