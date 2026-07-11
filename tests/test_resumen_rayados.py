@@ -5,7 +5,7 @@ import os
 import sys
 from unittest.mock import Mock, patch
 
-SCRIPT_DIR = os.path.expanduser("~/.hermes/scripts")
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRIPT_DIR)
 
 spec = importlib.util.spec_from_file_location(

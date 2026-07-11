@@ -6,7 +6,7 @@ import sys
 from unittest.mock import Mock, patch
 
 # Add script dir to path para importar
-SCRIPT_DIR = os.path.expanduser("~/.hermes/scripts")
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRIPT_DIR)
 
 # Import functions under test
