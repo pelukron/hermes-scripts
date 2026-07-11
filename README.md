@@ -19,7 +19,7 @@ Scripts Python para automatización diaria de Hermes Agent. Monorepo con tests, 
 - **Python** >= 3.11
 - **uv** para dependencias y virtualenv
 - **pytest** (149 tests)
-- **ruff** para lint + format
+- **pre-commit** para hooks de lint pre-commit
 - **commitizen** para conventional commits + versionado
 
 ## Setup
