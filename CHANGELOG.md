@@ -6,11 +6,19 @@ Todos los cambios notables documentados aquí. Formato basado en [Keep a Changel
 
 ### Added
 - Script setup.sh: configura git hooks, uv sync, pre-commit, verifica GITHUB_TOKEN
+- post-merge.sh: tag + release + issue comment usando gh CLI
+- .githooks/pre-push: bloquea push directo a main
+- .github/CODEOWNERS: requiere aprobación de pelukron
+- .github/ISSUE_TEMPLATE/: bug report + feature request (formularios YAML)
+- CI: changelog check bloquea PRs sin actualizar CHANGELOG.md
 
-## [0.3.2] - 2026-07-11
+### Changed
+- bump-and-pr.sh: PR body enriquecido con Changes, Version, Changelog link, Linked Issue
+- bump-and-pr.sh: Issue body enriquecido via generate-issue-body.py (awesome-copilot style)
+- Auto-delete branches after merge activado en repo settings
 
-### Documentation
-- Verificar flujo completo: Issue automático + PR vinculado + Closes #N
+### Fixed
+- pre-push hook: permite tags, solo bloquea refs/heads/main
 
 ## [0.3.1] - 2026-07-11
 
