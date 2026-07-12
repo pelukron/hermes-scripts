@@ -170,11 +170,15 @@ $CHANGELOG_ENTRY
 import sys
 block = '''$CHANGELOG_BLOCK'''
 with open('CHANGELOG.md', 'r') as f:
-    lines = f.readlines()
-# Insert after header line (line 4 = after '# Changelog\n\nTodos...')
-lines.insert(4, block)
+    content = f.read()
+# Insert new entry after header
+content = content.replace('# Changelog\n\nTodos los cambios notables', '# Changelog\n\nTodos los cambios notables\n' + block)
+# Append comparison URL at the end
+compare_url = f'[$NEW_VERSION]: https://github.com/$GH_USER/$GH_REPO/compare/v$CURRENT_VERSION...v$NEW_VERSION\n'
+if compare_url not in content:
+    content += compare_url
 with open('CHANGELOG.md', 'w') as f:
-    f.writelines(lines)
+    f.write(content)
 "
 
 # ── Commit ──
