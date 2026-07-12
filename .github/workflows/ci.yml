@@ -40,6 +40,12 @@ jobs:
       - name: Format check
         run: uv run ruff format --check .
 
+      - name: Type check (mypy)
+        run: uv run mypy src/
+
+      - name: Security scan (Bandit)
+        run: uv run bandit -r src/ -ll
+
       - name: Tests
         run: uv run pytest -v
 
