@@ -136,7 +136,8 @@ ISSUE_NUMBER=$(echo "$ISSUE_RESPONSE" | python3 -c "import sys,json; print(json.
 echo "  Issue: #$ISSUE_NUMBER"
 
 # Cleanup
-rm -f "$BODY_FILE"
+# Keep BODY_FILE for PR body reuse
+PR_BODY_FILE="$BODY_FILE"
 
 git checkout -b "$BRANCH"
 
@@ -200,21 +201,24 @@ git push -u origin "$BRANCH"
 echo ""
 echo "Creando Pull Request..."
 
-PR_BODY="## Changes
+PR_BODY="## 🔗 Issue #$ISSUE_NUMBER
 
-$CHANGELOG_ENTRY
+$(cat "$PR_BODY_FILE")
 
-## Version
+## 📦 Version
 
 \`$CURRENT_VERSION\` → \`$NEW_VERSION\` ($BUMP)
 
-## Changelog
+## 📝 Changelog
 
 See [CHANGELOG.md](https://github.com/$GH_USER/$GH_REPO/blob/$BRANCH/CHANGELOG.md)
 
-## Linked Issue
+## ⚡ Linked
 
 Closes #$ISSUE_NUMBER"
+
+# Cleanup temp file
+rm -f "$PR_BODY_FILE"
 
 PR_RESPONSE=$(curl -s -X POST \
     -H "Authorization: token $GITHUB_TOKEN" \
