@@ -1,6 +1,12 @@
 # Changelog
 
 Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+## [0.3.9] - 2026-07-11
+
+### Fixed
+- CHANGELOG: reemplazado [#N](url) literal por link real [#23](https://github.com/pelukron/hermes-scripts/issues/23)
+
+ documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.8] - 2026-07-11
 
 ### Changed
