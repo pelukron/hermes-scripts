@@ -68,6 +68,8 @@ make test       # pytest -v
 
 ## CI/CD
 
-- GitHub Actions: pytest + ruff en cada push
+- [Flujo de desarrollo](CONTRIBUTING.md) — pipeline completo (bump → PR → CI → merge → release)
+- GitHub Actions: pytest + ruff + changelog check en cada PR
 - Conventional commits con commitizen
 - Keep a Changelog
+- Auto-release: tag + GitHub Release al mergear
