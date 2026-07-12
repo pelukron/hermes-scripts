@@ -1,9 +1,18 @@
 # Changelog
 
 Todos los cambios notables
+## [0.3.14] - 2026-07-11
+
+### Documentation
+- Agregar emojis en headers de CHANGELOG: 🐛 ✨ 🔧 📝 🤖 🧪 📦
+- Mismos emojis que labels de issues y PRs
+- Actualizar CATEGORY en bump-and-pr.sh para generar emojis automáticos
+  [#35](https://github.com/pelukron/hermes-scripts/issues/35)
+
+
 ## [0.3.13] - 2026-07-11
 
-### CI
+### 🤖 CI
 - Agregar mypy type checking en CI
 - Agregar Bandit security scan en CI
 - Configurar [tool.mypy] y [tool.bandit] en pyproject.toml
@@ -12,7 +21,7 @@ Todos los cambios notables
 
 ## [0.3.12] - 2026-07-11
 
-### Documentation
+### 📝 Documentation
 - Agregar sección 'Proceso Manual' con 12 pasos detallados
 - Tabla de tipos de cambio con labels y emojis
 - Actualizar pipeline automatizado con nuevas features (emojis, labels)
@@ -22,7 +31,7 @@ Todos los cambios notables
 
 ## [0.3.11] - 2026-07-11
 
-### Fixed
+### 🐛 Fixed
 - Reutilizar cuerpo enriquecido del issue en el PR body
 - Agregar emojis en headers: 🔗 📦 📝 ⚡
 - Eliminar PR body minimal hardcodeado
@@ -31,7 +40,7 @@ Todos los cambios notables
 
 ## [0.3.10] - 2026-07-11
 
-### Changed
+### 🔧 Changed
 - Mover hermes_common.py a src/hermes_common/ como paquete con __init__.py
 - Mover feeds.json a config/
 - Actualizar pyproject.toml: packages=['src']
@@ -42,59 +51,59 @@ Todos los cambios notables
  documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.9] - 2026-07-11
 
-### Fixed
+### 🐛 Fixed
 - CHANGELOG: reemplazado [#N](url) literal por link real [#23](https://github.com/pelukron/hermes-scripts/issues/23)
 
  documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.8] - 2026-07-11
 
-### Changed
+### 🔧 Changed
 - Release notes incluyen link al issue [#23](https://github.com/pelukron/hermes-scripts/issues/23)
 - CHANGELOG incluye link al issue automáticamente
 
  documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.7] - 2026-07-11
 
-### Fixed
+### 🐛 Fixed
 - Auto-release: busca issue en PR body cuando es squash merge
 
  documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.6] - 2026-07-11
 
-### Fixed
+### 🐛 Fixed
 - Auto-release: permisos contents:write para que el bot pueda pushear tags
 
  documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.5] - 2026-07-11
 
-### Added
+### ✨ Added
 - Auto-release: tag + release + issue comment automático al mergear a main
 Todos los cambios notables
 ## [0.3.4] - 2026-07-11
 
-### Added
+### ✨ Added
 - CI: changelog check bloquea PRs sin actualizar CHANGELOG.md
 
  documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.3] - 2026-07-11
 
-### Fixed
+### 🐛 Fixed
 - pre-push hook: permite tags, solo bloquea refs/heads/main
 
 
 ## [0.3.2] - 2026-07-11
 
-### Added
+### ✨ Added
 - Script setup.sh: configura git hooks, uv sync, pre-commit, verifica GITHUB_TOKEN
 
 ## [0.3.2] - 2026-07-11
 
-### Documentation
+### 📝 Documentation
 - Verificar flujo completo: Issue automático + PR vinculado + Closes #N
 
 ## [0.3.1] - 2026-07-11
 
-### Fixed
+### 🐛 Fixed
 - Eliminados `import random` muertos en 3 scripts (monitor-ram, noticias, rayados)
 - Eliminado `import time` muerto en `polymarket-diario.py`
 - Eliminado `typing.Optional` no usado en `hermes_common.py`
@@ -104,37 +113,37 @@ Todos los cambios notables
 
 ## [0.3.0] - 2026-07-11
 
-### Added
+### ✨ Added
 - `retry_request()` unificada en `hermes_common.py` (exponential backoff + jitter)
 - `test_hermes_common.py` con 9 tests dedicados a `retry_request()`
 - Adaptadores de skills mattpocock: `grill`, `grill-docs`, `code-review`, `diagnosing-bugs`, `handoff`
 - `update-external-skills.sh` para sincronizar repos externos
 
-### Changed
+### 🔧 Changed
 - `retry_request()` centralizada: eliminadas 5 copias duplicadas en 5 scripts
 - Tests migrados de `patch.object(mod, "retry_request")` a `patch("requests.get")` directo
 - `hermes_common.py` ahora expone `retry_request()` junto a `get_headers()`, `smart_truncate()`, `HistoryManager`
 - 149 tests (reducido de 167 por eliminación de tests duplicados, más robustos)
 
-### Fixed
+### 🐛 Fixed
 - `resumen-rayados-diario.py` usa `retry_request()` desde `hermes_common` en vez de copia local
 - `polymarket-diario.py` usa `retry_request()` desde `hermes_common` con headers API
 
-### Added
+### ✨ Added
 - `retry_request()` en `polymarket-diario.py` y `monitor-ram-mexico.py` para llamadas HTTP
 - Docstrings Google-style en todos los scripts
 - Tests pytest: 128 tests (resumen-noticias, rayados, reporte-uso, backup, polymarket, monitor-ram)
 - Skills importadas de awesome-copilot: `conventional-commit`, `git-commit`, `github-release`
 - CHANGELOG.md en formato Keep a Changelog
 
-### Changed
+### 🔧 Changed
 - ruff format + ruff check en 5 scripts (0 warnings)
 - `resumen-rayados-diario.py` reformateado (556→560 líneas)
 - `polymarket-diario.py` migrado de `urllib` a `requests` con `retry_request()`
 
 ## [0.1.0] - 2026-07-10
 
-### Added
+### ✨ Added
 - Script `resumen-noticias-diario.py` con 12 secciones y 39 fuentes RSS multi-ideología
 - Sección `🔍 INVESTIGACIÓN & ANÁLISIS` vía blogwatcher (The Intercept, Stratechery)
 - Sección `🤖 IA & TECH` con TechCrunch, MIT AI y Wired
@@ -148,13 +157,13 @@ Todos los cambios notables
 - Skill `conventional-commits` con flujo de trabajo documentado
 - Skill `keep-a-changelog` con formato estándar
 
-### Changed
+### 🔧 Changed
 - `fetch_rss()`, `fetch_crypto()`, `fetch_currencies()` usan `retry_request()` con backoff
 - Formato de salida atomizado con `time.sleep()` entre secciones
 - URLs de Google News acortadas vía TinyURL
 - Configuración de feeds extraída a `feeds.json`
 
-### Fixed
+### 🐛 Fixed
 - Tracking de fuentes fallidas ahora reporta nombres reales en footer
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
@@ -173,3 +182,4 @@ Todos los cambios notables
 [0.3.11]: https://github.com/pelukron/hermes-scripts/compare/v0.3.10...v0.3.11
 [0.3.12]: https://github.com/pelukron/hermes-scripts/compare/v0.3.11...v0.3.12
 [0.3.13]: https://github.com/pelukron/hermes-scripts/compare/v0.3.12...v0.3.13
+[0.3.14]: https://github.com/pelukron/hermes-scripts/compare/v0.3.13...v0.3.14
