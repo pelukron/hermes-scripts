@@ -2,6 +2,17 @@
 
 Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.15] - 2026-07-11
+
+### 📝 Documentation
+- Eliminar líneas 'documentados aquí...' repetidas entre versiones
+- Eliminar texto 'Todos los cambios notables' suelto
+- Unificar [0.3.2] duplicado en una sola entrada
+- Eliminar link de referencia [0.3.2] duplicado
+- Links de comparación ordenados y sin duplicados
+  [#37](https://github.com/pelukron/hermes-scripts/issues/37)
+
+
 ## [0.3.14] - 2026-07-11
 
 ### 📝 Documentation
@@ -162,6 +173,7 @@ Todos los cambios notables documentados aquí. Formato basado en [Keep a Changel
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.3.15]: https://github.com/pelukron/hermes-scripts/compare/v0.3.14...v0.3.15
 [0.3.14]: https://github.com/pelukron/hermes-scripts/compare/v0.3.13...v0.3.14
 [0.3.13]: https://github.com/pelukron/hermes-scripts/compare/v0.3.12...v0.3.13
 [0.3.12]: https://github.com/pelukron/hermes-scripts/compare/v0.3.11...v0.3.12
