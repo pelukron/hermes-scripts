@@ -241,10 +241,13 @@ PR_NUMBER=$(echo "$PR_RESPONSE" | python3 -c "import sys,json; print(json.load(s
 # ── Agregar labels al PR ──
 if [ -n "$PR_NUMBER" ]; then
     curl -s -X PATCH \
-        -H "Authorization: token ***" \
+        -H "Authorization: token $GITHUB_TOKEN" \
         -H "Accept: application/vnd.github+json" \
         "$API/issues/$PR_NUMBER" \
-        -d "{\"labels\": [\"$ISSUE_LABEL\"]}" > /dev/null
+        -d "$(python3 -c "
+import json
+print(json.dumps({'labels': ['$ISSUE_LABEL']}))
+")" > /dev/null
     echo "  Labels: $ISSUE_LABEL"
 fi
 
