@@ -1,6 +1,15 @@
 # Changelog
 
 Todos los cambios notables
+## [0.3.13] - 2026-07-11
+
+### CI
+- Agregar mypy type checking en CI
+- Agregar Bandit security scan en CI
+- Configurar [tool.mypy] y [tool.bandit] en pyproject.toml
+  [#33](https://github.com/pelukron/hermes-scripts/issues/33)
+
+
 ## [0.3.12] - 2026-07-11
 
 ### Documentation
@@ -163,3 +172,4 @@ Todos los cambios notables
 [0.3.10]: https://github.com/pelukron/hermes-scripts/compare/v0.3.9...v0.3.10
 [0.3.11]: https://github.com/pelukron/hermes-scripts/compare/v0.3.10...v0.3.11
 [0.3.12]: https://github.com/pelukron/hermes-scripts/compare/v0.3.11...v0.3.12
+[0.3.13]: https://github.com/pelukron/hermes-scripts/compare/v0.3.12...v0.3.13
