@@ -4,7 +4,7 @@ Todos los cambios notables documentados aquí. Formato basado en [Keep a Changel
 ## [0.3.8] - 2026-07-11
 
 ### Changed
-- Release notes incluyen link al issue [#N](url)
+- Release notes incluyen link al issue [#23](https://github.com/pelukron/hermes-scripts/issues/23)
 - CHANGELOG incluye link al issue automáticamente
 
  documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
