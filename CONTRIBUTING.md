@@ -22,7 +22,7 @@ CI: ruff + pytest + changelog check
 Revisión + approve (CODEOWNERS: @pelukron)
   │
   ▼
-Merge squash → branch auto-delete
+Merge commit → branch auto-delete (NO squash: preserva historial)
   │
   ▼
 Auto-release: tag vX.Y.Z + GitHub Release + comment en issue
