@@ -159,7 +159,7 @@ if ! echo "$CHANGELOG_ENTRY" | grep -qE '^[-*] '; then
 fi
 
 TODAY=$(date +%Y-%m-%d)
-CATEGORY=$(echo "$TYPE" | sed 's/fix/Fixed/;s/feat/Added/;s/docs/Documentation/;s/refactor/Changed/;s/style/Styling/;s/ci/CI/;s/test/Tests/;s/chore/Misc/')
+CATEGORY=$(echo "$TYPE" | sed 's/fix/🐛 Fixed/;s/feat/✨ Added/;s/docs/📝 Documentation/;s/refactor/🔧 Changed/;s/style/🎨 Styling/;s/ci/🤖 CI/;s/test/🧪 Tests/;s/chore/📦 Misc/')
 CHANGELOG_BLOCK="## [$NEW_VERSION] - $TODAY
 
 ### $CATEGORY
