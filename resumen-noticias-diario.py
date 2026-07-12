@@ -258,7 +258,7 @@ class FeedStats:
 _stats = FeedStats()
 
 
-def load_feeds(path="feeds.json"):
+def load_feeds(path="config/feeds.json"):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     full_path = os.path.join(script_dir, path)
     with open(full_path) as f:
