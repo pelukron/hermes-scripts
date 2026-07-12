@@ -115,7 +115,7 @@ else
 fi
 
 echo "Creando Issue..."
-ISSUE_LABEL=$(echo "$TYPE" | sed 's/fix/bug/;s/feat/enhancement/;s/docs/documentation/;s/refactor/enhancement/;s/ci/CI/;s/test/tests/')
+ISSUE_LABEL=$(echo "$TYPE" | sed 's/fix/🐛 hotfix/;s/feat/✨ feature/;s/docs/📝 docs/;s/refactor/🔧 refactor/;s/ci/🤖 automation/;s/test/🧪 test/;s/chore/📦 bump/')
 
 ISSUE_RESPONSE=$(curl -s -X POST \
     -H "Authorization: token $GITHUB_TOKEN" \
@@ -170,11 +170,15 @@ $CHANGELOG_ENTRY
 import sys
 block = '''$CHANGELOG_BLOCK'''
 with open('CHANGELOG.md', 'r') as f:
-    lines = f.readlines()
-# Insert after header line (line 4 = after '# Changelog\n\nTodos...')
-lines.insert(4, block)
+    content = f.read()
+# Insert new entry after header
+content = content.replace('# Changelog\n\nTodos los cambios notables', '# Changelog\n\nTodos los cambios notables\n' + block)
+# Append comparison URL at the end
+compare_url = f'[$NEW_VERSION]: https://github.com/$GH_USER/$GH_REPO/compare/v$CURRENT_VERSION...v$NEW_VERSION\n'
+if compare_url not in content:
+    content += compare_url
 with open('CHANGELOG.md', 'w') as f:
-    f.writelines(lines)
+    f.write(content)
 "
 
 # ── Commit ──

@@ -1,10 +1,16 @@
 # Changelog
 
 Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+## [0.3.9] - 2026-07-11
+
+### Fixed
+- CHANGELOG: reemplazado [#N](url) literal por link real [#23](https://github.com/pelukron/hermes-scripts/issues/23)
+
+ documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.8] - 2026-07-11
 
 ### Changed
-- Release notes incluyen link al issue [#N](url)
+- Release notes incluyen link al issue [#23](https://github.com/pelukron/hermes-scripts/issues/23)
 - CHANGELOG incluye link al issue automáticamente
 
  documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
@@ -113,3 +119,14 @@ Todos los cambios notables
 - Tracking de fuentes fallidas ahora reporta nombres reales en footer
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
+[0.3.9]: https://github.com/pelukron/hermes-scripts/compare/v0.3.8...v0.3.9
+[0.3.8]: https://github.com/pelukron/hermes-scripts/compare/v0.3.7...v0.3.8
+[0.3.7]: https://github.com/pelukron/hermes-scripts/compare/v0.3.6...v0.3.7
+[0.3.6]: https://github.com/pelukron/hermes-scripts/compare/v0.3.5...v0.3.6
+[0.3.5]: https://github.com/pelukron/hermes-scripts/compare/v0.3.4...v0.3.5
+[0.3.4]: https://github.com/pelukron/hermes-scripts/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/pelukron/hermes-scripts/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/pelukron/hermes-scripts/compare/v0.3.2...v0.3.2
+[0.3.2]: https://github.com/pelukron/hermes-scripts/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/pelukron/hermes-scripts/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0
