@@ -12,6 +12,8 @@ dev = [
     "pre-commit>=4.6.0",
     "pytest",
     "ruff",
+    "mypy",
+    "bandit",
 ]
 
 [build-system]
@@ -27,3 +29,12 @@ tag_format = "v$version"
 version_files = ["pyproject.toml:version"]
 changelog_file = "CHANGELOG.md"
 update_changelog_on_bump = true
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", ".git"]
