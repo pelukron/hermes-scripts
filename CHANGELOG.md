@@ -1,6 +1,15 @@
 # Changelog
 
 Todos los cambios notables
+## [0.3.11] - 2026-07-11
+
+### Fixed
+- Reutilizar cuerpo enriquecido del issue en el PR body
+- Agregar emojis en headers: 🔗 📦 📝 ⚡
+- Eliminar PR body minimal hardcodeado
+  [#29](https://github.com/pelukron/hermes-scripts/issues/29)
+
+
 ## [0.3.10] - 2026-07-11
 
 ### Changed
@@ -142,3 +151,4 @@ Todos los cambios notables
 [0.3.1]: https://github.com/pelukron/hermes-scripts/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0
 [0.3.10]: https://github.com/pelukron/hermes-scripts/compare/v0.3.9...v0.3.10
+[0.3.11]: https://github.com/pelukron/hermes-scripts/compare/v0.3.10...v0.3.11
