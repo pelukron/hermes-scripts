@@ -102,9 +102,6 @@ def generate_body(
 - [ ] Tests pasan (CI verde)
 - [ ] No hay regresiones
 
-## Edge Cases
-- <!-- Listar casos borde -->
-
 ## Risks
 | Risk | Impact | Mitigation |
 |---|---|---|
