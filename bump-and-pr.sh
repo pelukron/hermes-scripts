@@ -115,7 +115,7 @@ else
 fi
 
 echo "Creando Issue..."
-ISSUE_LABEL=$(echo "$TYPE" | sed 's/fix/bug/;s/feat/enhancement/;s/docs/documentation/;s/refactor/enhancement/;s/ci/CI/;s/test/tests/')
+ISSUE_LABEL=$(echo "$TYPE" | sed 's/fix/🐛 hotfix/;s/feat/✨ feature/;s/docs/📝 docs/;s/refactor/🔧 refactor/;s/ci/🤖 automation/;s/test/🧪 test/;s/chore/📦 bump/')
 
 ISSUE_RESPONSE=$(curl -s -X POST \
     -H "Authorization: token $GITHUB_TOKEN" \
