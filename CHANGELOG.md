@@ -1,6 +1,16 @@
 # Changelog
 
 Todos los cambios notables
+## [0.3.12] - 2026-07-11
+
+### Documentation
+- Agregar sección 'Proceso Manual' con 12 pasos detallados
+- Tabla de tipos de cambio con labels y emojis
+- Actualizar pipeline automatizado con nuevas features (emojis, labels)
+- Corregir sección CI (149 tests → Tests)
+  [#31](https://github.com/pelukron/hermes-scripts/issues/31)
+
+
 ## [0.3.11] - 2026-07-11
 
 ### Fixed
@@ -152,3 +162,4 @@ Todos los cambios notables
 [0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0
 [0.3.10]: https://github.com/pelukron/hermes-scripts/compare/v0.3.9...v0.3.10
 [0.3.11]: https://github.com/pelukron/hermes-scripts/compare/v0.3.10...v0.3.11
+[0.3.12]: https://github.com/pelukron/hermes-scripts/compare/v0.3.11...v0.3.12
