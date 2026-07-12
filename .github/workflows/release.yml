@@ -33,12 +33,36 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Find linked issue
+        if: steps.check.outputs.exists == 'false'
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          ISSUE=$(echo "$COMMIT_MSG" | grep -oP 'Closes #\K\d+' | head -1)
+          if [ -z "$ISSUE" ]; then
+            PR_NUM=$(echo "$COMMIT_MSG" | grep -oP '\(#\K\d+' | head -1)
+            if [ -n "$PR_NUM" ]; then
+              ISSUE=$(gh pr view "$PR_NUM" --json body --jq '.body' | grep -oP 'Closes #\K\d+' | head -1)
+            fi
+          fi
+          echo "number=$ISSUE" >> $GITHUB_OUTPUT
+          if [ -n "$ISSUE" ]; then
+            echo "link=[#$ISSUE](https://github.com/${{ github.repository }}/issues/$ISSUE)" >> $GITHUB_OUTPUT
+          else
+            echo "link=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract changelog
         if: steps.check.outputs.exists == 'false'
         id: changelog
         run: |
           NOTES=$(sed -n "/## \[${{ steps.ver.outputs.version }}\]/,/## \[/p" CHANGELOG.md | head -n -1)
           if [ -z "$NOTES" ]; then NOTES="Release v${{ steps.ver.outputs.version }}"; fi
+          NOTES="$NOTES
+
+          Issue: ${{ steps.issue.outputs.link }}"
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -62,16 +86,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          COMMIT_MSG=$(git log -1 --pretty=%B)
-          # Buscar Closes #N en el commit (merge commit preserva el body)
-          ISSUE=$(echo "$COMMIT_MSG" | grep -oP 'Closes #\K\d+' | head -1)
-          # Si no, buscar PR number en squash merge "(#N)" y leer el PR body
-          if [ -z "$ISSUE" ]; then
-            PR_NUM=$(echo "$COMMIT_MSG" | grep -oP '\(#\K\d+' | head -1)
-            if [ -n "$PR_NUM" ]; then
-              ISSUE=$(gh pr view "$PR_NUM" --json body --jq '.body' | grep -oP 'Closes #\K\d+' | head -1)
-            fi
-          fi
-          if [ -n "$ISSUE" ]; then
-            gh issue comment "$ISSUE" --body "✅ Released in [v${{ steps.ver.outputs.version }}](https://github.com/${{ github.repository }}/releases/tag/v${{ steps.ver.outputs.version }})"
+          if [ -n "${{ steps.issue.outputs.number }}" ]; then
+            gh issue comment "${{ steps.issue.outputs.number }}" --body "✅ Released in [v${{ steps.ver.outputs.version }}](https://github.com/${{ github.repository }}/releases/tag/v${{ steps.ver.outputs.version }})"
           fi
