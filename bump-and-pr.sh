@@ -201,9 +201,26 @@ git push -u origin "$BRANCH"
 echo ""
 echo "Creando Pull Request..."
 
-PR_BODY="## 🔗 Issue #$ISSUE_NUMBER
+# ── Extraer resumen del issue body ──
+SUMMARY=$(python3 -c "
+with open('$PR_BODY_FILE') as f:
+    content = f.read()
+# Extraer bloque ## Summary hasta siguiente ##
+import re
+m = re.search(r'## Summary\n(.*?)(?=\n## )', content, re.DOTALL)
+if m:
+    print(m.group(1).strip())
+else:
+    print('$COMMIT_MSG')
+")
 
-$(cat "$PR_BODY_FILE")
+PR_BODY="## Summary
+
+$SUMMARY
+
+## 🔗 Issue [#$ISSUE_NUMBER](https://github.com/$GH_USER/$GH_REPO/issues/$ISSUE_NUMBER)
+
+Ver detalles completos en el issue.
 
 ## 📦 Version
 
@@ -212,8 +229,6 @@ $(cat "$PR_BODY_FILE")
 ## 📝 Changelog
 
 See [CHANGELOG.md](https://github.com/$GH_USER/$GH_REPO/blob/$BRANCH/CHANGELOG.md)
-
-## ⚡ Linked
 
 Closes #$ISSUE_NUMBER"
 
