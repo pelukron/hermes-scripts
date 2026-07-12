@@ -163,6 +163,7 @@ CHANGELOG_BLOCK="## [$NEW_VERSION] - $TODAY
 
 ### $CATEGORY
 $CHANGELOG_ENTRY
+  [#$ISSUE_NUMBER](https://github.com/$GH_USER/$GH_REPO/issues/$ISSUE_NUMBER)
 
 "
     python3 -c "
