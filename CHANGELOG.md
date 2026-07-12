@@ -1,6 +1,15 @@
 # Changelog
 
 Todos los cambios notables
+## [0.3.14] - 2026-07-11
+
+### Documentation
+- Agregar emojis en headers de CHANGELOG: 🐛 ✨ 🔧 📝 🤖 🧪 📦
+- Mismos emojis que labels de issues y PRs
+- Actualizar CATEGORY en bump-and-pr.sh para generar emojis automáticos
+  [#35](https://github.com/pelukron/hermes-scripts/issues/35)
+
+
 ## [0.3.13] - 2026-07-11
 
 ### CI
@@ -173,3 +182,4 @@ Todos los cambios notables
 [0.3.11]: https://github.com/pelukron/hermes-scripts/compare/v0.3.10...v0.3.11
 [0.3.12]: https://github.com/pelukron/hermes-scripts/compare/v0.3.11...v0.3.12
 [0.3.13]: https://github.com/pelukron/hermes-scripts/compare/v0.3.12...v0.3.13
+[0.3.14]: https://github.com/pelukron/hermes-scripts/compare/v0.3.13...v0.3.14
