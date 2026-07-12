@@ -1,20 +1,10 @@
 # Changelog
 
-Todos los cambios notables
-## [0.3.15] - 2026-07-11
-
-### 📝 Documentation
-- Eliminar líneas 'documentados aquí...' repetidas entre versiones
-- Eliminar texto 'Todos los cambios notables' suelto
-- Unificar [0.3.2] duplicado en una sola entrada
-- Eliminar link de referencia [0.3.2] duplicado
-- Links de comparación ordenados y sin duplicados
-  [#37](https://github.com/pelukron/hermes-scripts/issues/37)
-
+Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.3.14] - 2026-07-11
 
-### Documentation
+### 📝 Documentation
 - Agregar emojis en headers de CHANGELOG: 🐛 ✨ 🔧 📝 🤖 🧪 📦
 - Mismos emojis que labels de issues y PRs
 - Actualizar CATEGORY en bump-and-pr.sh para generar emojis automáticos
@@ -59,43 +49,38 @@ Todos los cambios notables
 - Actualizar tests para nuevo path de modulo
   [#27](https://github.com/pelukron/hermes-scripts/issues/27)
 
- documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
 ## [0.3.9] - 2026-07-11
 
 ### 🐛 Fixed
 - CHANGELOG: reemplazado [#N](url) literal por link real [#23](https://github.com/pelukron/hermes-scripts/issues/23)
 
- documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.8] - 2026-07-11
 
 ### 🔧 Changed
 - Release notes incluyen link al issue [#23](https://github.com/pelukron/hermes-scripts/issues/23)
 - CHANGELOG incluye link al issue automáticamente
 
- documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.7] - 2026-07-11
 
 ### 🐛 Fixed
 - Auto-release: busca issue en PR body cuando es squash merge
 
- documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.6] - 2026-07-11
 
 ### 🐛 Fixed
 - Auto-release: permisos contents:write para que el bot pueda pushear tags
 
- documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.5] - 2026-07-11
 
 ### ✨ Added
 - Auto-release: tag + release + issue comment automático al mergear a main
-Todos los cambios notables
+
 ## [0.3.4] - 2026-07-11
 
 ### ✨ Added
 - CI: changelog check bloquea PRs sin actualizar CHANGELOG.md
 
- documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.3] - 2026-07-11
 
 ### 🐛 Fixed
@@ -106,8 +91,6 @@ Todos los cambios notables
 
 ### ✨ Added
 - Script setup.sh: configura git hooks, uv sync, pre-commit, verifica GITHUB_TOKEN
-
-## [0.3.2] - 2026-07-11
 
 ### 📝 Documentation
 - Verificar flujo completo: Issue automático + PR vinculado + Closes #N
@@ -178,6 +161,12 @@ Todos los cambios notables
 - Tracking de fuentes fallidas ahora reporta nombres reales en footer
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
+
+[0.3.14]: https://github.com/pelukron/hermes-scripts/compare/v0.3.13...v0.3.14
+[0.3.13]: https://github.com/pelukron/hermes-scripts/compare/v0.3.12...v0.3.13
+[0.3.12]: https://github.com/pelukron/hermes-scripts/compare/v0.3.11...v0.3.12
+[0.3.11]: https://github.com/pelukron/hermes-scripts/compare/v0.3.10...v0.3.11
+[0.3.10]: https://github.com/pelukron/hermes-scripts/compare/v0.3.9...v0.3.10
 [0.3.9]: https://github.com/pelukron/hermes-scripts/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/pelukron/hermes-scripts/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/pelukron/hermes-scripts/compare/v0.3.6...v0.3.7
@@ -185,13 +174,6 @@ Todos los cambios notables
 [0.3.5]: https://github.com/pelukron/hermes-scripts/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/pelukron/hermes-scripts/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/pelukron/hermes-scripts/compare/v0.3.2...v0.3.3
-[0.3.2]: https://github.com/pelukron/hermes-scripts/compare/v0.3.2...v0.3.2
 [0.3.2]: https://github.com/pelukron/hermes-scripts/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/pelukron/hermes-scripts/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0
-[0.3.10]: https://github.com/pelukron/hermes-scripts/compare/v0.3.9...v0.3.10
-[0.3.11]: https://github.com/pelukron/hermes-scripts/compare/v0.3.10...v0.3.11
-[0.3.12]: https://github.com/pelukron/hermes-scripts/compare/v0.3.11...v0.3.12
-[0.3.13]: https://github.com/pelukron/hermes-scripts/compare/v0.3.12...v0.3.13
-[0.3.14]: https://github.com/pelukron/hermes-scripts/compare/v0.3.13...v0.3.14
-[0.3.15]: https://github.com/pelukron/hermes-scripts/compare/v0.3.14...v0.3.15
