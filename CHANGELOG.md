@@ -200,3 +200,4 @@ Todos los cambios notables
 [0.3.1]: https://github.com/pelukron/hermes-scripts/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0[0.3.16]: https://github.com/pelukron/hermes-scripts/compare/v0.3.15...v0.3.16
 [0.3.17]: https://github.com/pelukron/hermes-scripts/compare/v0.3.16...v0.3.17
+[0.3.18]: https://github.com/pelukron/hermes-scripts/compare/v0.3.17...v0.3.18
