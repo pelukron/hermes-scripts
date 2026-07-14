@@ -218,3 +218,4 @@ Todos los cambios notables se documentan aquí. Formato basado en [Keep a Change
 [0.3.2]: https://github.com/pelukron/hermes-scripts/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/pelukron/hermes-scripts/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0
+[0.3.19]: https://github.com/pelukron/hermes-scripts/compare/v0.3.18...v0.3.19
