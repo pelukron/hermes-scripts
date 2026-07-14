@@ -1,6 +1,24 @@
 # Changelog
 
-Todos los cambios notables
+Todos los cambios notables se documentan aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [0.3.18] - 2026-07-14
+
+### 📝 Documentation
+- Reparar header corrupto y líneas sueltas en CHANGELOG.md
+- Ordenar comparison URLs en orden descendente
+  [#44](https://github.com/pelukron/hermes-scripts/issues/44)
+
+### 🔧 Changed
+- Agregar `.mypy_cache/` a `.gitignore` para evitar caché de mypy en commits
+  [#44](https://github.com/pelukron/hermes-scripts/issues/44)
+
+## [0.3.17] - 2026-07-13
+
+### 📝 Documentation
+- Corregir referencias faltantes a `bin/` y `src/` en README, CONTRIBUTING y HERMES_DEV_FLOW
+  [#42](https://github.com/pelukron/hermes-scripts/issues/42)
+
 ## [0.3.16] - 2026-07-13
 
 ### 🔧 Changed
@@ -9,8 +27,6 @@ Todos los cambios notables
 - Corregir ruta interna en `bump-and-pr.sh`
 - Actualizar README, CONTRIBUTING y setup.sh con nuevas rutas
   [#40](https://github.com/pelukron/hermes-scripts/issues/40)
-
- documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.3.15] - 2026-07-11
 
@@ -183,6 +199,9 @@ Todos los cambios notables
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.3.18]: https://github.com/pelukron/hermes-scripts/compare/v0.3.17...v0.3.18
+[0.3.17]: https://github.com/pelukron/hermes-scripts/compare/v0.3.16...v0.3.17
+[0.3.16]: https://github.com/pelukron/hermes-scripts/compare/v0.3.15...v0.3.16
 [0.3.15]: https://github.com/pelukron/hermes-scripts/compare/v0.3.14...v0.3.15
 [0.3.14]: https://github.com/pelukron/hermes-scripts/compare/v0.3.13...v0.3.14
 [0.3.13]: https://github.com/pelukron/hermes-scripts/compare/v0.3.12...v0.3.13
@@ -198,6 +217,4 @@ Todos los cambios notables
 [0.3.3]: https://github.com/pelukron/hermes-scripts/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/pelukron/hermes-scripts/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/pelukron/hermes-scripts/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0[0.3.16]: https://github.com/pelukron/hermes-scripts/compare/v0.3.15...v0.3.16
-[0.3.17]: https://github.com/pelukron/hermes-scripts/compare/v0.3.16...v0.3.17
-[0.3.18]: https://github.com/pelukron/hermes-scripts/compare/v0.3.17...v0.3.18
+[0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0
