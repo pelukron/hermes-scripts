@@ -175,15 +175,30 @@ import sys
 block = '''$CHANGELOG_BLOCK'''
 with open('CHANGELOG.md', 'r') as f:
     content = f.read()
-# Insert new entry after header
-content = content.replace(
-    '# Changelog\n\nTodos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).',
-    '# Changelog\n\nTodos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).\n' + block
-)
-# Append comparison URL at the end
+# Insert new entry after header (newest first, descending order)
+import re
+header = '# Changelog\n\nTodos los cambios notables'
+if header not in content:
+    print('ERROR: CHANGELOG.md header not found', file=sys.stderr)
+    sys.exit(1)
+# Insert block after the first two lines (header + description)
+content_lines = content.split('\n')
+insert_idx = 2
+while insert_idx < len(content_lines) and content_lines[insert_idx].strip() == '':
+    insert_idx += 1
+content_lines.insert(insert_idx, block.rstrip())
+content = '\n'.join(content_lines)
+
+# Insert comparison URL at the top of the references section (descending order)
 compare_url = f'[$NEW_VERSION]: https://github.com/$GH_USER/$GH_REPO/compare/v$CURRENT_VERSION...v$NEW_VERSION\n'
 if compare_url not in content:
-    content += compare_url
+    # Find the first reference line starting with '[' and insert before it
+    ref_match = re.search(r'^\[[0-9]+\.[0-9]+\.[0-9]+\]:', content, re.MULTILINE)
+    if ref_match:
+        idx = ref_match.start()
+        content = content[:idx] + compare_url + content[idx:]
+    else:
+        content += '\n' + compare_url
 with open('CHANGELOG.md', 'w') as f:
     f.write(content)
 "
@@ -220,7 +235,9 @@ else:
     print('$COMMIT_MSG')
 ")
 
-PR_BODY="## Summary
+PR_BODY="Closes #$ISSUE_NUMBER
+
+## Summary
 
 $SUMMARY
 
@@ -234,9 +251,7 @@ Ver detalles completos en el issue.
 
 ## 📝 Changelog
 
-See [CHANGELOG.md](https://github.com/$GH_USER/$GH_REPO/blob/$BRANCH/CHANGELOG.md)
-
-Closes #$ISSUE_NUMBER"
+See [CHANGELOG.md](https://github.com/$GH_USER/$GH_REPO/blob/$BRANCH/CHANGELOG.md)"
 
 # Cleanup temp file
 rm -f "$PR_BODY_FILE"
