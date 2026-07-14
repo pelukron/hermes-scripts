@@ -175,15 +175,36 @@ import sys
 block = '''$CHANGELOG_BLOCK'''
 with open('CHANGELOG.md', 'r') as f:
     content = f.read()
-# Insert new entry after header
-content = content.replace(
-    '# Changelog\n\nTodos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).',
-    '# Changelog\n\nTodos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).\n' + block
-)
-# Append comparison URL at the end
+# Insert new entry after header (newest first, descending order)
+import re
+# Insert before the first version entry (line starting with '## [')
+lines = content.split('\n')
+first_entry_idx = None
+for i, line in enumerate(lines):
+    if line.startswith('## ['):
+        first_entry_idx = i
+        break
+if first_entry_idx is None:
+    print('ERROR: No version entry found in CHANGELOG.md', file=sys.stderr)
+    sys.exit(1)
+# Insert block right before the first version entry, separated by blank lines
+block_lines = block.rstrip().split('\n')
+# Ensure blank line before entry
+if lines[first_entry_idx - 1].strip() != '' and first_entry_idx > 0:
+    block_lines.insert(0, '')
+lines[first_entry_idx:first_entry_idx] = block_lines
+content = '\n'.join(lines)
+
+# Insert comparison URL at the top of the references section (descending order)
 compare_url = f'[$NEW_VERSION]: https://github.com/$GH_USER/$GH_REPO/compare/v$CURRENT_VERSION...v$NEW_VERSION\n'
 if compare_url not in content:
-    content += compare_url
+    # Find the first reference line starting with '[' and insert before it
+    ref_match = re.search(r'^\[[0-9]+\.[0-9]+\.[0-9]+\]:', content, re.MULTILINE)
+    if ref_match:
+        idx = ref_match.start()
+        content = content[:idx] + compare_url + content[idx:]
+    else:
+        content += '\n' + compare_url
 with open('CHANGELOG.md', 'w') as f:
     f.write(content)
 "
@@ -220,7 +241,9 @@ else:
     print('$COMMIT_MSG')
 ")
 
-PR_BODY="## Summary
+PR_BODY="Closes #$ISSUE_NUMBER
+
+## Summary
 
 $SUMMARY
 
@@ -234,9 +257,7 @@ Ver detalles completos en el issue.
 
 ## 📝 Changelog
 
-See [CHANGELOG.md](https://github.com/$GH_USER/$GH_REPO/blob/$BRANCH/CHANGELOG.md)
-
-Closes #$ISSUE_NUMBER"
+See [CHANGELOG.md](https://github.com/$GH_USER/$GH_REPO/blob/$BRANCH/CHANGELOG.md)"
 
 # Cleanup temp file
 rm -f "$PR_BODY_FILE"
