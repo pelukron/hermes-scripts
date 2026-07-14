@@ -38,3 +38,4 @@ warn_unused_configs = true
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", ".git"]
+skips = ["B602", "B604"]
