@@ -5,7 +5,7 @@ Todo cambio sigue este pipeline. No hay push directo a `main`.
 ## Pipeline Automatizado
 
 ```bash
-./bump-and-pr.sh patch "tipo: descripción" "- cambio"
+./bin/bump-and-pr.sh patch "tipo: descripción" "- cambio"
   │
   ├─ 1. Issue con body enriquecido (Summary, Problem, Changes, AC, Risks)
   ├─ 2. Rama semántica (feat/, fix/, docs/, refactor/)
@@ -37,14 +37,14 @@ git checkout main && git pull origin main
 # 2. Hacer tus cambios (archivos modificados pero sin commit)
 
 # 3. Ejecutar bump-and-pr.sh
-./bump-and-pr.sh patch "feat: agregar nueva funcionalidad" "- Nueva funcionalidad X"
+./bin/bump-and-pr.sh patch "feat: agregar nueva funcionalidad" "- Nueva funcionalidad X"
 
 # Esto crea: Issue + Rama + Bump + Changelog + Commit + Push + PR
 ```
 
 ## Proceso Manual
 
-Cuando no puedes usar `bump-and-pr.sh` (ej. sin token, sin acceso a API):
+Cuando no puedes usar `bin/bump-and-pr.sh` (ej. sin token, sin acceso a API):
 
 ```bash
 # 1. Pull latest

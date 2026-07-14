@@ -44,5 +44,5 @@ fi
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  ✅ Setup completo"
-echo "  Flujo: ./bump-and-pr.sh <patch|minor|major> \"tipo: desc\" \"- cambio\""
+echo "  Flujo: ./bin/bump-and-pr.sh <patch|minor|major> \"tipo: desc\" \"- cambio\""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

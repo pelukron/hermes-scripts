@@ -28,12 +28,12 @@ Un pipeline deterministico para cambios en repos Hermes. Cinco puertas. Cada pue
 - No tocar codigo hasta aprobacion.
 
 ### Puerta 3: Ejecutar
-**Script:** `bump-and-pr.sh`
+**Script:** `bin/bump-and-pr.sh`
 **Criterion:** PR creado en GitHub con CI en verde.
 
 ```bash
 cd ~/.hermes/scripts
-./bump-and-pr.sh <patch|minor|major> "tipo: descripcion" "- cambio"
+./bin/bump-and-pr.sh <patch|minor|major> "tipo: descripcion" "- cambio"
 ```
 
 El script crea: Issue, rama semantica, bump version, CHANGELOG, commit con Closes #N, push, PR.
