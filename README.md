@@ -43,15 +43,23 @@ make test       # pytest -v
 
 ```
 .
-├── hermes_common.py          # Utilidades compartidas (retry_request, get_headers, HistoryManager)
+├── src/
+│   ├── hermes_common/         # Utilidades compartidas (retry_request, get_headers, HistoryManager)
+│   └── generate_issue_body.py # Generador de bodies enriquecidos para issues
+├── config/
+│   └── feeds.json              # Configuración de feeds RSS
+├── bin/
+│   ├── bump-and-pr.sh          # Flujo completo: rama → bump → PR
+│   ├── post-merge.sh           # Tag + release + issue comment post-merge
+│   ├── sistema-alertas-y-resumen.sh   # Alertas del sistema
+│   └── update-external-skills.sh     # Sync de skills externos
 ├── resumen-noticias-diario.py
 ├── resumen-rayados-diario.py
 ├── monitor-ram-mexico.py
 ├── polymarket-diario.py
 ├── reporte-uso-hermes.py
 ├── backup-diario.py
-├── sistema-alertas-y-resumen.sh
-├── update-external-skills.sh
+├── hermes_common.py            # Legacy compat (moved to src/)
 ├── pyproject.toml
 ├── uv.lock
 ├── CHANGELOG.md
@@ -69,7 +77,7 @@ make test       # pytest -v
 ## CI/CD
 
 - [Flujo de desarrollo](CONTRIBUTING.md) — pipeline completo (bump → PR → CI → merge → release)
-- GitHub Actions: pytest + ruff + changelog check en cada PR
+- GitHub Actions: pytest + ruff + mypy + Bandit + changelog check en cada PR
 - Conventional commits con commitizen
 - Keep a Changelog
 - Auto-release: tag + GitHub Release al mergear

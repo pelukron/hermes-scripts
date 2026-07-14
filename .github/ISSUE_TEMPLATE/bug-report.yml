@@ -11,7 +11,7 @@ body:
     attributes:
       label: Descripción
       description: ¿Qué está pasando?
-      placeholder: "Ej: El script bump-and-pr.sh falla al crear el issue..."
+      placeholder: "Ej: El script bin/bump-and-pr.sh falla al crear el issue..."
     validations:
       required: true
   - type: textarea
@@ -19,7 +19,7 @@ body:
     attributes:
       label: Pasos para reproducir
       placeholder: |
-        1. Ejecutar `./bump-and-pr.sh patch "fix: algo" "- cambio"`
+        1. Ejecutar `./bin/bump-and-pr.sh patch "fix: algo" "- cambio"`
         2. Ver error...
   - type: textarea
     id: expected

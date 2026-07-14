@@ -36,7 +36,7 @@ git checkout main && git pull origin main
 
 # 2. Hacer tus cambios (archivos modificados pero sin commit)
 
-# 3. Ejecutar bump-and-pr.sh
+# 3. Ejecutar bin/bump-and-pr.sh
 ./bin/bump-and-pr.sh patch "feat: agregar nueva funcionalidad" "- Nueva funcionalidad X"
 
 # Esto crea: Issue + Rama + Bump + Changelog + Commit + Push + PR
