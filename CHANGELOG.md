@@ -2,6 +2,20 @@
 
 Todos los cambios notables se documentan aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.20] - 2026-07-14
+
+### 🤖 CI
+- Excluir a `dependabot[bot]` y `github-actions[bot]` del changelog check
+- Evitar fallos falsos en PRs automáticos de dependencias
+  [#51](https://github.com/pelukron/hermes-scripts/issues/51)
+
+## [0.3.19] - 2026-07-14
+
+### 🤖 CI
+- Agregar Dependabot para actualizaciones de dependencias y GitHub Actions
+- Agregar CodeQL workflow para análisis de seguridad estático en Python
+  [#46](https://github.com/pelukron/hermes-scripts/issues/46)
+
 ## [0.3.18] - 2026-07-14
 
 ### 📝 Documentation
@@ -199,6 +213,8 @@ Todos los cambios notables se documentan aquí. Formato basado en [Keep a Change
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.3.20]: https://github.com/pelukron/hermes-scripts/compare/v0.3.19...v0.3.20
+[0.3.19]: https://github.com/pelukron/hermes-scripts/compare/v0.3.18...v0.3.19
 [0.3.18]: https://github.com/pelukron/hermes-scripts/compare/v0.3.17...v0.3.18
 [0.3.17]: https://github.com/pelukron/hermes-scripts/compare/v0.3.16...v0.3.17
 [0.3.16]: https://github.com/pelukron/hermes-scripts/compare/v0.3.15...v0.3.16
@@ -218,4 +234,3 @@ Todos los cambios notables se documentan aquí. Formato basado en [Keep a Change
 [0.3.2]: https://github.com/pelukron/hermes-scripts/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/pelukron/hermes-scripts/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0
-[0.3.19]: https://github.com/pelukron/hermes-scripts/compare/v0.3.18...v0.3.19
