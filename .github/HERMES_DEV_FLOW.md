@@ -74,6 +74,6 @@ Commit message usa conventional commits.
 ## Referencias
 
 - [pelukron/hermes-scripts](https://github.com/pelukron/hermes-scripts)
-- `~/.hermes/scripts/bump-and-pr.sh`
+- `~/.hermes/scripts/bin/bump-and-pr.sh`
 - `~/.hermes/skills/external/` (mattpocock skills)
 - `.hermes/plans/`

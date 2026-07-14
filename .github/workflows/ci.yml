@@ -30,7 +30,7 @@ jobs:
             echo "❌ CHANGELOG.md NO fue modificado en este PR"
             echo ""
             echo "   Todo cambio debe reflejarse en CHANGELOG.md."
-            echo "   Usa: bump-and-pr.sh para actualizarlo automáticamente."
+            echo "   Usa: bin/bump-and-pr.sh para actualizarlo automáticamente."
             exit 1
           }
 

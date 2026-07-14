@@ -29,6 +29,7 @@ API="https://api.github.com/repos/$GH_USER/$GH_REPO"
 BUMP="${1:-}"
 COMMIT_MSG="${2:-}"
 CHANGELOG_ENTRY="${3:-}"
+CHANGELOG_ENTRY_UNESCAPED=$(echo -e "$CHANGELOG_ENTRY")
 ISSUE_BODY_FILE=""  # Opcional: archivo con cuerpo de issue enriquecido
 
 # Parse optional --body-file argument
@@ -102,7 +103,7 @@ else
     # Auto-generar cuerpo enriquecido con generate-issue-body.py
     python3 "$SCRIPT_DIR/../src/generate_issue_body.py" \
         "$COMMIT_MSG" \
-        "$CHANGELOG_ENTRY" \
+        "$CHANGELOG_ENTRY_UNESCAPED" \
         --branch "$BRANCH" \
         --output "$BODY_FILE" 2>/dev/null || {
         # Fallback: body mínimo si el script falla
@@ -110,7 +111,7 @@ else
         echo "$COMMIT_MSG" >> "$BODY_FILE"
         echo "" >> "$BODY_FILE"
         echo "## Changes" >> "$BODY_FILE"
-        echo "$CHANGELOG_ENTRY" >> "$BODY_FILE"
+        echo "$CHANGELOG_ENTRY_UNESCAPED" >> "$BODY_FILE"
         echo "  ⚠️  Fallback a body mínimo"
     }
     echo "  Body auto-generado: $BODY_FILE"
@@ -165,7 +166,7 @@ CATEGORY=$(echo "$TYPE" | sed 's/fix/🐛 Fixed/;s/feat/✨ Added/;s/docs/📝 D
 CHANGELOG_BLOCK="## [$NEW_VERSION] - $TODAY
 
 ### $CATEGORY
-$CHANGELOG_ENTRY
+$CHANGELOG_ENTRY_UNESCAPED
   [#$ISSUE_NUMBER](https://github.com/$GH_USER/$GH_REPO/issues/$ISSUE_NUMBER)
 
 "

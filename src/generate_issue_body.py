@@ -2,7 +2,7 @@
 """generate-issue-body.py — Genera cuerpo de issue estilo Jira (awesome-copilot pattern).
 
 Uso:
-  python3 generate-issue-body.py <commit_msg> <changelog_entry> [--branch <branch>] [--diff]
+  python3 generate_issue_body.py <commit_msg> <changelog_entry> [--branch <branch>] [--diff]
 
 Basado en one-shot-feature-issue-planner y refine-issue de github/awesome-copilot.
 """
