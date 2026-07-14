@@ -177,17 +177,23 @@ with open('CHANGELOG.md', 'r') as f:
     content = f.read()
 # Insert new entry after header (newest first, descending order)
 import re
-header = '# Changelog\n\nTodos los cambios notables'
-if header not in content:
-    print('ERROR: CHANGELOG.md header not found', file=sys.stderr)
+# Insert before the first version entry (line starting with '## [')
+lines = content.split('\n')
+first_entry_idx = None
+for i, line in enumerate(lines):
+    if line.startswith('## ['):
+        first_entry_idx = i
+        break
+if first_entry_idx is None:
+    print('ERROR: No version entry found in CHANGELOG.md', file=sys.stderr)
     sys.exit(1)
-# Insert block after the first two lines (header + description)
-content_lines = content.split('\n')
-insert_idx = 2
-while insert_idx < len(content_lines) and content_lines[insert_idx].strip() == '':
-    insert_idx += 1
-content_lines.insert(insert_idx, block.rstrip())
-content = '\n'.join(content_lines)
+# Insert block right before the first version entry, separated by blank lines
+block_lines = block.rstrip().split('\n')
+# Ensure blank line before entry
+if lines[first_entry_idx - 1].strip() != '' and first_entry_idx > 0:
+    block_lines.insert(0, '')
+lines[first_entry_idx:first_entry_idx] = block_lines
+content = '\n'.join(lines)
 
 # Insert comparison URL at the top of the references section (descending order)
 compare_url = f'[$NEW_VERSION]: https://github.com/$GH_USER/$GH_REPO/compare/v$CURRENT_VERSION...v$NEW_VERSION\n'
