@@ -63,6 +63,8 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
 fi
 git pull origin main --ff-only 2>/dev/null || echo "⚠️  No se pudo hacer pull (¿sin cambios remotos?)"
 
+cd "$SCRIPT_DIR/.." || exit 1
+
 # ── Calcular nueva versión ──
 CURRENT_VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
