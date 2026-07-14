@@ -175,7 +175,10 @@ block = '''$CHANGELOG_BLOCK'''
 with open('CHANGELOG.md', 'r') as f:
     content = f.read()
 # Insert new entry after header
-content = content.replace('# Changelog\n\nTodos los cambios notables', '# Changelog\n\nTodos los cambios notables\n' + block)
+content = content.replace(
+    '# Changelog\n\nTodos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).',
+    '# Changelog\n\nTodos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).\n' + block
+)
 # Append comparison URL at the end
 compare_url = f'[$NEW_VERSION]: https://github.com/$GH_USER/$GH_REPO/compare/v$CURRENT_VERSION...v$NEW_VERSION\n'
 if compare_url not in content:
