@@ -44,7 +44,7 @@ jobs:
         run: uv run mypy src/
 
       - name: Security scan (Bandit)
-        run: uv run bandit -r src/ -ll
+        run: uv run bandit -c pyproject.toml -r src/ -ll
 
       - name: Tests
         run: uv run pytest -v
