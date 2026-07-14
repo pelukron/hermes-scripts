@@ -2,6 +2,15 @@
 
 Todos los cambios notables se documentan aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.21] - 2026-07-14
+
+### 🐛 Fixed
+- Corregir `bump-and-pr.sh` para insertar entradas de CHANGELOG en orden descendente
+- Corregir posición de comparison URLs al inicio de la sección de referencias
+- Mover `Closes #N` al inicio del PR body para cierre automático de issues
+- Usar `$GITHUB_TOKEN` real en lugar de placeholder en llamadas curl
+  [#51](https://github.com/pelukron/hermes-scripts/issues/51)
+
 ## [0.3.20] - 2026-07-14
 
 ### 🤖 CI
@@ -213,6 +222,7 @@ Todos los cambios notables se documentan aquí. Formato basado en [Keep a Change
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.3.21]: https://github.com/pelukron/hermes-scripts/compare/v0.3.20...v0.3.21
 [0.3.20]: https://github.com/pelukron/hermes-scripts/compare/v0.3.19...v0.3.20
 [0.3.19]: https://github.com/pelukron/hermes-scripts/compare/v0.3.18...v0.3.19
 [0.3.18]: https://github.com/pelukron/hermes-scripts/compare/v0.3.17...v0.3.18
