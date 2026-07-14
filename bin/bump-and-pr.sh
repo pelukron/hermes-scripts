@@ -100,7 +100,7 @@ if [ -n "$ISSUE_BODY_FILE" ] && [ -f "$ISSUE_BODY_FILE" ]; then
     echo "  Usando body file: $ISSUE_BODY_FILE"
 else
     # Auto-generar cuerpo enriquecido con generate-issue-body.py
-    python3 "$SCRIPT_DIR/../src/generate-issue-body.py" \
+    python3 "$SCRIPT_DIR/../src/generate_issue_body.py" \
         "$COMMIT_MSG" \
         "$CHANGELOG_ENTRY" \
         --branch "$BRANCH" \
