@@ -5,7 +5,7 @@ Todo cambio sigue este pipeline. No hay push directo a `main`.
 ## Pipeline Automatizado
 
 ```bash
-./bump-and-pr.sh patch "tipo: descripción" "- cambio"
+./bin/bump-and-pr.sh patch "tipo: descripción" "- cambio"
   │
   ├─ 1. Issue con body enriquecido (Summary, Problem, Changes, AC, Risks)
   ├─ 2. Rama semántica (feat/, fix/, docs/, refactor/)
@@ -37,14 +37,14 @@ git checkout main && git pull origin main
 # 2. Hacer tus cambios (archivos modificados pero sin commit)
 
 # 3. Ejecutar bump-and-pr.sh
-./bump-and-pr.sh patch "feat: agregar nueva funcionalidad" "- Nueva funcionalidad X"
+./bin/bump-and-pr.sh patch "feat: agregar nueva funcionalidad" "- Nueva funcionalidad X"
 
 # Esto crea: Issue + Rama + Bump + Changelog + Commit + Push + PR
 ```
 
 ## Proceso Manual
 
-Cuando no puedes usar `bump-and-pr.sh` (ej. sin token, sin acceso a API):
+Cuando no puedes usar `bin/bump-and-pr.sh` (ej. sin token, sin acceso a API):
 
 ```bash
 # 1. Pull latest
@@ -56,14 +56,20 @@ git checkout -b fix/mi-cambio
 # 3. Hacer cambios
 #    ... editar archivos ...
 
-# 4. Commit de cambios
+# 4. Correr checks locales
+make check
+
+# 5. Si falla algo, corregir y repetir `make check`
+#    (NO usar `git commit --amend` ni `git push --force`)
+
+# 6. Commit de cambios
 git add -A
 git commit -m "fix: descripción del cambio"
 
-# 5. Bump version en pyproject.toml
+# 7. Bump version en pyproject.toml
 #    Editar: version = "0.3.11" → "0.3.12"
 
-# 6. Actualizar CHANGELOG.md (formato Keep a Changelog)
+# 8. Actualizar CHANGELOG.md (formato Keep a Changelog)
 #    Insertar después del header:
 #    ## [0.3.12] - 2026-07-11
 #
@@ -71,26 +77,26 @@ git commit -m "fix: descripción del cambio"
 #    - descripción del cambio
 #      [#N](https://github.com/pelukron/hermes-scripts/issues/N)
 
-# 7. Agregar comparison URL al final del CHANGELOG
+# 9. Agregar comparison URL al final del CHANGELOG
 #    [0.3.12]: https://github.com/pelukron/hermes-scripts/compare/v0.3.11...v0.3.12
 
-# 8. Commit del bump
+# 10. Commit del bump
 git add pyproject.toml CHANGELOG.md
 git commit -m "chore: bump v0.3.11 → v0.3.12"
 
-# 9. Push
+# 11. Push
 git push -u origin fix/mi-cambio
 
-# 10. Crear Issue (manual en GitHub UI o con gh CLI)
+# 12. Crear Issue (manual en GitHub UI o con gh CLI)
 gh issue create --title "fix: descripción del cambio" \
   --body "## Summary\n**FIX:** descripción\n\n## Changes\n- cambio" \
   --label "🐛 hotfix"
 
-# 11. Crear PR vinculado al issue
+# 13. Crear PR vinculado al issue
 gh pr create --title "fix: descripción del cambio" \
   --body "Closes #N" --base main
 
-# 12. Agregar label al PR
+# 14. Agregar label al PR
 gh pr edit <PR_NUM> --add-label "🐛 hotfix"
 ```
 
@@ -144,6 +150,7 @@ git config core.hooksPath .githooks
 | CI verde requerido | Ruleset → `test` |
 | CHANGELOG actualizado | CI check |
 | Auto-delete branches | Repo settings |
+| **NO force push / NO amend** | Política del repo: errores se corrigen con commits nuevos |
 
 ## Skills relacionadas
 

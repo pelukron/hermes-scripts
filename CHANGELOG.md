@@ -1,6 +1,16 @@
 # Changelog
 
-Todos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Todos los cambios notables
+## [0.3.16] - 2026-07-13
+
+### 🔧 Changed
+- Mover scripts shell a `bin/`
+- Mover `generate-issue-body.py` a `src/`
+- Corregir ruta interna en `bump-and-pr.sh`
+- Actualizar README, CONTRIBUTING y setup.sh con nuevas rutas
+  [#40](https://github.com/pelukron/hermes-scripts/issues/40)
+
+ documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.3.15] - 2026-07-11
 
@@ -188,4 +198,4 @@ Todos los cambios notables documentados aquí. Formato basado en [Keep a Changel
 [0.3.3]: https://github.com/pelukron/hermes-scripts/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/pelukron/hermes-scripts/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/pelukron/hermes-scripts/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0
+[0.3.0]: https://github.com/pelukron/hermes-scripts/compare/v0.1.0...v0.3.0[0.3.16]: https://github.com/pelukron/hermes-scripts/compare/v0.3.15...v0.3.16

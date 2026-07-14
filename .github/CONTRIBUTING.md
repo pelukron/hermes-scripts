@@ -38,7 +38,7 @@ git push -u origin feat/v0.4.0-mi-feature
 
 ```bash
 # Alternativa automatizada con bump automático
-./bump-and-pr.sh patch "fix: mensaje" "- cambio 1" "- cambio 2"
+./bin/bump-and-pr.sh patch "fix: mensaje" "- cambio 1" "- cambio 2"
 ```
 
 ### Reglas

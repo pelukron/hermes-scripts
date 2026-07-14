@@ -63,6 +63,8 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
 fi
 git pull origin main --ff-only 2>/dev/null || echo "⚠️  No se pudo hacer pull (¿sin cambios remotos?)"
 
+cd "$SCRIPT_DIR/.." || exit 1
+
 # ── Calcular nueva versión ──
 CURRENT_VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
@@ -98,7 +100,7 @@ if [ -n "$ISSUE_BODY_FILE" ] && [ -f "$ISSUE_BODY_FILE" ]; then
     echo "  Usando body file: $ISSUE_BODY_FILE"
 else
     # Auto-generar cuerpo enriquecido con generate-issue-body.py
-    python3 "$SCRIPT_DIR/generate-issue-body.py" \
+    python3 "$SCRIPT_DIR/../src/generate_issue_body.py" \
         "$COMMIT_MSG" \
         "$CHANGELOG_ENTRY" \
         --branch "$BRANCH" \
@@ -173,7 +175,10 @@ block = '''$CHANGELOG_BLOCK'''
 with open('CHANGELOG.md', 'r') as f:
     content = f.read()
 # Insert new entry after header
-content = content.replace('# Changelog\n\nTodos los cambios notables', '# Changelog\n\nTodos los cambios notables\n' + block)
+content = content.replace(
+    '# Changelog\n\nTodos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).',
+    '# Changelog\n\nTodos los cambios notables documentados aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).\n' + block
+)
 # Append comparison URL at the end
 compare_url = f'[$NEW_VERSION]: https://github.com/$GH_USER/$GH_REPO/compare/v$CURRENT_VERSION...v$NEW_VERSION\n'
 if compare_url not in content:

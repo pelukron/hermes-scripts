@@ -12,8 +12,11 @@ import sys
 from datetime import datetime
 
 
-def run(cmd: str, shell: bool = True) -> str:
-    result = subprocess.run(cmd, shell=shell, capture_output=True, text=True)
+def run(cmd: str, shell: bool = False) -> str:
+    if shell:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    else:
+        result = subprocess.run(cmd, shell=False, capture_output=True, text=True)
     return result.stdout.strip()
 
 
@@ -21,13 +24,17 @@ def get_diff_stats() -> tuple[list[str], str]:
     """Returns (changed_files, diff_summary)."""
     try:
         files = run(
-            "git diff --name-only main...HEAD 2>/dev/null || git diff --name-only HEAD~1"
+            "git diff --name-only main...HEAD 2>/dev/null || git diff --name-only HEAD~1",
+            shell=True,
         ).split("\n")
     except Exception:
         files = []
 
     try:
-        stat = run("git diff --stat main...HEAD 2>/dev/null || git diff --stat HEAD~1")
+        stat = run(
+            "git diff --stat main...HEAD 2>/dev/null || git diff --stat HEAD~1",
+            shell=True,
+        )
     except Exception:
         stat = "N/A"
 

@@ -12,7 +12,7 @@ Scripts Python para automatización diaria de Hermes Agent. Monorepo con tests, 
 | `polymarket-diario.py` | Mercados de predicción (geopolítica, elecciones, deportes) | Subprocess de noticias |
 | `reporte-uso-hermes.py` | Reporte diario de uso de Hermes | 8:00 AM |
 | `backup-diario.py` | Backup de state.db + config | 2:00 AM |
-| `sistema-alertas-y-resumen.sh` | Alertas disco/CPU/memoria | Cada 30 min |
+| `bin/sistema-alertas-y-resumen.sh` | Alertas disco/CPU/memoria | Cada 30 min |
 
 ## Stack
 
