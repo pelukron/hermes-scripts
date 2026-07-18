@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# pm-status — Quick standup-style project status report for hermes-scripts
+#
+# Usage:
+#   ./bin/pm-status              Full report
+#   ./bin/pm-status --short      One-line summary
+#   ./bin/pm-status --milestone  Group by milestone
+#   ./bin/pm-status --help       This help
+#
+# Requirements: gh CLI, jq
+
+set -euo pipefail
+
+OWNER="pelukron"
+REPO="hermes-scripts"
+PROJECT_NUM=3
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+NC='\033[0m'
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    head -12 "$0" | grep '^#' | sed 's/^# \?//'
+    exit 0
+fi
+
+MODE="${1:-full}"
+
+milestones() {
+    echo -e "${MAGENTA}📊 Milestones${NC}"
+    gh api "repos/$OWNER/$REPO/milestones?state=open&sort=due_on" --jq '
+        .[] | 
+        "  \(.title)  due: \(.due_on // "no date")  [\(.closed_issues)/\(.open_issues + .closed_issues)]"
+    ' 2>/dev/null || echo "  (no milestones)"
+    echo
+}
+
+epics() {
+    echo -e "${CYAN}👑 Active Epics${NC}"
+    gh issue list \
+        --repo "$OWNER/$REPO" \
+        --label "👑 epic" \
+        --state open \
+        --json number,title,labels,milestone \
+        --jq '
+            .[] | 
+            "  #\(.number) \(.title)  [\(.milestone.title // "no milestone")]"
+        ' 2>/dev/null || echo "  (no active epics)"
+    echo
+}
+
+blocked() {
+    local count
+    count=$(gh issue list \
+        --repo "$OWNER/$REPO" \
+        --label "🚧 blocked" \
+        --state open \
+        --json number --jq 'length' 2>/dev/null || echo "0")
+    
+    if [[ "$count" -gt 0 ]]; then
+        echo -e "${RED}🚧 Blocked ($count)${NC}"
+        gh issue list \
+            --repo "$OWNER/$REPO" \
+            --label "🚧 blocked" \
+            --state open \
+            --json number,title \
+            --jq '.[] | "  #\(.number) \(.title)"'
+    else
+        echo -e "${GREEN}✅ No blocked items${NC}"
+    fi
+    echo
+}
+
+recent_prs() {
+    echo -e "${CYAN}🔀 Recent Merged PRs (7 days)${NC}"
+    gh pr list \
+        --repo "$OWNER/$REPO" \
+        --state merged \
+        --search "merged:>=$(date -d '7 days ago' +%Y-%m-%d)" \
+        --json number,title,mergedAt \
+        --jq '
+            .[:5] | 
+            .[] | 
+            "  #\(.number) \(.title)  [\(.mergedAt[0:10])]"
+        ' 2>/dev/null || echo "  (no recent PRs)"
+    echo
+}
+
+board_glance() {
+    echo -e "${MAGENTA}📋 Project Board${NC}"
+    gh project item-list "$PROJECT_NUM" --owner "$OWNER" --format json 2>/dev/null | \
+    python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+items = data.get('items', [])
+done = sum(1 for i in items if i.get('status') == 'Done')
+todo = sum(1 for i in items if i.get('status') == 'Todo')
+print(f'  Total: {len(items)} | Done: {done} | Todo: {todo}')
+" 2>/dev/null || echo "  (board unavailable)"
+    echo "  🔗 https://github.com/users/$OWNER/projects/$PROJECT_NUM"
+    echo
+}
+
+short_report() {
+    local epic_count blocked_count
+    epic_count=$(gh issue list --repo "$OWNER/$REPO" --label "👑 epic" --state open --json number --jq 'length' 2>/dev/null || echo "0")
+    blocked_count=$(gh issue list --repo "$OWNER/$REPO" --label "🚧 blocked" --state open --json number --jq 'length' 2>/dev/null || echo "0")
+    
+    local ms_data
+    ms_data=$(gh api "repos/$OWNER/$REPO/milestones?state=open" --jq '[.[] | "\(.closed_issues)/\(.open_issues + .closed_issues)"] | join(" | ")' 2>/dev/null)
+    
+    echo "📊 $REPO | Epics: $epic_count | Blocked: $blocked_count | MS: [$ms_data]"
+}
+
+case "$MODE" in
+    --short|-s)
+        short_report
+        ;;
+    --milestone|-m)
+        milestones
+        epics
+        blocked
+        ;;
+    *)
+        echo -e "${GREEN}$(date '+%Y-%m-%d %H:%M') — $OWNER/$REPO${NC}"
+        echo
+        milestones
+        epics
+        blocked
+        board_glance
+        recent_prs
+        ;;
+esac

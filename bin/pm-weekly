@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# pm-weekly — Weekly project digest for end-of-week review
+#
+# Usage:
+#   ./bin/pm-weekly                  Current week
+#   ./bin/pm-weekly --since 7d       Last 7 days
+#   ./bin/pm-weekly --output md      Markdown output (copy-paste to issues)
+#   ./bin/pm-weekly --help           This help
+#
+# Requirements: gh CLI, jq
+
+set -euo pipefail
+
+OWNER="pelukron"
+REPO="hermes-scripts"
+PROJECT_NUM=3
+SINCE="${2:-7d}"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    head -16 "$0" | grep '^#' | sed 's/^# \?//'
+    exit 0
+fi
+
+MODE="${1:-terminal}"
+OUTPUT_MD=false
+[[ "$MODE" == "--output" && "${2:-}" == "md" ]] && OUTPUT_MD=true
+[[ "$MODE" == "--since" ]] && SINCE="$2"
+
+if [[ "$SINCE" == "7d" ]]; then
+    SINCE_DATE=$(date -d '7 days ago' +%Y-%m-%d)
+else
+    SINCE_DATE=$(date -d "$SINCE ago" +%Y-%m-%d 2>/dev/null || date -d '7 days ago' +%Y-%m-%d)
+fi
+TODAY=$(date +%Y-%m-%d)
+
+if $OUTPUT_MD; then
+    H1() { echo "## $1"; echo; }
+    H2() { echo "### $1"; echo; }
+    ITEM() { echo "- $1"; }
+    LINE() { echo "---"; echo; }
+else
+    H1() { echo -e "${BOLD}${MAGENTA}$1${NC}"; echo; }
+    H2() { echo -e "${CYAN}$1${NC}"; echo; }
+    ITEM() { echo "  $1"; }
+    LINE() { echo "─────────────────────────────────────────"; echo; }
+fi
+
+H1 "📊 $REPO — Weekly Digest ($SINCE_DATE → $TODAY)"
+LINE
+
+# Milestones
+H2 "🎯 Milestones"
+gh api "repos/$OWNER/$REPO/milestones?state=open&sort=due_on" --jq '
+    .[] | 
+    "\(.title) | closed:\(.closed_issues) open:\(.open_issues) | due:\(.due_on // "none")"
+' 2>/dev/null | while read -r line; do
+    ITEM "$line"
+done
+echo
+
+# Issues Created
+H2 "📝 Issues Created"
+created=$(gh issue list \
+    --repo "$OWNER/$REPO" \
+    --state all \
+    --search "created:>=$SINCE_DATE" \
+    --json number --jq 'length' 2>/dev/null || echo "0")
+ITEM "Total: $created"
+
+gh issue list \
+    --repo "$OWNER/$REPO" \
+    --state all \
+    --search "created:>=$SINCE_DATE" \
+    --json number,title,state \
+    --jq '.[] | "#\(.number) \(.title) [\(.state)]"' 2>/dev/null | while read -r line; do
+    ITEM "$line"
+done
+echo
+
+# Issues Closed
+H2 "✅ Issues Closed"
+closed=$(gh issue list \
+    --repo "$OWNER/$REPO" \
+    --state closed \
+    --search "closed:>=$SINCE_DATE" \
+    --json number --jq 'length' 2>/dev/null || echo "0")
+ITEM "Total: $closed"
+echo
+
+# PRs Merged
+H2 "🔀 PRs Merged"
+merged=$(gh pr list \
+    --repo "$OWNER/$REPO" \
+    --state merged \
+    --search "merged:>=$SINCE_DATE" \
+    --json number --jq 'length' 2>/dev/null || echo "0")
+ITEM "Total: $merged"
+
+gh pr list \
+    --repo "$OWNER/$REPO" \
+    --state merged \
+    --search "merged:>=$SINCE_DATE" \
+    --json number,title,mergedAt,author \
+    --jq '.[] | "#\(.number) \(.title) — by \(.author.login) [\(.mergedAt[0:10])]"' 2>/dev/null | while read -r line; do
+    ITEM "$line"
+done
+echo
+
+# Active Epics
+H2 "👑 Active Epics"
+gh issue list \
+    --repo "$OWNER/$REPO" \
+    --label "👑 epic" \
+    --state open \
+    --json number,title,milestone \
+    --jq '.[] | "#\(.number) \(.title) [\(.milestone.title // "no milestone")]"' 2>/dev/null | while read -r line; do
+    ITEM "$line"
+done
+echo
+
+# Board
+H2 "📋 Board"
+ITEM "🔗 https://github.com/users/$OWNER/projects/$PROJECT_NUM"
+echo
+
+LINE
+echo -e "${GREEN}Generated: $(date '+%Y-%m-%d %H:%M')${NC}"
