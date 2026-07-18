@@ -385,7 +385,7 @@ def escape_link(link):
 
 
 # Cache global para URLs acortadas (evita llamadas repetidas a TinyURL)
-_URL_CACHE = {}
+_URL_CACHE: dict[str, str] = {}
 
 
 def shorten_url(long_url, timeout=5):
