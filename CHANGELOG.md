@@ -37,6 +37,11 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - Corregir 6 type annotations en scripts (mypy pasa en 11 archivos)
   [#64](https://github.com/pelukron/hermes-scripts/issues/64)
 
+### 🛡️ Security
+- Validar paths de subprocess antes de ejecutar (polymarket, uv install, git)
+- Capturar stderr en subprocess y loguear errores
+  [#65](https://github.com/pelukron/hermes-scripts/issues/65)
+
 ## [0.3.22] - 2026-07-14
 
 ### 🤖 CI

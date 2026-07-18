@@ -36,19 +36,25 @@ except ModuleNotFoundError:
     import subprocess
 
     uv = os.environ.get("UV", "/home/d13g0m0r3n0/.local/bin/uv")
-    subprocess.check_call(
-        [
-            uv,
-            "pip",
-            "install",
-            "--python",
-            sys.executable,
-            "feedparser",
-            "requests",
-            "beautifulsoup4",
-            "lxml",
-        ]
-    )
+    if not os.path.isfile(uv):
+        uv = "uv"  # fallback to system PATH
+    try:
+        subprocess.check_call(
+            [
+                uv,
+                "pip",
+                "install",
+                "--python",
+                sys.executable,
+                "feedparser",
+                "requests",
+                "beautifulsoup4",
+                "lxml",
+            ]
+        )
+    except subprocess.CalledProcessError as e:
+        logging.warning("Failed to install runtime deps: %s", e)
+        raise
     import feedparser
     import requests
     from bs4 import BeautifulSoup

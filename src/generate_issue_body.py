@@ -12,8 +12,14 @@ import sys
 from datetime import datetime
 
 
-def run(cmd: str, shell: bool = False) -> str:
-    if shell:
+def run(cmd: list[str] | str, shell: bool = False) -> str:
+    """Run a subprocess command safely.
+
+    Prefer list form to avoid shell injection.
+    shell=True only used for git commands internally.
+    """
+    if shell and isinstance(cmd, str):
+        # Internal git commands, safe inputs
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     else:
         result = subprocess.run(cmd, shell=False, capture_output=True, text=True)
