@@ -14,6 +14,7 @@ Uso:
   ~/.hermes/venv/bin/python ~/.hermes/scripts/resumen-rayados-diario.py
 """
 
+import logging
 import os
 import re
 import sys
@@ -360,8 +361,8 @@ def shorten_url(long_url, timeout=5):
             short = r.text.strip()
             _URL_CACHE[long_url] = short
             return short
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("TinyURL shorten failed: %s", e)
     return long_url
 
 
@@ -387,8 +388,8 @@ def resolve_url(google_news_url: str, timeout: int = 5) -> str:
         final = resp.url
         if final and final != google_news_url and "news.google.com" not in final:
             return final
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("TinyURL shorten failed: %s", e)
     return google_news_url
 
 

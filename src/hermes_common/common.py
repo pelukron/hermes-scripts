@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import random
 import time
@@ -137,8 +138,8 @@ class HistoryManager:
             os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
             with open(self.filepath, "w") as f:
                 json.dump(self.history, f, indent=2)
-        except IOError:
-            pass
+        except IOError as e:
+            logging.warning("History save failed for %s: %s", self.filepath, e)
 
     def add(self, url: str):
         """Adds a URL to history with current timestamp."""

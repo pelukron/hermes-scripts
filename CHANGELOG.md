@@ -26,6 +26,11 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - Resuelve bandit B405/B314 (XML parse inseguro de feeds externos)
   [#62](https://github.com/pelukron/hermes-scripts/issues/62)
 
+### 🔊 Observability
+- Reemplazar `except Exception: pass` por `logging.warning` en noticias, rayados y common
+- Resuelve bandit B110 en 5 puntos silenciosos
+  [#63](https://github.com/pelukron/hermes-scripts/issues/63)
+
 ## [0.3.22] - 2026-07-14
 
 ### 🤖 CI
