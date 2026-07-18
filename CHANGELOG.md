@@ -21,6 +21,11 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - Anadir regla de emojis en Issues a PROJECT_MANAGEMENT.md
   [#76](https://github.com/pelukron/hermes-scripts/issues/76)
 
+### 🛡️ Security
+- Reemplazar xml.etree.ElementTree por defusedxml en parseo RSS
+- Resuelve bandit B405/B314 (XML parse inseguro de feeds externos)
+  [#62](https://github.com/pelukron/hermes-scripts/issues/62)
+
 ## [0.3.22] - 2026-07-14
 
 ### 🤖 CI
