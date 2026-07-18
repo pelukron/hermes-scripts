@@ -295,7 +295,7 @@ def dedupe_by_title(items, threshold: float = 0.85):
     Returns:
         list: Lista sin duplicados por título, conserva el primero.
     """
-    out = []
+    out: list[dict] = []
     for item in items:
         title = item.get("title", "")
         if not any(title_similar(title, existing.get("title", ""), threshold) for existing in out):
@@ -335,7 +335,7 @@ def normalize_urls(items):
 
 
 # Cache global para URLs acortadas
-_URL_CACHE = {}
+_URL_CACHE: dict[str, str] = {}
 
 
 def shorten_url(long_url, timeout=5):
@@ -503,7 +503,7 @@ def fetch_rayados_com() -> list:
             a = li.find("a", href=re.compile(r"/es/noticias/\d+(/|\?|$)"))
             if not a:
                 continue
-            href = a.get("href", "").strip()
+            href = str(a.get("href", "")).strip()
             if not href or href in seen:
                 continue
             seen.add(href)
@@ -516,7 +516,7 @@ def fetch_rayados_com() -> list:
             if heading:
                 title = heading.get_text(strip=True)
             if not title:
-                title = a.get("title", "").strip()
+                title = str(a.get("title", "")).strip()
             if not title or len(title) < 10:
                 continue
 

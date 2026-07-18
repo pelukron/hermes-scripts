@@ -22,11 +22,11 @@ format:
 
 ## Type check con mypy
 typecheck:
-	uv run mypy src/
+	uv run mypy .
 
 ## Security scan con bandit
 security:
-	uv run bandit -c pyproject.toml -r src/ -ll
+	uv run bandit -c pyproject.toml -r . -x .venv,tests -ll
 
 ## Ejecutar script principal
 run:

@@ -31,6 +31,12 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - Resuelve bandit B110 en 5 puntos silenciosos
   [#63](https://github.com/pelukron/hermes-scripts/issues/63)
 
+### 🤖 CI
+- Extender mypy y bandit a todo el repo (no solo src/) en Makefile y CI
+- Excluir tests/ de mypy en pyproject.toml
+- Corregir 6 type annotations en scripts (mypy pasa en 11 archivos)
+  [#64](https://github.com/pelukron/hermes-scripts/issues/64)
+
 ## [0.3.22] - 2026-07-14
 
 ### 🤖 CI

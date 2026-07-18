@@ -8,10 +8,10 @@ import re
 import subprocess
 import sys
 import time
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
 
+import defusedxml.ElementTree as ET  # noqa: N817
 import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -385,7 +385,7 @@ def escape_link(link):
 
 
 # Cache global para URLs acortadas (evita llamadas repetidas a TinyURL)
-_URL_CACHE = {}
+_URL_CACHE: dict[str, str] = {}
 
 
 def shorten_url(long_url, timeout=5):
