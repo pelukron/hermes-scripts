@@ -2,6 +2,7 @@
 """Diario Global Hermes — fuentes multiregión, multi-ideología."""
 
 import json
+import logging
 import os
 import re
 import subprocess
@@ -401,8 +402,8 @@ def shorten_url(long_url, timeout=5):
             short = r.text.strip()
             _URL_CACHE[long_url] = short
             return short
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("TinyURL shorten failed for %s: %s", long_url[:120], e)
     return long_url
 
 
@@ -463,8 +464,8 @@ def main():
     try:
         polymarket_script = os.path.join(os.path.dirname(__file__), "polymarket-diario.py")
         subprocess.run([sys.executable, polymarket_script], timeout=25)
-    except Exception:
-        pass  # Silent fail — no bloquea el reporte
+    except Exception as e:
+        logging.warning("Polymarket subprocess failed: %s", e)
 
     # Markets
     crypto = fetch_crypto()
