@@ -14,6 +14,13 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - Agregar milestones v0.4.0, v0.5.0, v0.6.0 y board [hermes-scripts](https://github.com/users/pelukron/projects/3)
   [#58](https://github.com/pelukron/hermes-scripts/issues/58)
 
+### 🔧 Changed
+- Adaptar scripts PM de react-stack-roadmap: gh-issue, gh-pr, pm-status, pm-weekly
+- Anadir workflow project-automation.yml para auto-add de epicas al board #3
+- Formatear epicas #58, #59, #60 con emojis y secciones estandarizadas
+- Anadir regla de emojis en Issues a PROJECT_MANAGEMENT.md
+  [#76](https://github.com/pelukron/hermes-scripts/issues/76)
+
 ## [0.3.22] - 2026-07-14
 
 ### 🤖 CI
