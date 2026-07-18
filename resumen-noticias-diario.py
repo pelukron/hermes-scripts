@@ -463,7 +463,15 @@ def main():
     # Polymarket predictions
     try:
         polymarket_script = os.path.join(os.path.dirname(__file__), "polymarket-diario.py")
-        subprocess.run([sys.executable, polymarket_script], timeout=25)
+        if not os.path.isfile(polymarket_script):
+            logging.warning("Polymarket script not found: %s", polymarket_script)
+        else:
+            subprocess.run(
+                [sys.executable, polymarket_script],
+                timeout=25,
+                capture_output=True,
+                text=True,
+            )
     except Exception as e:
         logging.warning("Polymarket subprocess failed: %s", e)
 
