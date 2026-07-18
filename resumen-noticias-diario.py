@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 import time
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
 

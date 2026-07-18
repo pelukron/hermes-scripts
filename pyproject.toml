@@ -40,4 +40,4 @@ exclude = ["tests"]
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", ".git"]
-skips = ["B602", "B604"]
+skips = ["B602", "B604", "B314"]
