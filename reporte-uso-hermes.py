@@ -23,20 +23,24 @@ def fetch_daily_stats(days=7):
         list[tuple]: Rows of (date, session_count, input_tokens,
             output_tokens, total_tokens).
     """
+    if not isinstance(days, int) or days <= 0:
+        raise ValueError("days must be a positive integer")
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        f"""
+        """
         SELECT date(started_at, 'unixepoch') as dia,
                COUNT(*) as sesiones,
                COALESCE(SUM(input_tokens), 0) as input_tokens,
                COALESCE(SUM(output_tokens), 0) as output_tokens,
                COALESCE(SUM(input_tokens + output_tokens), 0) as total_tokens
         FROM sessions
-        WHERE started_at >= strftime('%s', 'now', '-{days} days')
+        WHERE started_at >= strftime('%s', 'now', '-' || ? || ' days')
         GROUP BY dia
         ORDER BY dia
-        """
+        """,
+        (days,),
     )
     rows = cursor.fetchall()
     conn.close()
@@ -53,20 +57,24 @@ def fetch_model_stats(days=7):
         list[tuple]: Rows of (model, session_count, input_tokens,
             output_tokens, total_tokens), sorted by total_tokens descending.
     """
+    if not isinstance(days, int) or days <= 0:
+        raise ValueError("days must be a positive integer")
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        f"""
+        """
         SELECT model,
                COUNT(*) as sesiones,
                COALESCE(SUM(input_tokens), 0) as input_tokens,
                COALESCE(SUM(output_tokens), 0) as output_tokens,
                COALESCE(SUM(input_tokens + output_tokens), 0) as total_tokens
         FROM sessions
-        WHERE started_at >= strftime('%s', 'now', '-{days} days')
+        WHERE started_at >= strftime('%s', 'now', '-' || ? || ' days')
         GROUP BY model
         ORDER BY total_tokens DESC
-        """
+        """,
+        (days,),
     )
     rows = cursor.fetchall()
     conn.close()
@@ -83,17 +91,21 @@ def fetch_total_stats(days=7):
         tuple: (total_sessions, total_input_tokens, total_output_tokens,
             total_tokens).
     """
+    if not isinstance(days, int) or days <= 0:
+        raise ValueError("days must be a positive integer")
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        f"""
+        """
         SELECT COUNT(*),
                COALESCE(SUM(input_tokens), 0),
                COALESCE(SUM(output_tokens), 0),
                COALESCE(SUM(input_tokens + output_tokens), 0)
         FROM sessions
-        WHERE started_at >= strftime('%s', 'now', '-{days} days')
-        """
+        WHERE started_at >= strftime('%s', 'now', '-' || ? || ' days')
+        """,
+        (days,),
     )
     row = cursor.fetchone()
     conn.close()

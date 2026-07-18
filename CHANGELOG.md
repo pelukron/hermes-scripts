@@ -1,6 +1,18 @@
 # Changelog
 
-Todos los cambios notables se documentan aquí. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [Unreleased]
+
+### 🐛 Fixed
+- Reemplazar SQL f-string por parametros SQLite en `reporte-uso-hermes.py`
+- Validar que `days` sea entero positivo en funciones de consulta
+  [#61](https://github.com/pelukron/hermes-scripts/issues/61)
+
+### 📝 Documentation
+- Agregar `PROJECT_MANAGEMENT.md` con estructura Jira-style para epics, milestones y board
+- Agregar milestones v0.4.0, v0.5.0, v0.6.0 y board [hermes-scripts](https://github.com/users/pelukron/projects/3)
+  [#58](https://github.com/pelukron/hermes-scripts/issues/58)
 
 ## [0.3.22] - 2026-07-14
 
