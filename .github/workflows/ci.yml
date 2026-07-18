@@ -26,7 +26,8 @@ jobs:
       - name: Changelog check
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'github-actions/')
         run: |
-          git diff --name-only origin/main..HEAD | grep -q "^CHANGELOG.md$" && echo "✅ CHANGELOG.md actualizado" || {
+          MERGE_BASE=$(git merge-base origin/main HEAD 2>/dev/null || echo origin/main)
+          git diff --name-only "$MERGE_BASE" HEAD | grep -q "^CHANGELOG.md$" && echo "✅ CHANGELOG.md actualizado en este PR" || {
             echo "❌ CHANGELOG.md NO fue modificado en este PR"
             echo ""
             echo "   Todo cambio debe reflejarse en CHANGELOG.md."

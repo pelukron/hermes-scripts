@@ -1,0 +1,22 @@
+name: Project Automation
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  issues: read
+
+jobs:
+  add-to-project:
+    name: Add issue to Project Board
+    runs-on: ubuntu-latest
+    if: |
+      github.event.action == 'labeled' &&
+      contains(github.event.label.name, 'epic')
+    steps:
+      - name: Add to project
+        uses: actions/add-to-project@v1
+        with:
+          project-url: https://github.com/users/pelukron/projects/3
+          github-token: ${{ secrets.PROJECT_PAT }}

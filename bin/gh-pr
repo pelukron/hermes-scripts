@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Create PR from current branch, linking to the issue.
+
+set -euo pipefail
+
+OWNER="pelukron"
+REPO="hermes-scripts"
+
+if [ $# -lt 2 ]; then
+  echo "Usage: $(basename "$0") <issue-number> <branch>"
+  exit 1
+fi
+
+ISSUE_NUM="$1"
+BRANCH="$2"
+
+if ! git rev-parse --verify "$BRANCH" &> /dev/null; then
+  echo "Error: branch '$BRANCH' not found." && exit 1
+fi
+
+git checkout "$BRANCH"
+
+# Ensure branch is pushed
+if ! git rev-parse --abbrev-ref --symbolic-full-name "@{u}" &> /dev/null 2>&1; then
+  git push -u origin "$BRANCH"
+fi
+
+TITLE=$(gh issue view "$ISSUE_NUM" --repo "$OWNER/$REPO" --json title --jq '.title')
+LABELS=$(gh issue view "$ISSUE_NUM" --repo "$OWNER/$REPO" --json labels --jq '.labels[].name' | paste -sd "," -)
+
+# Prefix PR title with emoji based on branch type
+EMOJI=""
+case "$BRANCH" in
+  feature/*) EMOJI="✨" ;;
+  bugfix/*) EMOJI="🐛" ;;
+  hotfix/*) EMOJI="🚨" ;;
+  docs/*) EMOJI="📚" ;;
+  chore/*|ci/*|refactor/*|test/*) EMOJI="🔧" ;;
+  *) EMOJI="📝" ;;
+esac
+
+BODY="Closes #${ISSUE_NUM}
+
+This PR addresses #${ISSUE_NUM}.
+
+## Checklist
+- [ ] I ran \`make check\`
+- [ ] CHANGELOG.md updated"
+
+echo "Creating PR for branch '$BRANCH' linked to issue #$ISSUE_NUM..."
+gh pr create \
+  --repo "$OWNER/$REPO" \
+  --title "${EMOJI} ${TITLE} (#${ISSUE_NUM})" \
+  --body "$BODY" \
+  --label "$LABELS" \
+  --base main \
+  --head "$BRANCH"
+
+echo "✅ Done."

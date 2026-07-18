@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# GitHub Issue + Branch CLI helper for hermes-scripts
+# Crea issue, branch y guía para PR siguiendo convenciones del repo.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "$REPO_ROOT"
+
+OWNER="pelukron"
+REPO="hermes-scripts"
+
+if ! command -v gh &>/dev/null; then
+  echo "Error: gh CLI not found. Install: https://cli.github.com/" && exit 1
+fi
+
+if ! gh auth status &>/dev/null; then
+  echo "Error: gh not authenticated. Run: gh auth login" && exit 1
+fi
+
+USAGE="Usage: $(basename "$0") <type> <title> [body]
+
+type: feature | bugfix | hotfix | chore | docs | ci | refactor | test
+title: short issue/pr title
+body: optional issue description (defaults to title)"
+
+if [ $# -lt 2 ]; then
+  echo "$USAGE"
+  exit 1
+fi
+
+TYPE="$1"
+TITLE="$2"
+BODY="${3:-$TITLE}"
+
+VALID_TYPES="feature bugfix hotfix chore docs ci refactor test"
+if ! echo "$VALID_TYPES" | grep -qw "$TYPE"; then
+  echo "Error: invalid type '$TYPE'. Must be one of: $VALID_TYPES" && exit 1
+fi
+
+# Derive branch name
+SLUG=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')
+BRANCH="${TYPE}/${SLUG}"
+
+# Confirm
+read -r -p "Create issue + branch: '${TITLE}' on branch '${BRANCH}'? [y/N] " REPLY
+if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+  echo "Aborted."
+  exit 0
+fi
+
+# Map type to label and emoji
+LABEL=""
+EMOJI=""
+case "$TYPE" in
+  feature) LABEL="✨ enhancement" EMOJI="✨" ;;
+  bugfix) LABEL="🐛 bug" EMOJI="🐛" ;;
+  hotfix) LABEL="🚨 hotfix" EMOJI="🚨" ;;
+  docs) LABEL="📚 documentation" EMOJI="📚" ;;
+  chore|ci|refactor|test) LABEL="🔧 chore" EMOJI="🔧" ;;
+  *) LABEL="" EMOJI="📝" ;;
+esac
+
+LABEL_ARGS=""
+if [ -n "$LABEL" ]; then
+  LABEL_ARGS="--label '$LABEL'"
+fi
+
+ISSUE_URL=$(gh issue create --repo "$OWNER/$REPO" --title "${EMOJI} ${TYPE}: ${TITLE}" --body "$BODY" $LABEL_ARGS)
+ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+
+echo "🎉 Created issue #$ISSUE_NUM: $ISSUE_URL"
+echo "Labels: $LABEL"
+
+# Ensure main is up to date
+git checkout main
+git pull origin main
+
+# Create branch
+git checkout -b "$BRANCH"
+
+echo ""
+echo "Branch '$BRANCH' created."
+echo "Make your changes, then run:"
+echo "  git add -A"
+echo "  git commit -m '${TYPE}: ${TITLE} (closes #${ISSUE_NUM})'"
+echo "  git push origin ${BRANCH}"
+echo "  bin/gh-pr ${ISSUE_NUM} ${BRANCH}"
