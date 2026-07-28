@@ -2,8 +2,6 @@
 """Cleanup housekeeping: backups, caches, stores, old news. Keep 3 newest backups, news >4d."""
 
 import json
-import os
-import shutil
 import subprocess
 import sys
 import time
