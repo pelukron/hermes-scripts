@@ -4,6 +4,10 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [Unreleased]
 
+### 🚀 Added
+- Agregar script `cleanup-housekeeping.py` para limpieza automática: backups viejos (keep 3), noticias >4 días, npm/pnpm/pip cache
+  [#82](https://github.com/pelukron/hermes-scripts/pull/82)
+
 ### 🐛 Fixed
 - Reemplazar SQL f-string por parametros SQLite en `reporte-uso-hermes.py`
 - Validar que `days` sea entero positivo en funciones de consulta
