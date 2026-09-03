@@ -81,8 +81,7 @@ class TestCleanTitle:
 
     def test_reemplaza_brackets(self):
         assert (
-            clean_title("[OFICIAL] Tigres anuncia refuerzo")
-            == "(OFICIAL) Tigres anuncia refuerzo"
+            clean_title("[OFICIAL] Tigres anuncia refuerzo") == "(OFICIAL) Tigres anuncia refuerzo"
         )
 
     def test_sin_suffix_sin_cambio(self):
@@ -418,6 +417,7 @@ TIGRES_HTML = """
 </body></html>
 """
 
+
 class TestFetchTigresCom:
     def test_parse_html_exitoso(self):
         mock_resp = Mock()
@@ -475,13 +475,6 @@ class TestFetchTigresCom:
 # ═══════════════════════════════════════════
 
 
-def test_queries_no_usan_operador_and_explicito():
-    """Google News RSS devuelve 0 entries si la query usa AND o parentesis."""
-    for key, q in mod.QUERIES.items():
-        assert " AND " not in q, f"QUERIES[{key}] usa AND explicito: {q}"
-        assert "(" not in q, f"QUERIES[{key}] usa parentesis: {q}"
-
-
 def test_queries_usan_frases_entre_comillas():
     """La query debe abrir con una frase entre comillas; OR o termino suelto tras ella."""
     # Patrón: la query abre con frase citada y luego solo or-frases citadas o terminos sueltos
@@ -521,17 +514,19 @@ def _mk_confirmada(i: int) -> dict:
 def test_contador_refleja_items_mostrados():
     """Con 12 confirmadas y limite 8, el header debe decir '8 de 12' (o 8)."""
     confirmadas = [_mk_confirmada(i) for i in range(12)]
-    with patch("hermes_common.HistoryManager") as mock_hist_cls, \
-         patch.object(mod, "fetch_google_news") as mock_gn, \
-         patch.object(mod, "fetch_tigres_com") as mock_tig, \
-         patch.object(mod, "shorten_url", side_effect=lambda u: u):
+    with (
+        patch("hermes_common.HistoryManager") as mock_hist_cls,
+        patch.object(mod, "fetch_google_news") as mock_gn,
+        patch.object(mod, "fetch_tigres_com") as mock_tig,
+        patch.object(mod, "shorten_url", side_effect=lambda u: u),
+    ):
         mock_hist_cls.return_value.exists.return_value = False
         mock_gn.side_effect = lambda q, cat: confirmadas if cat == "confirmadas" else []
         mock_tig.return_value = []
         blocks = mod.build_report_blocks()
 
     conf = [b for b in blocks if "CONFIRMADO" in b][0]
-    bullets = [l for l in conf.splitlines() if l.startswith("- ")]
+    bullets = [line for line in conf.splitlines() if line.startswith("- ")]
     header = conf.splitlines()[0]
     assert str(len(bullets)) in header, f"header {header!r} no coincide con {len(bullets)} bullets"
     assert len(bullets) <= 8

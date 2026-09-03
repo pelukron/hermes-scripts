@@ -79,9 +79,7 @@ TIMEOUT = 20
 # - `AND` explícito y paréntesis `(` `)` rompen el feed (0 entries) → prohibidos.
 QUERIES = {
     "confirmadas": '"Tigres UANL" OR "Club Tigres" OR "Tigres de Monterrey"',
-    "rumores": (
-        '"Tigres UANL" fichaje OR "Tigres UANL" refuerzo OR "Tigres UANL" lesion'
-    ),
+    "rumores": ('"Tigres UANL" fichaje OR "Tigres UANL" refuerzo OR "Tigres UANL" lesion'),
 }
 
 # Dominios considerados medios establecidos / fuentes oficiales
@@ -503,7 +501,7 @@ def fetch_tigres_com() -> list:
         oficial=True, confiable=True, rumor=False. En caso de error, retorna
         un solo item con mensaje de error.
     """
-    items = []
+    items: list[dict] = []
     url = "https://www.tigres.com.mx/es/noticias/"
     try:
         resp = retry_request(url, timeout=TIMEOUT, headers=hermes_common.get_headers("default"))
@@ -546,7 +544,7 @@ def fetch_tigres_com() -> list:
             title = re.sub(r"\s*Ver más$", "", title).strip()
 
             # Evitar duplicados por URL
-            if full_link.rstrip("/") in {i["link"].rstrip("/") for i in items}:
+            if str(full_link).rstrip("/") in {str(i["link"]).rstrip("/") for i in items}:
                 continue
 
             items.append(
@@ -655,9 +653,7 @@ def build_report_blocks() -> list:
     tigres_items = fetch_tigres_com()
 
     # Validar que al menos tenemos datos de tigres.com.mx (fuente más confiable)
-    tigres_error = len(tigres_items) == 1 and tigres_items[0].get("title", "").startswith(
-        "[Error"
-    )
+    tigres_error = len(tigres_items) == 1 and tigres_items[0].get("title", "").startswith("[Error")
     if tigres_error:
         # tigres.com.mx falló completamente; solo usar Google News
         all_items = google_confirmadas + google_rumores
