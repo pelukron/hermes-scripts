@@ -7,6 +7,9 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 ### 🚀 Added
 - Agregar script `cleanup-housekeeping.py` para limpieza automática: backups viejos (keep 3), noticias >4 días, npm/pnpm/pip cache
   [#82](https://github.com/pelukron/hermes-scripts/pull/82)
+- Agregar script `resumen-tigres-diario.py`: noticias diarias de Tigres UANL
+  (Google News RSS + tigres.com.mx), clasificadas en confirmadas vs rumores,
+  con dedupe por historial de 72h. Cron 9:00 AM al canal Tigres
 
 ### 🐛 Fixed
 - Reemplazar SQL f-string por parametros SQLite en `reporte-uso-hermes.py`
