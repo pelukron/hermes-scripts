@@ -7,8 +7,10 @@ from typing import Dict, List
 
 import requests
 
+_DEFAULT_SESSION = requests.Session()
 
-def retry_request(url, timeout=15, max_attempts=3, headers=None):
+
+def retry_request(url, timeout=15, max_attempts=3, headers=None, session=None):
     """Fetch URL with exponential backoff + jitter. Retries on transient failures only.
 
     Args:
@@ -16,6 +18,7 @@ def retry_request(url, timeout=15, max_attempts=3, headers=None):
         timeout: Timeout en segundos por intento.
         max_attempts: Número máximo de intentos.
         headers: Dict de headers HTTP opcionales. Default: User-Agent estándar.
+        session: requests.Session reutilizable. Default: _DEFAULT_SESSION del módulo.
 
     Returns:
         requests.Response: Respuesta HTTP exitosa, o None si falla silenciosamente.
@@ -28,10 +31,11 @@ def retry_request(url, timeout=15, max_attempts=3, headers=None):
     if headers is None:
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
+    sess = session if session is not None else _DEFAULT_SESSION
     retry_status = {429, 500, 502, 503, 504}
     for attempt in range(max_attempts):
         try:
-            r = requests.get(url, timeout=timeout, headers=headers)
+            r = sess.get(url, timeout=timeout, headers=headers)
             if r.status_code in retry_status and attempt < max_attempts - 1:
                 wait = (2**attempt) + random.uniform(0, 0.5)
                 time.sleep(wait)
