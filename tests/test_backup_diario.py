@@ -163,5 +163,7 @@ class TestMainSmoke:
 
         _mod.main()
         captured = capsys.readouterr()
-        assert "backup OK" in captured.out
+        assert "Backup OK" in captured.out
+        assert "Ubicación del respaldo:" in captured.out
         assert "state.db dump" in captured.out
+        assert "Release note [Unreleased]" in captured.out

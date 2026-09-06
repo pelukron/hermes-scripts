@@ -27,6 +27,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - Formatear epicas #58, #59, #60 con emojis y secciones estandarizadas
 - Anadir regla de emojis en Issues a PROJECT_MANAGEMENT.md
   [#76](https://github.com/pelukron/hermes-scripts/issues/76)
+- El reporte de backup-diario.py incluye rutas absolutas, tamaño de artefactos y el cuerpo de [Unreleased]
 
 ### 🛡️ Security
 - Reemplazar xml.etree.ElementTree por defusedxml en parseo RSS
