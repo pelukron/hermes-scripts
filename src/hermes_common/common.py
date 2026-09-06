@@ -9,6 +9,50 @@ import requests
 
 _DEFAULT_SESSION = requests.Session()
 
+MAX_RESPONSE_BYTES = 2_000_000
+
+
+class PayloadTooLargeError(requests.exceptions.RequestException):
+    """Body o Content-Length supera MAX_RESPONSE_BYTES."""
+
+
+def _read_streamed_body(resp, max_bytes):
+    """Lee el body de una response en streaming con tope de tamaño.
+
+    Tolerante a mocks: si Content-Length no es un int real, o `iter_content`
+    no existe / no es iterable / no yield bytes, se devuelve la response tal
+    cual (sin capar) para que `.text` / `.json` / `.content` del caller
+    sigan funcionando. Solo se lanza ``PayloadTooLargeError`` y se cierra la
+    conexión cuando se detectan bytes reales que superan ``max_bytes``.
+    """
+    try:
+        content_length = int(resp.headers.get("Content-Length"))
+    except (AttributeError, TypeError, ValueError):
+        content_length = None
+
+    if content_length is not None and content_length > max_bytes:
+        resp.close()
+        raise PayloadTooLargeError(f"Content-Length {content_length} excede {max_bytes} bytes")
+
+    try:
+        chunks = []
+        total = 0
+        for chunk in resp.iter_content(chunk_size=65536):
+            if not chunk:
+                continue
+            total += len(chunk)
+            if total > max_bytes:
+                resp.close()
+                raise PayloadTooLargeError(f"Body de {total} bytes excede {max_bytes} bytes")
+            chunks.append(chunk)
+    except (AttributeError, TypeError):
+        # Sin iter_content real o iterable: no podés capar, resp intacta.
+        return resp
+
+    resp._content = b"".join(chunks)
+    resp._content_consumed = True
+    return resp
+
 
 def retry_request(url, timeout=15, max_attempts=3, headers=None, session=None):
     """Fetch URL with exponential backoff + jitter. Retries on transient failures only.
@@ -27,6 +71,7 @@ def retry_request(url, timeout=15, max_attempts=3, headers=None, session=None):
         requests.ConnectionError: Si se agotan reintentos por error de conexión.
         requests.Timeout: Si se agotan reintentos por timeout.
         requests.HTTPError: Si el status code no es 2xx y no es reintentable.
+        PayloadTooLargeError: Si Content-Length o el body excede MAX_RESPONSE_BYTES.
     """
     if headers is None:
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -35,19 +80,20 @@ def retry_request(url, timeout=15, max_attempts=3, headers=None, session=None):
     retry_status = {429, 500, 502, 503, 504}
     for attempt in range(max_attempts):
         try:
-            r = sess.get(url, timeout=timeout, headers=headers)
-            if r.status_code in retry_status and attempt < max_attempts - 1:
-                wait = (2**attempt) + random.uniform(0, 0.5)
-                time.sleep(wait)
-                continue
-            r.raise_for_status()
-            return r
+            r = sess.get(url, timeout=timeout, headers=headers, stream=True)
         except (requests.ConnectionError, requests.Timeout):
             if attempt < max_attempts - 1:
                 wait = (2**attempt) + random.uniform(0, 0.5)
                 time.sleep(wait)
             else:
                 raise
+            continue
+        if r.status_code in retry_status and attempt < max_attempts - 1:
+            wait = (2**attempt) + random.uniform(0, 0.5)
+            time.sleep(wait)
+            continue
+        r.raise_for_status()
+        return _read_streamed_body(r, MAX_RESPONSE_BYTES)
 
 
 def premium_link(text: str, url: str) -> str:

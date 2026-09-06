@@ -5,6 +5,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 ## [Unreleased]
 
 ### 🚀 Added
+- retry_request limita el body a 2 MB y lee en streaming (#68).
 - Agregar script `cleanup-housekeeping.py` para limpieza automática: backups viejos (keep 3), noticias >4 días, npm/pnpm/pip cache
   [#82](https://github.com/pelukron/hermes-scripts/pull/82)
 - Agregar script `resumen-tigres-diario.py`: noticias diarias de Tigres UANL
