@@ -426,7 +426,7 @@ class TestFetchRayadosCom:
     def test_parse_html_exitoso(self):
         mock_resp = Mock()
         mock_resp.text = RAYADOS_HTML
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 2
             assert items[0]["title"] == "Rayados cierra fichaje de lujo para el Apertura"
@@ -454,7 +454,7 @@ class TestFetchRayadosCom:
         """
         mock_resp = Mock()
         mock_resp.text = html
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 1
             assert items[0]["title"] == "Título desde atributo title"
@@ -475,6 +475,6 @@ class TestFetchRayadosCom:
         """
         mock_resp = Mock()
         mock_resp.text = html
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 1

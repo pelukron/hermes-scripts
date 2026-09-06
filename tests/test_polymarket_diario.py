@@ -201,7 +201,7 @@ class TestFetch:
     def test_respuesta_json_valida(self):
         mock_resp = Mock(status_code=200)
         mock_resp.json.return_value = [{"id": 1, "title": "Test"}]
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             result = fetch(self.URL)
             assert result == [{"id": 1, "title": "Test"}]
 
@@ -268,7 +268,7 @@ class TestMainIntegration:
         ]
         mock_resp = Mock(status_code=200)
         mock_resp.json.return_value = mock_events
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             mod.main()
         captured = capsys.readouterr()
         # Debe contener las 3 secciones

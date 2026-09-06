@@ -173,7 +173,7 @@ class TestFetchRss:
         """Parse RSS estándar con items"""
         mock_resp = Mock()
         mock_resp.content = RSS_XML.encode("utf-8")
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 4  # max 4 items
             assert items[0] == ("First Article Title", "https://example.com/first")
@@ -183,14 +183,14 @@ class TestFetchRss:
         """Ignora títulos que empiezan con \" y contienen ' when:'"""
         mock_resp = Mock()
         mock_resp.content = GN_BOILERPLATE_XML.encode("utf-8")
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 1
             assert items[0][0] == "Real Article"
 
     def test_retry_request_retorna_none(self):
         """Si retry_request retorna None → lista vacía"""
-        with patch("requests.get", return_value=None):
+        with patch.object(mod, "retry_request", return_value=None):
             items = fetch_rss(self.URL)
             assert items == []
 
@@ -198,7 +198,7 @@ class TestFetchRss:
         """Parse feed RDF (DW, etc.)"""
         mock_resp = Mock()
         mock_resp.content = RDF_XML.encode("utf-8")
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 2
             assert items[0] == ("RDF Article One", "https://example.com/rdf/1")
@@ -206,7 +206,7 @@ class TestFetchRss:
 
     def test_excepcion_retorna_lista_vacia(self):
         """Cualquier excepción → []"""
-        with patch("requests.get", side_effect=Exception("boom")):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", side_effect=Exception("boom")):
             items = fetch_rss(self.URL)
             assert items == []
 
@@ -215,7 +215,7 @@ class TestFetchRss:
 
         mock_resp = Mock()
         mock_resp.content = b"not valid xml <<<"
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert items == []
 
@@ -227,7 +227,7 @@ class TestFetchRss:
         </channel></rss>"""
         mock_resp = Mock()
         mock_resp.content = xml.encode("utf-8")
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 1
             assert items[0][1] == "https://example.com/atom"
@@ -241,7 +241,7 @@ class TestFetchRss:
         </channel></rss>"""
         mock_resp = Mock()
         mock_resp.content = xml.encode("utf-8")
-        with patch("requests.get", return_value=mock_resp):
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rss(self.URL)
             assert len(items) == 1
             assert items[0][0] == "Has Title"
