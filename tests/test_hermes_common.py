@@ -5,15 +5,41 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from hermes_common import retry_request
+from hermes_common import PayloadTooLargeError, retry_request
 
 URL = "https://example.com/test"
 
 
+class _FakeResponse:
+    """Fake mínimo de requests.Response para el camino feliz y el streaming."""
+
+    def __init__(self, status_code=200, headers=None, chunks=(b"ok",)):
+        self.status_code = status_code
+        self.headers = headers if headers is not None else {}
+        self._chunks = list(chunks)
+        self._content = b""
+        self._content_consumed = False
+        self.closed = False
+        self.iter_content_call_count = 0
+
+    def raise_for_status(self):
+        if self.status_code in (429, 500, 502, 503, 504):
+            raise requests.HTTPError(f"{self.status_code} Server Error")
+
+    def iter_content(self, chunk_size=None):
+        self.iter_content_call_count += 1
+        return iter(self._chunks)
+
+    def close(self):
+        self.closed = True
+
+    @property
+    def content(self):
+        return self._content
+
+
 def _ok_response(status_code=200):
-    resp = MagicMock(status_code=status_code)
-    resp.raise_for_status.return_value = None
-    return resp
+    return _FakeResponse(status_code=status_code)
 
 
 class TestRetryRequest:
@@ -83,7 +109,9 @@ class TestRetryRequest:
         custom_headers = {"Authorization": "Bearer token", "Accept": "text/html"}
         result = retry_request(URL, headers=custom_headers, session=sess)
         assert result == mock_resp
-        sess.get.assert_called_once_with(URL, timeout=15, headers=custom_headers)
+        sess.get.assert_called_once_with(
+            URL, timeout=15, headers=custom_headers, stream=True
+        )
 
     def test_headers_default(self):
         """Sin headers → usa User-Agent default."""
@@ -114,3 +142,33 @@ class TestRetryRequest:
         args, kwargs = mock_default.call_args
         assert args[0] == URL
         assert kwargs["timeout"] == 15
+
+    def test_content_length_excedido(self):
+        """Content-Length declarada > MAX → PayloadTooLargeError sin leer body."""
+        resp = _FakeResponse(status_code=200, headers={"Content-Length": "3000000"})
+        sess = MagicMock()
+        sess.get.return_value = resp
+        with pytest.raises(PayloadTooLargeError):
+            retry_request(URL, session=sess)
+        assert resp.iter_content_call_count == 0
+        assert resp.closed
+
+    def test_body_excede_sin_content_length(self):
+        """Sin Content-Length, body > 2MB acumulado → PayloadTooLargeError."""
+        big = b"a" * 700_000
+        resp = _FakeResponse(status_code=200, headers={}, chunks=[big, big, big])
+        sess = MagicMock()
+        sess.get.return_value = resp
+        with pytest.raises(PayloadTooLargeError):
+            retry_request(URL, session=sess)
+        assert resp.closed
+
+    def test_body_bajo_el_tope(self):
+        """Body chico se lee completo y queda disponible en r.content."""
+        body = b"x" * 100
+        resp = _FakeResponse(status_code=200, headers={}, chunks=[body])
+        sess = MagicMock()
+        sess.get.return_value = resp
+        result = retry_request(URL, session=sess)
+        assert result.content == body
+        assert result._content_consumed is True
