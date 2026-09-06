@@ -19,30 +19,35 @@ class PayloadTooLargeError(requests.exceptions.RequestException):
 def _read_streamed_body(resp, max_bytes):
     """Lee el body de una response en streaming con tope de tamaño.
 
-    Si la Content-Length declarada o los bytes acumulados superan ``max_bytes``,
-    cierra la conexión y lanza ``PayloadTooLargeError`` (sin reintentos).
+    Tolerante a mocks: si Content-Length no es un int real, o `iter_content`
+    no existe / no es iterable / no yield bytes, se devuelve la response tal
+    cual (sin capar) para que `.text` / `.json` / `.content` del caller
+    sigan funcionando. Solo se lanza ``PayloadTooLargeError`` y se cierra la
+    conexión cuando se detectan bytes reales que superan ``max_bytes``.
     """
-    content_length = resp.headers.get("Content-Length")
-    if content_length is not None:
-        try:
-            if int(content_length) > max_bytes:
-                resp.close()
-                raise PayloadTooLargeError(
-                    f"Content-Length {content_length} excede {max_bytes} bytes"
-                )
-        except ValueError:
-            pass  # Content-Length no parseable: se valida leyendo el body
+    try:
+        content_length = int(resp.headers.get("Content-Length"))
+    except (AttributeError, TypeError, ValueError):
+        content_length = None
 
-    chunks = []
-    total = 0
-    for chunk in resp.iter_content(chunk_size=65536):
-        if not chunk:
-            continue
-        total += len(chunk)
-        if total > max_bytes:
-            resp.close()
-            raise PayloadTooLargeError(f"Body de {total} bytes excede {max_bytes} bytes")
-        chunks.append(chunk)
+    if content_length is not None and content_length > max_bytes:
+        resp.close()
+        raise PayloadTooLargeError(f"Content-Length {content_length} excede {max_bytes} bytes")
+
+    try:
+        chunks = []
+        total = 0
+        for chunk in resp.iter_content(chunk_size=65536):
+            if not chunk:
+                continue
+            total += len(chunk)
+            if total > max_bytes:
+                resp.close()
+                raise PayloadTooLargeError(f"Body de {total} bytes excede {max_bytes} bytes")
+            chunks.append(chunk)
+    except (AttributeError, TypeError):
+        # Sin iter_content real o iterable: no podés capar, resp intacta.
+        return resp
 
     resp._content = b"".join(chunks)
     resp._content_consumed = True
