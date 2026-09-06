@@ -13,6 +13,8 @@ HERMES = HOME / ".hermes"
 BACKUP_DIR = HERMES / "backup" / "daily"
 STATE_DB = HERMES / "state.db"
 RETENTION_DAYS = 7
+SCRIPT_DIR = Path(__file__).resolve().parent
+CHANGELOG = SCRIPT_DIR / "CHANGELOG.md"
 
 
 def dump_sqlite(state_db, backup_dir, date_str):
@@ -37,7 +39,7 @@ def dump_sqlite(state_db, backup_dir, date_str):
         conn.close()
         with gzip.open(dump_path, "wt", encoding="utf-8") as f:
             f.write(dump)
-        print(f"✓ state.db dump: {dump_path.stat().st_size} bytes")
+        print(f"✓ state.db dump → {dump_path} ({dump_path.stat().st_size} bytes)")
         return dump_path
     except Exception as e:
         print(f"✗ state.db dump ERROR: {e}")
@@ -71,7 +73,7 @@ def backup_config(hermes_dir, backup_dir, date_str):
             if item.name in excluded:
                 continue
             tar.add(item, arcname=f".hermes/{item.name}")
-    print(f"✓ hermes config: {tar_path.stat().st_size} bytes")
+    print(f"✓ hermes config → {tar_path} ({tar_path.stat().st_size} bytes)")
     return tar_path
 
 
@@ -116,6 +118,36 @@ def rotate_backups(backup_dir, retention_days=7):
     return deleted, remaining
 
 
+def release_note_unreleased(changelog_path):
+    """Extract the [Unreleased] section of a Keep-a-Changelog file.
+
+    Args:
+        changelog_path: Path to CHANGELOG.md.
+
+    Returns:
+        str or None: The markdown body of the [Unreleased] section
+            (without the header line), or None if absent/empty.
+    """
+    if not changelog_path.exists():
+        return None
+    lines = changelog_path.read_text(encoding="utf-8").splitlines()
+    in_unreleased = False
+    body = []
+    for ln in lines:
+        if ln.startswith("## [Unreleased]"):
+            in_unreleased = True
+            continue
+        if in_unreleased and ln.startswith("## "):
+            break
+        if in_unreleased:
+            body.append(ln)
+    while body and not body[-1].strip():
+        body.pop()
+    while body and not body[0].strip():
+        body.pop(0)
+    return "\n".join(body) if any(ln.strip() for ln in body) else None
+
+
 def main():
     """Run daily backup: SQL dump, config tarball, bak cleanup, rotation."""
     date_str = datetime.now().strftime("%Y-%m-%d")
@@ -126,7 +158,21 @@ def main():
     cleanup_bak_files(HERMES)
     rotate_backups(BACKUP_DIR)
 
-    print(f"backup OK — {date_str}")
+    output = []
+    output.append(f"**📦 Backup OK — {date_str}**")
+    output.append("")
+    output.append(f"**Ubicación del respaldo:** `{BACKUP_DIR}`")
+    output.append("")
+
+    release_note = release_note_unreleased(CHANGELOG)
+    if release_note:
+        output.append("**📝 Release note [Unreleased]:**")
+        output.append("")
+        output.append("```")
+        output.append(release_note)
+        output.append("```")
+
+    print("\n".join(output))
 
 
 if __name__ == "__main__":
