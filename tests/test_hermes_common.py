@@ -109,9 +109,7 @@ class TestRetryRequest:
         custom_headers = {"Authorization": "Bearer token", "Accept": "text/html"}
         result = retry_request(URL, headers=custom_headers, session=sess)
         assert result == mock_resp
-        sess.get.assert_called_once_with(
-            URL, timeout=15, headers=custom_headers, stream=True
-        )
+        sess.get.assert_called_once_with(URL, timeout=15, headers=custom_headers, stream=True)
 
     def test_headers_default(self):
         """Sin headers → usa User-Agent default."""

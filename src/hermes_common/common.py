@@ -41,9 +41,7 @@ def _read_streamed_body(resp, max_bytes):
         total += len(chunk)
         if total > max_bytes:
             resp.close()
-            raise PayloadTooLargeError(
-                f"Body de {total} bytes excede {max_bytes} bytes"
-            )
+            raise PayloadTooLargeError(f"Body de {total} bytes excede {max_bytes} bytes")
         chunks.append(chunk)
 
     resp._content = b"".join(chunks)
