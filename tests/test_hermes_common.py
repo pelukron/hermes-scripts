@@ -170,3 +170,124 @@ class TestRetryRequest:
         result = retry_request(URL, session=sess)
         assert result.content == body
         assert result._content_consumed is True
+
+
+from datetime import datetime, timedelta, timezone
+from time import struct_time
+
+from hermes_common import (
+    DEFAULT_NEWS_MAX_AGE_HOURS,
+    filter_by_max_age,
+    is_within_max_age,
+    parse_published,
+)
+
+
+NOW = datetime(2026, 9, 9, 22, 0, tzinfo=timezone.utc)
+
+
+class TestParsePublished:
+    def test_none_y_vacio(self):
+        assert parse_published(None) is None
+        assert parse_published("") is None
+        assert parse_published("   ") is None
+
+    def test_datetime_naive_se_asume_utc(self):
+        raw = datetime(2026, 9, 9, 12, 0, 0)
+        got = parse_published(raw)
+        assert got == datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc)
+
+    def test_datetime_aware(self):
+        raw = datetime(2026, 9, 9, 18, 0, tzinfo=timezone.utc)
+        assert parse_published(raw) == raw
+
+    def test_struct_time_feedparser(self):
+        st = struct_time((2026, 9, 8, 15, 30, 0, 1, 251, 0))
+        got = parse_published(st)
+        assert got == datetime(2026, 9, 8, 15, 30, tzinfo=timezone.utc)
+
+    def test_tupla_time(self):
+        got = parse_published((2026, 9, 8, 15, 30, 0, 0, 0, 0))
+        assert got == datetime(2026, 9, 8, 15, 30, tzinfo=timezone.utc)
+
+    def test_epoch_segundos(self):
+        ts = datetime(2026, 9, 8, 12, 0, tzinfo=timezone.utc).timestamp()
+        got = parse_published(int(ts))
+        assert got == datetime(2026, 9, 8, 12, 0, tzinfo=timezone.utc)
+
+    def test_rfc822(self):
+        got = parse_published("Tue, 08 Sep 2026 15:30:00 GMT")
+        assert got == datetime(2026, 9, 8, 15, 30, tzinfo=timezone.utc)
+
+    def test_iso8601(self):
+        got = parse_published("2026-09-08T15:30:00Z")
+        assert got == datetime(2026, 9, 8, 15, 30, tzinfo=timezone.utc)
+
+    def test_basura(self):
+        assert parse_published("ayer en la tarde") is None
+        assert parse_published({"no": "fecha"}) is None
+
+
+class TestIsWithinMaxAge:
+    def test_dentro_de_48h(self):
+        pub = NOW - timedelta(hours=12)
+        assert is_within_max_age(pub, now=NOW) is True
+
+    def test_justo_dentro(self):
+        pub = NOW - timedelta(hours=47, minutes=59)
+        assert is_within_max_age(pub, now=NOW) is True
+
+    def test_fuera_vieja(self):
+        pub = NOW - timedelta(hours=49)
+        assert is_within_max_age(pub, now=NOW) is False
+
+    def test_futuro_con_slack(self):
+        pub = NOW + timedelta(minutes=30)
+        assert is_within_max_age(pub, now=NOW) is True
+
+    def test_futuro_lejos(self):
+        pub = NOW + timedelta(hours=5)
+        assert is_within_max_age(pub, now=NOW) is False
+
+    def test_missing_keep(self):
+        assert is_within_max_age(None, now=NOW, missing="keep") is True
+
+    def test_missing_drop(self):
+        assert is_within_max_age(None, now=NOW, missing="drop") is False
+
+    def test_max_age_invalido(self):
+        import pytest
+
+        with pytest.raises(ValueError):
+            is_within_max_age(NOW, max_age_hours=0, now=NOW)
+
+    def test_default_es_48(self):
+        assert DEFAULT_NEWS_MAX_AGE_HOURS == 48
+
+
+class TestFilterByMaxAge:
+    def test_filtra_viejas_conserva_sin_fecha_y_errores(self):
+        items = [
+            {"title": "fresca", "published": NOW - timedelta(hours=3)},
+            {"title": "vieja", "published": NOW - timedelta(days=5)},
+            {"title": "sin fecha", "link": "https://x"},
+            {"title": "[Error Google News (confirmadas): boom]", "link": ""},
+        ]
+        got = filter_by_max_age(items, now=NOW)
+        titles = [i["title"] for i in got]
+        assert titles == [
+            "fresca",
+            "sin fecha",
+            "[Error Google News (confirmadas): boom]",
+        ]
+
+    def test_usa_published_parsed(self):
+        st = (NOW - timedelta(hours=2)).timetuple()
+        items = [{"title": "rss", "published_parsed": st}]
+        got = filter_by_max_age(items, now=NOW)
+        assert len(got) == 1
+
+    def test_missing_drop(self):
+        items = [{"title": "sin fecha"}]
+        got = filter_by_max_age(items, now=NOW, missing="drop")
+        assert got == []
