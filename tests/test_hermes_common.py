@@ -1,11 +1,20 @@
 """Tests para hermes_common.retry_request."""
 
+from datetime import datetime, timedelta, timezone
+from time import struct_time
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
-from hermes_common import PayloadTooLargeError, retry_request
+from hermes_common import (
+    DEFAULT_NEWS_MAX_AGE_HOURS,
+    PayloadTooLargeError,
+    filter_by_max_age,
+    is_within_max_age,
+    parse_published,
+    retry_request,
+)
 
 URL = "https://example.com/test"
 
@@ -170,17 +179,6 @@ class TestRetryRequest:
         result = retry_request(URL, session=sess)
         assert result.content == body
         assert result._content_consumed is True
-
-
-from datetime import datetime, timedelta, timezone
-from time import struct_time
-
-from hermes_common import (
-    DEFAULT_NEWS_MAX_AGE_HOURS,
-    filter_by_max_age,
-    is_within_max_age,
-    parse_published,
-)
 
 
 NOW = datetime(2026, 9, 9, 22, 0, tzinfo=timezone.utc)
