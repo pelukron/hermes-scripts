@@ -161,6 +161,15 @@ class TestMainSmoke:
         monkeypatch.setattr(_mod, "BACKUP_DIR", backup_dir)
         monkeypatch.setattr(_mod, "STATE_DB", db_path)
 
+        # Changelog independiente del repo: incluye sección [Unreleased] para
+        # ejercitar la release note sin depender del estado de CHANGELOG.md.
+        changelog = tmp_path / "CHANGELOG.md"
+        changelog.write_text(
+            "## [Unreleased]\n\n### 🚀 Added\n- Cambio de prueba\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(_mod, "CHANGELOG", changelog)
+
         _mod.main()
         captured = capsys.readouterr()
         assert "Backup OK" in captured.out
