@@ -3,7 +3,10 @@ import logging
 import os
 import random
 import time
-from typing import Dict, List
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from time import struct_time
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import requests
 
@@ -214,3 +217,175 @@ class HistoryManager:
 
         new_urls = [url for url in urls if url not in self.history]
         return new_urls
+
+
+DEFAULT_NEWS_MAX_AGE_HOURS = 48
+_FUTURE_SLACK = timedelta(hours=1)
+
+
+def parse_published(value: Any) -> Optional[datetime]:
+    """Normaliza una fecha de publicación a datetime aware UTC.
+
+    Acepta datetime, date, struct_time (feedparser.published_parsed),
+    epoch int/float, string RFC822 o ISO-8601. Devuelve None si no parsea.
+
+    Args:
+        value: Valor crudo de published / pubDate / updated.
+
+    Returns:
+        datetime | None: Fecha en UTC, o None si no se puede interpretar.
+    """
+    if value is None or value == "":
+        return None
+
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    # datetime.date (no datetime)
+    if type(value).__name__ == "date" and not isinstance(value, datetime):
+        try:
+            return datetime(value.year, value.month, value.day, tzinfo=timezone.utc)
+        except Exception:
+            return None
+
+    if isinstance(value, struct_time):
+        try:
+            return datetime(*value[:6], tzinfo=timezone.utc)
+        except Exception:
+            return None
+
+    if isinstance(value, (tuple, list)) and len(value) >= 6:
+        try:
+            return datetime(
+                int(value[0]),
+                int(value[1]),
+                int(value[2]),
+                int(value[3]),
+                int(value[4]),
+                int(value[5]),
+                tzinfo=timezone.utc,
+            )
+        except (TypeError, ValueError):
+            return None
+
+    if isinstance(value, (int, float)):
+        try:
+            ts = float(value)
+            if ts > 1e12:
+                ts = ts / 1000.0
+            return datetime.fromtimestamp(ts, tz=timezone.utc)
+        except (OSError, OverflowError, ValueError):
+            return None
+
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            parsed = parsedate_to_datetime(text)
+            if parsed is not None:
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                return parsed.astimezone(timezone.utc)
+        except (TypeError, ValueError, OverflowError):
+            pass
+        iso = text.replace("Z", "+00:00")
+        try:
+            parsed = datetime.fromisoformat(iso)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+        except ValueError:
+            return None
+
+    return None
+
+
+def is_within_max_age(
+    published: Any,
+    max_age_hours: int = DEFAULT_NEWS_MAX_AGE_HOURS,
+    *,
+    now: Optional[datetime] = None,
+    missing: str = "keep",
+) -> bool:
+    """True si published cae en (now - max_age_hours, now + 1h].
+
+    Args:
+        published: Fecha cruda o datetime. Se pasa por parse_published.
+        max_age_hours: Ventana hacia atrás. Default 48.
+        now: Reloj inyectable. Default datetime.now(UTC).
+        missing: 'keep' incluye ítems sin fecha; 'drop' los excluye.
+
+    Returns:
+        bool: True si el ítem entra en el rango (o missing=keep sin fecha).
+    """
+    if max_age_hours <= 0:
+        raise ValueError("max_age_hours debe ser entero positivo")
+    if missing not in ("keep", "drop"):
+        raise ValueError("missing debe ser 'keep' o 'drop'")
+
+    parsed = parse_published(published)
+    if parsed is None:
+        return missing == "keep"
+
+    clock = now if now is not None else datetime.now(timezone.utc)
+    if clock.tzinfo is None:
+        clock = clock.replace(tzinfo=timezone.utc)
+    else:
+        clock = clock.astimezone(timezone.utc)
+
+    oldest = clock - timedelta(hours=max_age_hours)
+    newest = clock + _FUTURE_SLACK
+    return oldest < parsed <= newest
+
+
+def filter_by_max_age(
+    items: Iterable[Union[dict, Any]],
+    max_age_hours: int = DEFAULT_NEWS_MAX_AGE_HOURS,
+    *,
+    date_keys: Iterable[str] = ("published", "published_parsed", "pubDate", "updated"),
+    now: Optional[datetime] = None,
+    missing: str = "keep",
+) -> List[Any]:
+    """Filtra ítems cuya fecha de publicación está fuera del rango.
+
+    Busca la primera clave presente en cada dict (o atributo en objetos).
+    Ítems de error (title empieza con '[Error') se conservan siempre.
+
+    Args:
+        items: Iterable de dicts o objetos.
+        max_age_hours: Ventana hacia atrás. Default 48.
+        date_keys: Claves/attrs a inspeccionar, en orden.
+        now: Reloj inyectable.
+        missing: 'keep' o 'drop' cuando no hay fecha parseable.
+
+    Returns:
+        list: Ítems dentro del rango, en el mismo orden.
+    """
+    keys = tuple(date_keys)
+    kept: List[Any] = []
+    for item in items:
+        title = ""
+        if isinstance(item, dict):
+            title = str(item.get("title") or "")
+        else:
+            title = str(getattr(item, "title", "") or "")
+        if title.startswith("[Error"):
+            kept.append(item)
+            continue
+
+        raw = None
+        for key in keys:
+            if isinstance(item, dict) and key in item and item[key] not in (None, ""):
+                raw = item[key]
+                break
+            if not isinstance(item, dict):
+                attr = getattr(item, key, None)
+                if attr not in (None, ""):
+                    raw = attr
+                    break
+        if is_within_max_age(raw, max_age_hours, now=now, missing=missing):
+            kept.append(item)
+    return kept

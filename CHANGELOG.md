@@ -5,6 +5,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 ## [Unreleased]
 
 ### 🚀 Added
+- Filtrar publicaciones fuera de 48h en `hermes_common` (`parse_published`, `is_within_max_age`, `filter_by_max_age`); Tigres y Rayados lo usan antes del historial (#89).
 - retry_request limita el body a 2 MB y lee en streaming (#68).
 - Agregar script `cleanup-housekeeping.py` para limpieza automática: backups viejos (keep 3), noticias >4 días, npm/pnpm/pip cache
   [#82](https://github.com/pelukron/hermes-scripts/pull/82)

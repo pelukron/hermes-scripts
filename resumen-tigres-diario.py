@@ -25,7 +25,7 @@ from urllib.parse import quote, urljoin
 
 sys.path.append(os.path.dirname(__file__))
 import hermes_common
-from hermes_common import retry_request
+from hermes_common import filter_by_max_age, parse_published, retry_request
 
 # Cron job uses the Hermes venv by default; ensure deps are installed if missing.
 try:
@@ -472,6 +472,11 @@ def fetch_google_news(query: str, category: str) -> list:
                     "rumor": rumor,
                     "origin": "google-news",
                     "category": category,
+                    "published": parse_published(
+                        entry.get("published_parsed")
+                        or entry.get("published")
+                        or entry.get("updated")
+                    ),
                 }
             )
         return items
@@ -486,6 +491,7 @@ def fetch_google_news(query: str, category: str) -> list:
                 "rumor": False,
                 "origin": "google-news",
                 "category": category,
+                "published": None,
             }
         ]
 
@@ -659,6 +665,9 @@ def build_report_blocks() -> list:
         all_items = google_confirmadas + google_rumores
     else:
         all_items = google_confirmadas + google_rumores + tigres_items
+
+    # 2b. Tirar notas fuera de la ventana de 48h (sin fecha = se quedan)
+    all_items = filter_by_max_age(all_items)
 
     # 3. Filtrar por historial (Desduplicación Histórica) con URLs normalizadas
     filtered_items = []
