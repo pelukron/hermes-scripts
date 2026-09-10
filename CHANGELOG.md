@@ -2,56 +2,42 @@
 
 Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.4.0] - 2026-09-10
 
 ### 🚀 Added
-- Filtrar publicaciones fuera de 48h en `hermes_common` (`parse_published`, `is_within_max_age`, `filter_by_max_age`); Tigres y Rayados lo usan antes del historial (#89).
-- retry_request limita el body a 2 MB y lee en streaming (#68).
-- Agregar script `cleanup-housekeeping.py` para limpieza automática: backups viejos (keep 3), noticias >4 días, npm/pnpm/pip cache
+- `hermes_common`: filtrar pubs >48h (`parse_published`, `is_within_max_age`, `filter_by_max_age`); Tigres/Rayados antes del historial (#89)
+- `retry_request`: body cap 2MB + streaming (#68)
+- Script `cleanup-housekeeping.py`: backups viejos (keep 3), noticias >4d, caches npm/pnpm/pip
   [#82](https://github.com/pelukron/hermes-scripts/pull/82)
-- Agregar script `resumen-tigres-diario.py`: noticias diarias de Tigres UANL
-  (Google News RSS + tigres.com.mx), clasificadas en confirmadas vs rumores,
-  con dedupe por historial de 72h. Cron 9:00 AM al canal Tigres
+- Script `resumen-tigres-diario.py`: noticias Tigres UANL (Google News RSS + tigres.com.mx), confirmadas vs rumores, dedupe 72h, cron 9AM → canal Tigres
 
 ### 🐛 Fixed
-- Reemplazar SQL f-string por parametros SQLite en `reporte-uso-hermes.py`
-- Validar que `days` sea entero positivo en funciones de consulta
-  [#61](https://github.com/pelukron/hermes-scripts/issues/61)
+- SQL f-string → parametros SQLite en `reporte-uso-hermes.py`
+- Validar `days` entero positivo [#61](https://github.com/pelukron/hermes-scripts/issues/61)
 
 ### 📝 Documentation
-- Agregar `PROJECT_MANAGEMENT.md` con estructura Jira-style para epics, milestones y board
-- Agregar milestones v0.4.0, v0.5.0, v0.6.0 y board [hermes-scripts](https://github.com/users/pelukron/projects/3)
-  [#58](https://github.com/pelukron/hermes-scripts/issues/58)
+- `PROJECT_MANAGEMENT.md` Jira-style: epics, milestones, board
+- Milestones v0.4.0−v0.6.0 + board [#58](https://github.com/pelukron/hermes-scripts/issues/58)
 
 ### 🔧 Changed
-- Adaptar scripts PM de react-stack-roadmap: gh-issue, gh-pr, pm-status, pm-weekly
-- Anadir workflow project-automation.yml para auto-add de epicas al board #3
-- Formatear epicas #58, #59, #60 con emojis y secciones estandarizadas
-- Anadir regla de emojis en Issues a PROJECT_MANAGEMENT.md
-  [#76](https://github.com/pelukron/hermes-scripts/issues/76)
-- El reporte de backup-diario.py incluye rutas absolutas, tamaño de artefactos y el cuerpo de [Unreleased]
-- retry_request reusa requests.Session (#66)
+- Scripts PM react-stack-roadmap adaptados: gh-issue, gh-pr, pm-status, pm-weekly
+- workflow `project-automation.yml`: auto-add épicas al board #3
+- Épicas #58/#59/#60: emojis + secciones estandarizadas
+- Regla de emojis en Issues → PROJECT_MANAGEMENT.md [#76](https://github.com/pelukron/hermes-scripts/issues/76)
+- `backup-diario.py`: rutas absolutas, tamaño artefactos, cuerpo [Unreleased]
+- `retry_request` reusa `requests.Session` (#66)
 
 ### 🛡️ Security
-- Reemplazar xml.etree.ElementTree por defusedxml en parseo RSS
-- Resuelve bandit B405/B314 (XML parse inseguro de feeds externos)
-  [#62](https://github.com/pelukron/hermes-scripts/issues/62)
+- `xml.etree.ElementTree` → `defusedxml` parseo RSS; resuelve bandit B405/B314 [#62](https://github.com/pelukron/hermes-scripts/issues/62)
 
 ### 🔊 Observability
-- Reemplazar `except Exception: pass` por `logging.warning` en noticias, rayados y common
-- Resuelve bandit B110 en 5 puntos silenciosos
-  [#63](https://github.com/pelukron/hermes-scripts/issues/63)
+- `except Exception: pass` → `logging.warning` (noticias, rayados, common); resuelve bandit B110 [#63](https://github.com/pelukron/hermes-scripts/issues/63)
 
 ### 🤖 CI
-- Extender mypy y bandit a todo el repo (no solo src/) en Makefile y CI
-- Excluir tests/ de mypy en pyproject.toml
-- Corregir 6 type annotations en scripts (mypy pasa en 11 archivos)
-  [#64](https://github.com/pelukron/hermes-scripts/issues/64)
+- Mypy+bandit a todo repo (no solo src/): Makefile+CI; excluir tests/; 6 annotations corregidas [#64](https://github.com/pelukron/hermes-scripts/issues/64)
 
 ### 🛡️ Security
-- Validar paths de subprocess antes de ejecutar (polymarket, uv install, git)
-- Capturar stderr en subprocess y loguear errores
-  [#65](https://github.com/pelukron/hermes-scripts/issues/65)
+- Validar subprocess paths (polymarket, uv, git); capturar stderr [#65](https://github.com/pelukron/hermes-scripts/issues/65)
 
 ## [0.3.22] - 2026-07-14
 
@@ -282,6 +268,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.4.0]: https://github.com/pelukron/hermes-scripts/compare/v0.3.22...v0.4.0
 [0.3.22]: https://github.com/pelukron/hermes-scripts/compare/v0.3.21...v0.3.22
 [0.3.21]: https://github.com/pelukron/hermes-scripts/compare/v0.3.20...v0.3.21
 [0.3.20]: https://github.com/pelukron/hermes-scripts/compare/v0.3.19...v0.3.20
