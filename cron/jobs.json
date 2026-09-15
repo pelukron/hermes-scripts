@@ -93,7 +93,7 @@
       "description": "Reporte diario del agente de empleo (repo externo hermes-empleo)",
       "schedule": "0 8 * * *",
       "wrapper": "job-scout-cron.sh",
-      "command": "exec \"$HOME/empleo/bin/cron-run.sh\"",
+      "command": "bash \"$HOME/empleo/bin/cron-run.sh\"",
       "deliver": "${empleo}",
       "requires": [
         "$HOME/empleo/bin/cron-run.sh"
