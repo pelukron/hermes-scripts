@@ -2,6 +2,11 @@
 
 Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.1] - 2026-09-15
+
+### ✨ Added(cron)
+- Nuevo bin/aviso-peak.sh: aviso por Telegram 5 min antes de cada ventana peak de la API DeepSeek (18:55 y 23:55 dom-jue, hora Monterrey). Cero tokens: job cron no-agent.
+  [#94](https://github.com/pelukron/hermes-scripts/issues/94)
 ## [Unreleased]
 
 ## [0.4.0] - 2026-09-10
@@ -270,6 +275,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.4.1]: https://github.com/pelukron/hermes-scripts/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/pelukron/hermes-scripts/compare/v0.3.22...v0.4.0
 [0.3.22]: https://github.com/pelukron/hermes-scripts/compare/v0.3.21...v0.3.22
 [0.3.21]: https://github.com/pelukron/hermes-scripts/compare/v0.3.20...v0.3.21
