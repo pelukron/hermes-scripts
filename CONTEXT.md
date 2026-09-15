@@ -17,7 +17,8 @@
 
 - Local: `bash bin/gate.sh`. Windows sin `make`: equivalencia manual `uv run ruff check .` + `ruff format --check .` + `mypy .` + `bandit -c pyproject.toml -r . -x .venv,tests -ll` + `pytest -q`.
 - CI (`.github/workflows/ci.yml`): checkout + `setup-uv` + `uv python install 3.11` + `uv sync` + changelog check (solo PRs) + `bash bin/gate.sh` + notify Telegram. No duplicar pasos de lint/test en el YAML.
-- Reglas: PR obligatorio, CODEOWNERS `@pelukron`, CHANGELOG.md modificado en cada PR, sin `--force` ni `--amend` tras push, merge-commit (no squash), el agente no mergea.
+- Reglas: PR obligatorio, CODEOWNERS `@pelukron`, PR asignado a `@pelukron`, CHANGELOG.md intacto (PSR lo genera al mergear), sin `--force` ni `--amend` tras push, merge-commit (no squash), el agente no mergea.
+- Releases: `python-semantic-release` al mergear (bump + tag + notas desde commits; `infra` suma patch). `CHANGELOG.md` congelado como histórico.
 
 ## 3. Nomenclatura
 

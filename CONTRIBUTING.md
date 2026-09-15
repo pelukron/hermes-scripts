@@ -5,18 +5,15 @@ Todo cambio sigue este pipeline. No hay push directo a `main`.
 ## Pipeline Automatizado
 
 ```bash
-./bin/bump-and-pr.sh patch "tipo: descripción" "- cambio"
+./bin/bump-and-pr.sh "tipo: descripción"
   │
   ├─ 1. Issue con body enriquecido (Summary, Problem, Changes, AC, Risks)
-  ├─ 2. Rama semántica (feat/, fix/, docs/, refactor/)
-  ├─ 3. Bump versión en pyproject.toml
-  ├─ 4. CHANGELOG.md actualizado con [#N](url) + comparison URL
-  ├─ 5. Commit con Closes #N
-  ├─ 6. Push + PR con body enriquecido (emojis + detalles del issue)
-  ├─ 7. Label automático en Issue y PR
+  ├─ 2. Rama semántica ({tipo}/{N}-slug)
+  ├─ 3. Commit con Closes #N (sin bump, sin CHANGELOG)
+  ├─ 4. Push + PR asignado a @pelukron, con label automático
   │
   ▼
-CI: ruff + pytest + changelog check
+CI: gate + changelog intacto + assignee
   │
   ▼
 Revisión + approve (CODEOWNERS: @pelukron)
@@ -25,7 +22,7 @@ Revisión + approve (CODEOWNERS: @pelukron)
 Merge commit → branch auto-delete (NO squash: preserva historial)
   │
   ▼
-Auto-release: tag vX.Y.Z + GitHub Release + comment en issue
+PSR al mergear: bump + tag + GitHub Release + comment en issue
 ```
 
 ## Uso rápido
@@ -37,9 +34,10 @@ git checkout main && git pull origin main
 # 2. Hacer tus cambios (archivos modificados pero sin commit)
 
 # 3. Ejecutar bin/bump-and-pr.sh
-./bin/bump-and-pr.sh patch "feat: agregar nueva funcionalidad" "- Nueva funcionalidad X"
+./bin/bump-and-pr.sh "feat: agregar nueva funcionalidad"
 
-# Esto crea: Issue + Rama + Bump + Changelog + Commit + Push + PR
+# Esto crea: Issue + Rama + Commit + Push + PR (asignado a @pelukron)
+# La versión + CHANGELOG + release los genera python-semantic-release al mergear.
 ```
 
 ## Proceso Manual
@@ -50,8 +48,8 @@ Cuando no puedes usar `bin/bump-and-pr.sh` (ej. sin token, sin acceso a API):
 # 1. Pull latest
 git checkout main && git pull origin main
 
-# 2. Crear rama semántica
-git checkout -b fix/mi-cambio
+# 2. Crear rama semántica (con número de issue)
+git checkout -b fix/123-mi-cambio
 
 # 3. Hacer cambios
 #    ... editar archivos ...
@@ -62,54 +60,41 @@ make check
 # 5. Si falla algo, corregir y repetir `make check`
 #    (NO usar `git commit --amend` ni `git push --force`)
 
-# 6. Commit de cambios
+# 6. Commit de cambios (todo el ticket en un commit atómico)
 git add -A
-git commit -m "fix: descripción del cambio"
+git commit -m "fix: descripción del cambio
 
-# 7. Bump version en pyproject.toml
-#    Editar: version = "0.3.11" → "0.3.12"
+Closes #123"
 
-# 8. Actualizar CHANGELOG.md (formato Keep a Changelog)
-#    Insertar después del header:
-#    ## [0.3.12] - 2026-07-11
-#
-#    ### Fixed
-#    - descripción del cambio
-#      [#N](https://github.com/pelukron/hermes-scripts/issues/N)
+# 7. NO hacer bump ni tocar CHANGELOG.md:
+#    python-semantic-release corta la versión y genera las notas al mergear.
+#    Tipos que suman release: feat (minor); fix, perf, infra (patch).
 
-# 9. Agregar comparison URL al final del CHANGELOG
-#    [0.3.12]: https://github.com/pelukron/hermes-scripts/compare/v0.3.11...v0.3.12
+# 8. Push (la rama, nunca main)
+git push -u origin fix/123-mi-cambio
 
-# 10. Commit del bump
-git add pyproject.toml CHANGELOG.md
-git commit -m "chore: bump v0.3.11 → v0.3.12"
-
-# 11. Push
-git push -u origin fix/mi-cambio
-
-# 12. Crear Issue (manual en GitHub UI o con gh CLI)
+# 9. Crear Issue (manual en GitHub UI o con gh CLI)
 gh issue create --title "fix: descripción del cambio" \
   --body "## Summary\n**FIX:** descripción\n\n## Changes\n- cambio" \
   --label "🐛 hotfix"
 
-# 13. Crear PR vinculado al issue
+# 10. Crear PR vinculado al issue (asignado a @pelukron)
 gh pr create --title "fix: descripción del cambio" \
   --body "Closes #N" --base main
-
-# 14. Agregar label al PR
-gh pr edit <PR_NUM> --add-label "🐛 hotfix"
+gh pr edit <PR_NUM> --add-assignee pelukron --add-label "🐛 hotfix"
 ```
 
 ## Tipos de cambio
 
-| Tipo | Bump | Label | Ejemplo |
+| Tipo | PSR | Label | Ejemplo |
 |---|---|---|---|
 | `feat` | minor | ✨ feature | `feat: agregar endpoint /api/v2` |
 | `fix` | patch | 🐛 hotfix | `fix: corregir race condition en cache` |
-| `docs` | patch | 📝 docs | `docs: actualizar README` |
-| `refactor` | patch | 🔧 refactor | `refactor: extraer lógica a módulo` |
-| `ci` | patch | 🤖 automation | `ci: agregar check de changelog` |
-| `chore` | patch | 📦 bump | `chore: actualizar dependencias` |
+| `infra` | patch | 🔧 chore | `infra: entrypoint único bin/gate.sh` |
+| `docs` | — | 📝 docs | `docs: actualizar README` |
+| `refactor` | — | 🔧 refactor | `refactor: extraer lógica a módulo` |
+| `ci` | — | 🤖 automation | `ci: agregar check de changelog` |
+| `chore` | — | 📦 bump | `chore: actualizar dependencias` |
 
 ## CI
 
@@ -117,19 +102,21 @@ Cada PR ejecuta:
 
 | Check | Qué valida |
 |---|---|
-| `ruff` | Linting |
-| `ruff format --check` | Formato |
-| `pytest` | Tests |
-| `changelog check` | CHANGELOG.md fue modificado |
+| `gate` | `bash bin/gate.sh`: ruff + format + mypy + bandit + pytest |
+| `changelog check` | CHANGELOG.md intacto (PSR lo genera al mergear) |
+| `pr-assign` | PR asignado a @pelukron |
 
-## Auto-release
+## Auto-release (PSR)
 
-Al mergear un PR a main, el workflow `release.yml`:
+Al mergear un PR a main, `python-semantic-release`:
 
-1. Lee versión de `pyproject.toml`
-2. Crea tag `vX.Y.Z`
-3. Crea GitHub Release con notas del changelog
-4. Comenta en el issue: ✅ Released in vX.Y.Z
+1. Calcula el bump desde los commits (feat→minor; fix/perf/infra→patch)
+2. Actualiza `version` en `pyproject.toml`, commitea `chore(release): vX.Y.Z [skip ci]`
+3. Crea tag `vX.Y.Z` + GitHub Release con notas generadas de los commits
+4. Sincroniza `uv.lock` y comenta en el issue: ✅ Released in vX.Y.Z
+
+`CHANGELOG.md` quedó congelado como registro histórico (lo siguen leyendo
+`backup-diario.py` y la memoria del proyecto); las notas nuevas viven en cada Release.
 
 ## Git hooks
 
@@ -147,8 +134,9 @@ git config core.hooksPath .githooks
 |---|---|
 | PR obligatorio | `.githooks/pre-push` + Ruleset |
 | CODEOWNERS (@pelukron) | `.github/CODEOWNERS` |
+| PR asignado a @pelukron | Workflow `pr-assign` + `bump-and-pr.sh` |
 | CI verde requerido | Ruleset → `test` |
-| CHANGELOG actualizado | CI check |
+| CHANGELOG intacto (PSR lo genera) | CI check |
 | Auto-delete branches | Repo settings |
 | **NO force push / NO amend** | Política del repo: errores se corrigen con commits nuevos |
 

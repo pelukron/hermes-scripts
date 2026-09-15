@@ -20,7 +20,7 @@ Scripts Python para automatización diaria de Hermes Agent. Monorepo con tests, 
 - **uv** para dependencias y virtualenv
 - **pytest** (149 tests)
 - **pre-commit** para hooks de lint pre-commit
-- **commitizen** para conventional commits + versionado
+- **python-semantic-release** para versionado + changelog + releases desde commits convencionales
 
 ## Setup
 
@@ -64,7 +64,7 @@ make test       # pytest -v
 ├── config/
 │   └── feeds.json              # Configuración de feeds RSS
 ├── bin/
-│   ├── bump-and-pr.sh          # Flujo completo: rama → bump → PR
+│   ├── bump-and-pr.sh          # Flujo: issue → rama → commit → push → PR (sin bump)
 │   ├── post-merge.sh           # Tag + release + issue comment post-merge
 │   ├── sistema-alertas-y-resumen.sh   # Alertas del sistema
 │   └── update-external-skills.sh     # Sync de skills externos
@@ -94,6 +94,6 @@ make test       # pytest -v
 - [Flujo de desarrollo](CONTRIBUTING.md) — pipeline completo (bump → PR → CI → merge → release)
 - Gate único: `bash bin/gate.sh` (= `make check`: ruff + format + mypy + Bandit + pytest). El CI ejecuta ese mismo comando, sin pasos duplicados.
 - GitHub Actions: gate + changelog check en cada PR
-- Conventional commits con commitizen
+- Commits convencionales en español; versión + changelog + release los genera PSR al mergear
 - Keep a Changelog
 - Auto-release: tag + GitHub Release al mergear

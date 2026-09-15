@@ -1,8 +1,9 @@
 # AGENTS.md — hermes-scripts
 
 - Work order = GitHub issue. Todo PR cierra uno con `Closes #N`.
+- Commits convencionales en español (`feat/fix/docs/infra/...`: `infra` suma patch). Sin scope inventado.
+- No tocar `CHANGELOG.md` ni `version` en el PR: los genera `python-semantic-release` al mergear.
 - Gate único: `bash bin/gate.sh` en local y CI. Debe estar verde antes del PR.
-- Todo PR toca `CHANGELOG.md` (lo exige el CI) vía `bin/bump-and-pr.sh`.
 - Ramas `{tipo}/{N}-slug`. Push normal; nunca `--force` ni `--amend` tras push.
 - El agente no mergea: PRs y commits; `@pelukron` revisa y mergea.
 - Todo PR pide review a `@pelukron` (auto: workflow `pr-review` + `bump-and-pr.sh`; GitHub omite el request si el autor es `@pelukron`).
