@@ -33,9 +33,10 @@ try:
     import requests
     from bs4 import BeautifulSoup
 except ModuleNotFoundError:
+    import shutil
     import subprocess
 
-    uv = os.environ.get("UV", "/home/d13g0m0r3n0/.local/bin/uv")
+    uv = os.environ.get("UV") or shutil.which("uv") or os.path.expanduser("~/.hermes/bin/uv")
     if not os.path.isfile(uv):
         uv = "uv"  # fallback to system PATH
     try:
