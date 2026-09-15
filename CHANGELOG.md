@@ -2,6 +2,16 @@
 
 Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-09-15
+
+### ✨ Added(cron)
+- cron/jobs.json: manifiesto declarativo, fuente de verdad de los 12 jobs (schedule, wrapper, deliver, enabled, requires)
+- bin/install-cron.sh + src/install_cron.py: wrappers portables, upsert idempotente con hermes cron, modos --dry-run / --check / --force y verificacion read-back
+- tests/test_install_cron.py: 37 tests (valida el manifiesto real, prohibe rutas /home/<usuario> en archivos versionados, bash -n de bin/*.sh, plan create/edit/pause sin efectos)
+- docs/INSTALL.md + env.example + cron/targets.example.json: instalacion reproducible sin IDs de chat versionados
+- bin/aviso-peak.sh: aviso 5 min antes de cada ventana peak de la API DeepSeek (18:55 y 23:55, hora Monterrey)
+- fix: resumen-rayados/tigres usaban una ruta absoluta de uv de otro equipo
+  [#96](https://github.com/pelukron/hermes-scripts/issues/96)
 ## [Unreleased]
 
 ## [0.4.0] - 2026-09-10
@@ -270,6 +280,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.5.0]: https://github.com/pelukron/hermes-scripts/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/pelukron/hermes-scripts/compare/v0.3.22...v0.4.0
 [0.3.22]: https://github.com/pelukron/hermes-scripts/compare/v0.3.21...v0.3.22
 [0.3.21]: https://github.com/pelukron/hermes-scripts/compare/v0.3.20...v0.3.21
