@@ -31,6 +31,21 @@ uv sync
 uv run pre-commit install
 ```
 
+## Cron jobs (instalación declarativa)
+
+Los jobs de cron viven en [`cron/jobs.json`](cron/jobs.json) (fuente de verdad: qué corre,
+cuándo y a dónde entrega). El instalador genera los wrappers portables, hace upsert de los
+jobs con `hermes cron` y verifica el resultado releyendo el estado real:
+
+```bash
+cp cron/targets.example.json cron/targets.local.json   # tus chat_id (no versionado)
+bin/install-cron.sh --dry-run    # plan
+bin/install-cron.sh --check      # deseado vs real
+bin/install-cron.sh              # aplica + verifica
+```
+
+Detalles, personalización y cómo quitarlo: [`docs/INSTALL.md`](docs/INSTALL.md).
+
 ## Desarrollo
 
 ```bash

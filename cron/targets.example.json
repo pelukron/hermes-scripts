@@ -1,0 +1,8 @@
+{
+  "_doc": "Copia este archivo a cron/targets.local.json (ignorado por git) y pon tus destinos reales. Las claves deben coincidir con los ${nombre} usados en cron/jobs.json. Valores validos: 'origin', 'local' o 'telegram:<chat_id>'.",
+  "personal": "origin",
+  "reports": "telegram:-1000000000000",
+  "empleo": "origin",
+  "rayados": "origin",
+  "tigres": "origin"
+}

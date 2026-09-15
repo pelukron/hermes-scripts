@@ -8,3 +8,6 @@ __pycache__/
 _apply_tier12.py
 .DS_Store
 .hermes/
+
+# Destinos personales de cron (IDs de chat): nunca versionar
+cron/targets.local.json
