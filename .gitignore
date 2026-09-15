@@ -11,3 +11,6 @@ _apply_tier12.py
 
 # Destinos personales de cron (IDs de chat): nunca versionar
 cron/targets.local.json
+
+# Reportes generados (gate-audit): se regeneran con bin/gate-audit.py
+out/

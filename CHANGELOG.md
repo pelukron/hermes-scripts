@@ -2,6 +2,12 @@
 
 Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.3] - 2026-09-15
+
+### 🤖 Automation
+- `gate-audit`: matriz de gates por repo (`src/gate_audit.py` + `bin/gate-audit.py --markdown/--digest` → `out/gate-audit.md`) + 4 tests sin red
+  [#99](https://github.com/pelukron/hermes-scripts/issues/99)
+
 ## [0.5.2] - 2026-09-15
 
 ### 📝 Documentation
@@ -292,6 +298,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.5.3]: https://github.com/pelukron/hermes-scripts/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/pelukron/hermes-scripts/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/pelukron/hermes-scripts/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/pelukron/hermes-scripts/compare/v0.4.0...v0.5.0
