@@ -35,20 +35,8 @@ jobs:
             exit 1
           }
 
-      - name: Lint
-        run: uv run ruff check .
-
-      - name: Format check
-        run: uv run ruff format --check .
-
-      - name: Type check (mypy)
-        run: uv run mypy .
-
-      - name: Security scan (Bandit)
-        run: uv run bandit -c pyproject.toml -r . -x .venv,tests -ll
-
-      - name: Tests
-        run: uv run pytest -v
+      - name: Gate
+        run: bash bin/gate.sh
 
   notify:
     needs: test
