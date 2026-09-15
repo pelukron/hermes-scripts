@@ -1,17 +1,17 @@
-name: Auto-assign PR
+name: Auto-request review
 
-# Todo PR queda asignado a @pelukron (humanos, agentes y dependabot).
-# La revision ya la exige CODEOWNERS; esto cubre la asignacion.
+# Todo PR pide review a @pelukron (humanos, agentes y dependabot).
+# CODEOWNERS ya exige su aprobación; esto deja el request explícito y visible.
 
 on:
   pull_request_target:
-    types: [opened, reopened]
+    types: [opened, reopened, ready_for_review]
 
 permissions:
   pull-requests: write
 
 jobs:
-  assign:
+  review:
     runs-on: ubuntu-latest
     steps:
       - env:
@@ -19,4 +19,4 @@ jobs:
         run: |
           gh pr edit "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
-            --add-assignee pelukron
+            --add-reviewer pelukron

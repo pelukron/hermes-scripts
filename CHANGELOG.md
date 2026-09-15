@@ -5,7 +5,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 ## [0.5.5] - 2026-09-15
 
 ### 🤖 Automation
-- PRs auto-asignados a `@pelukron` (workflow `pr-assign` + `bump-and-pr.sh`); regla en `AGENTS.md`
+- PRs piden review a `@pelukron` (workflow `pr-review` + `bump-and-pr.sh`); regla en `AGENTS.md`
   [#108](https://github.com/pelukron/hermes-scripts/issues/108)
 
 ## [0.5.4] - 2026-09-15

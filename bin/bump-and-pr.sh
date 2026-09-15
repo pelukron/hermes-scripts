@@ -280,7 +280,7 @@ print(json.dumps({
 PR_URL=$(echo "$PR_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('html_url', 'ERROR'))" 2>/dev/null)
 PR_NUMBER=$(echo "$PR_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('number',''))" 2>/dev/null)
 
-# ── Agregar labels + assignee al PR ──
+# ── Agregar labels al PR ──
 if [ -n "$PR_NUMBER" ]; then
     curl -s -X PATCH \
         -H "Authorization: token $GITHUB_TOKEN" \
@@ -288,9 +288,19 @@ if [ -n "$PR_NUMBER" ]; then
         "$API/issues/$PR_NUMBER" \
         -d "$(python3 -c "
 import json
-print(json.dumps({'labels': ['$ISSUE_LABEL'], 'assignees': ['pelukron']}))
+print(json.dumps({'labels': ['$ISSUE_LABEL']}))
 ")" > /dev/null
-    echo "  Labels: $ISSUE_LABEL | Assignee: pelukron"
+    echo "  Labels: $ISSUE_LABEL"
+fi
+
+# ── Pedir review a @pelukron ──
+if [ -n "$PR_NUMBER" ]; then
+    curl -s -X POST \
+        -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github+json" \
+        "$API/pulls/$PR_NUMBER/requested_reviewers" \
+        -d '{"reviewers":["pelukron"]}' > /dev/null
+    echo "  Reviewer: pelukron"
 fi
 
 echo ""
