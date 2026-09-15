@@ -47,9 +47,19 @@ bin/install-cron.sh
 
 ```bash
 bin/install-cron.sh --check                      # sin drift = instalado como dice el manifiesto
+uv run python src/install_cron.py --check --quiet  # modo job: vacio si ok, digest si hay drift
 hermes cron list                                 # jobs activos (los no-agent se ven por jobs.json)
 python3 -c "import json,pathlib; d=json.loads((pathlib.Path.home()/'.hermes/cron/jobs.json').read_text()); [print(j['name'], j.get('script'), j.get('no_agent')) for j in d['jobs']]"
 ```
+
+## Aviso semanal de drift
+
+El job `cron-drift-check` (lunes 10:00, `no_agent`, `deliver: origin`) ejecuta
+`--check --quiet`: con todo en orden no imprime nada (el job no entrega nada,
+cero tokens); con drift entrega el digest `Cron drift — <fecha>` + remedio.
+Solo avisa, nunca auto-repara: aplicar sigue siendo `bin/install-cron.sh`.
+Los jobs creados por el agente fuera del manifiesto salen como líneas `info:`
+en el `--check` manual, sin contar como drift.
 
 ## Quitar
 

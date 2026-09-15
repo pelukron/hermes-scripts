@@ -404,3 +404,115 @@ class TestApplySinEfectos:
         code = ic.main(["--repo", str(tmp_path), "--manifest", "cron/jobs.json"])
         assert code == 2
         assert "ERROR" in capsys.readouterr().err
+
+
+def write_manifest(repo: Path, jobs: list[dict]) -> None:
+    """Manifiesto mínimo válido en un repo temporal."""
+    cron = repo / "cron"
+    cron.mkdir(parents=True, exist_ok=True)
+    (cron / "jobs.json").write_text(json.dumps({"version": 1, "jobs": jobs}), encoding="utf-8")
+
+
+def demo_manifest_job(**overrides) -> dict:
+    """Entrada de manifiesto no_agent mínima y válida."""
+    job = {
+        "name": "demo",
+        "description": "demo",
+        "schedule": "0 9 * * *",
+        "mode": "no_agent",
+        "deliver": "origin",
+        "wrapper": "demo.sh",
+        "command": "uv run python demo.py",
+    }
+    job.update(overrides)
+    return job
+
+
+def base_args(repo: Path, home: Path, *extra: str) -> list[str]:
+    """Argv base contra repo y hermes-home temporales."""
+    return [
+        "--repo",
+        str(repo),
+        "--manifest",
+        "cron/jobs.json",
+        "--hermes-home",
+        str(home),
+        *extra,
+    ]
+
+
+class TestQuiet:
+    """--check --quiet para el job semanal no_agent."""
+
+    def test_quiet_sin_drift_stdout_vacio(self, tmp_path, monkeypatch, capsys):
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        write_manifest(repo, [demo_manifest_job()])
+        job = ic.parse_jobs(ic.load_manifest(repo / "cron" / "jobs.json"))[0]
+        (home / "scripts").mkdir(parents=True)
+        (home / "scripts" / "demo.sh").write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        monkeypatch.setattr(ic, "read_live_jobs", lambda h: [fake_job()])
+        code = ic.main(base_args(repo, home, "--check", "--quiet"))
+        assert code == 0
+        assert capsys.readouterr().out == ""
+
+    def test_quiet_con_drift_digest_rc0(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(ic, "read_live_jobs", lambda h: [])
+        code = ic.main(
+            [
+                "--repo",
+                str(REPO),
+                "--manifest",
+                ic.MANIFEST_DEFAULT,
+                "--hermes-home",
+                str(tmp_path),
+                "--check",
+                "--quiet",
+                "--only",
+                "backup-diario",
+            ]
+        )
+        out = capsys.readouterr().out
+        assert code == 0
+        assert out.startswith("🛡️ Cron drift — ")
+        assert "remedio: bin/install-cron.sh" in out
+        assert len(out.splitlines()) <= 8
+
+    def test_quiet_sin_check_es_error_de_uso(self, tmp_path, capsys):
+        code = ic.main(base_args(tmp_path, tmp_path, "--quiet"))
+        assert code == 2
+        captured = capsys.readouterr()
+        assert "--quiet" in captured.err
+        assert captured.out == ""
+
+    def test_check_manual_lista_extras_como_info(self, tmp_path, monkeypatch, capsys):
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        write_manifest(repo, [demo_manifest_job()])
+        job = ic.parse_jobs(ic.load_manifest(repo / "cron" / "jobs.json"))[0]
+        (home / "scripts").mkdir(parents=True)
+        (home / "scripts" / "demo.sh").write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        monkeypatch.setattr(
+            ic, "read_live_jobs", lambda h: [fake_job(), fake_job(id="x9", name="otro")]
+        )
+        code = ic.main(base_args(repo, home, "--check"))
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "info: job 'otro' existe en Hermes pero no en el manifiesto" in out
+
+    def test_manifiesto_real_trae_cron_drift_check(self, tmp_path):
+        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
+        jobs = ic.parse_jobs(manifest)
+        assert len(jobs) == 13
+        found = [job for job in jobs if job.name == "cron-drift-check"]
+        assert len(found) == 1
+        job = found[0]
+        assert job.schedule == "0 10 * * 1"
+        assert job.is_no_agent
+        assert job.wrapper == "cron-check.sh"
+        assert "--check --quiet" in job.command
+        assert job.deliver == "origin"
+        wrapper = tmp_path / "cron-check.sh"
+        wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
+        result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
