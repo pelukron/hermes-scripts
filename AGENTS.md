@@ -9,4 +9,5 @@
 - Todo PR pide review a `@pelukron` (auto: workflow `pr-review` + `bump-and-pr.sh`; GitHub omite el request si el autor es `@pelukron`).
 - Proceso completo: `PROJECT_MANAGEMENT.md` y `CONTRIBUTING.md`.
 - Contexto del repo: `CONTEXT.md`.
+- Skills: aplica el router ask-matt sin que te lo pidan (idea → grill-with-docs → spec → tickets → implement; bug → diagnosing-bugs; pila de requests → triage; si no encaja, ejecución directa).
 - Emoji: fuera del código; en docs y labels sí, con el vocabulario de `PROJECT_MANAGEMENT.md`.
