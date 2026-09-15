@@ -40,9 +40,13 @@ jobs con `hermes cron` y verifica el resultado releyendo el estado real:
 ```bash
 cp cron/targets.example.json cron/targets.local.json   # tus chat_id (no versionado)
 bin/install-cron.sh --dry-run    # plan
-bin/install-cron.sh --check      # deseado vs real
+bin/install-cron.sh --check      # deseado vs real (a mano; lista extras como info:)
 bin/install-cron.sh              # aplica + verifica
 ```
+
+Aviso semanal de drift: el job `cron-drift-check` (lunes 10:00, `no_agent`,
+cero tokens) corre `--check --quiet` — sin drift no entrega nada; con drift
+entrega el digest. A mano: `uv run python src/install_cron.py --check --quiet`.
 
 Detalles, personalización y cómo quitarlo: [`docs/INSTALL.md`](docs/INSTALL.md).
 

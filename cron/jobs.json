@@ -102,6 +102,14 @@
       "provider": "deepseek"
     },
     {
+      "name": "cron-drift-check",
+      "description": "Aviso semanal si el manifiesto difiere de Hermes (sin drift no entrega nada)",
+      "schedule": "0 10 * * 1",
+      "wrapper": "cron-check.sh",
+      "command": "uv run python src/install_cron.py --check --quiet",
+      "deliver": "origin"
+    },
+    {
       "name": "Hermes weekly update + backup",
       "description": "Update semanal de Hermes Agent con backup previo",
       "schedule": "0 4 * * 0",
