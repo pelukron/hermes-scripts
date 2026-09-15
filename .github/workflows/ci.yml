@@ -23,17 +23,17 @@ jobs:
       - name: Install deps
         run: uv sync
 
-      - name: Changelog check
+      - name: Changelog check (PSR lo genera al mergear)
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'github-actions/')
         run: |
           MERGE_BASE=$(git merge-base origin/main HEAD 2>/dev/null || echo origin/main)
-          git diff --name-only "$MERGE_BASE" HEAD | grep -q "^CHANGELOG.md$" && echo "✅ CHANGELOG.md actualizado en este PR" || {
-            echo "❌ CHANGELOG.md NO fue modificado en este PR"
+          git diff --name-only "$MERGE_BASE" HEAD | grep -q "^CHANGELOG.md$" && {
+            echo "❌ CHANGELOG.md fue modificado en este PR"
             echo ""
-            echo "   Todo cambio debe reflejarse en CHANGELOG.md."
-            echo "   Usa: bin/bump-and-pr.sh para actualizarlo automáticamente."
+            echo "   El changelog y la versión los genera python-semantic-release al mergear."
+            echo "   Revierte los cambios a CHANGELOG.md en esta rama."
             exit 1
-          }
+          } || echo "✅ CHANGELOG.md intacto (lo genera la automatización)"
 
       - name: Gate
         run: bash bin/gate.sh

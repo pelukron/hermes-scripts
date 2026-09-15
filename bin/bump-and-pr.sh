@@ -1,8 +1,9 @@
 #!/bin/bash
-# bump-and-pr.sh — Automatiza: rama → bump → commit → push → PR
-# Uso: bump-and-pr.sh <patch|minor|major> "<tipo>: <descripción>" "<entrada changelog>" [--body-file <path>]
-# Ej:  bump-and-pr.sh patch "fix: corregir imports muertos" "- Eliminados imports sin uso"
-#      bump-and-pr.sh patch "feat: nuevo endpoint" "- Add GET /api/v2/users" --body-file /tmp/issue.md
+# bump-and-pr.sh — Automatiza: issue → rama → commit → push → PR
+# (La versión + CHANGELOG + release los genera python-semantic-release al mergear.)
+# Uso: bump-and-pr.sh "<tipo>: <descripción>" [--body-file <path>]
+# Ej:  bump-and-pr.sh "fix: corregir imports muertos"
+#      bump-and-pr.sh "feat: nuevo endpoint" --body-file /tmp/issue.md
 
 set -euo pipefail
 
@@ -26,14 +27,11 @@ GH_REPO="hermes-scripts"
 API="https://api.github.com/repos/$GH_USER/$GH_REPO"
 
 # ── Argumentos ──
-BUMP="${1:-}"
-COMMIT_MSG="${2:-}"
-CHANGELOG_ENTRY="${3:-}"
-CHANGELOG_ENTRY_UNESCAPED=$(echo -e "$CHANGELOG_ENTRY")
+COMMIT_MSG="${1:-}"
 ISSUE_BODY_FILE=""  # Opcional: archivo con cuerpo de issue enriquecido
 
 # Parse optional --body-file argument
-shift 3 2>/dev/null || true
+shift 1 2>/dev/null || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --body-file)
@@ -46,9 +44,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [ -z "$BUMP" ] || [ -z "$COMMIT_MSG" ]; then
-    echo "Uso: $0 <patch|minor|major> \"tipo: descripción\" [\"entrada changelog\"]"
-    echo "Ej:  $0 patch \"fix: corregir imports muertos\" \"- Eliminados imports sin uso\""
+if [ -z "$COMMIT_MSG" ]; then
+    echo "Uso: $0 \"tipo: descripción\""
+    echo "Ej:  $0 \"fix: corregir imports muertos\""
     exit 1
 fi
 
@@ -66,17 +64,6 @@ git pull origin main --ff-only 2>/dev/null || echo "⚠️  No se pudo hacer pul
 
 cd "$SCRIPT_DIR/.." || exit 1
 
-# ── Calcular nueva versión ──
-CURRENT_VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-
-case "$BUMP" in
-    major) NEW_MAJOR=$((MAJOR + 1)); NEW_VERSION="$NEW_MAJOR.0.0" ;;
-    minor) NEW_MINOR=$((MINOR + 1)); NEW_VERSION="$MAJOR.$NEW_MINOR.0" ;;
-    patch) NEW_PATCH=$((PATCH + 1)); NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH" ;;
-    *) echo "ERROR: bump debe ser patch, minor o major"; exit 1 ;;
-esac
-
 # ── Crear rama ──
 TYPE=$(echo "$COMMIT_MSG" | cut -d: -f1 | tr -d ' ')
 SLUG=$(echo "$COMMIT_MSG" | cut -d: -f2- | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
@@ -85,9 +72,9 @@ BRANCH=$(echo "$BRANCH" | cut -c1-80)
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Bump:  $CURRENT_VERSION → $NEW_VERSION ($BUMP)"
 echo "  Rama:  $BRANCH"
 echo "  Commit: $COMMIT_MSG"
+echo "  (Versión + changelog: los genera PSR al mergear)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -103,15 +90,12 @@ else
     # Auto-generar cuerpo enriquecido con generate-issue-body.py
     python3 "$SCRIPT_DIR/../src/generate_issue_body.py" \
         "$COMMIT_MSG" \
-        "$CHANGELOG_ENTRY_UNESCAPED" \
+        "" \
         --branch "$BRANCH" \
         --output "$BODY_FILE" 2>/dev/null || {
         # Fallback: body mínimo si el script falla
         echo "## Summary" > "$BODY_FILE"
         echo "$COMMIT_MSG" >> "$BODY_FILE"
-        echo "" >> "$BODY_FILE"
-        echo "## Changes" >> "$BODY_FILE"
-        echo "$CHANGELOG_ENTRY_UNESCAPED" >> "$BODY_FILE"
         echo "  ⚠️  Fallback a body mínimo"
     }
     echo "  Body auto-generado: $BODY_FILE"
@@ -144,70 +128,8 @@ PR_BODY_FILE="$BODY_FILE"
 
 git checkout -b "$BRANCH"
 
-# ── Bump version ──
-sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" pyproject.toml
-
-# ── Changelog ──
-if [ -z "$CHANGELOG_ENTRY" ]; then
-    echo "ERROR: Entrada de changelog requerida."
-    echo "Uso: $0 <patch|minor|major> \"tipo: descripción\" \"- cambio 1\" \"- cambio 2\""
-    exit 1
-fi
-
-# Validar formato Keep a Changelog
-if ! echo "$CHANGELOG_ENTRY" | grep -qE '^[-*] '; then
-    echo "ERROR: Entrada de changelog debe empezar con '- ' o '* ' (formato Keep a Changelog)"
-    echo "Recibido: $CHANGELOG_ENTRY"
-    exit 1
-fi
-
-TODAY=$(date +%Y-%m-%d)
-CATEGORY=$(echo "$TYPE" | sed 's/fix/🐛 Fixed/;s/feat/✨ Added/;s/docs/📝 Documentation/;s/refactor/🔧 Changed/;s/style/🎨 Styling/;s/ci/🤖 CI/;s/test/🧪 Tests/;s/chore/📦 Misc/')
-CHANGELOG_BLOCK="## [$NEW_VERSION] - $TODAY
-
-### $CATEGORY
-$CHANGELOG_ENTRY_UNESCAPED
-  [#$ISSUE_NUMBER](https://github.com/$GH_USER/$GH_REPO/issues/$ISSUE_NUMBER)
-
-"
-    python3 -c "
-import sys
-block = '''$CHANGELOG_BLOCK'''
-with open('CHANGELOG.md', 'r') as f:
-    content = f.read()
-# Insert new entry after header (newest first, descending order)
-import re
-# Insert before the first version entry (line starting with '## [')
-lines = content.split('\n')
-first_entry_idx = None
-for i, line in enumerate(lines):
-    if line.startswith('## ['):
-        first_entry_idx = i
-        break
-if first_entry_idx is None:
-    print('ERROR: No version entry found in CHANGELOG.md', file=sys.stderr)
-    sys.exit(1)
-# Insert block right before the first version entry, separated by blank lines
-block_lines = block.rstrip().split('\n')
-# Ensure blank line before entry
-if lines[first_entry_idx - 1].strip() != '' and first_entry_idx > 0:
-    block_lines.insert(0, '')
-lines[first_entry_idx:first_entry_idx] = block_lines
-content = '\n'.join(lines)
-
-# Insert comparison URL at the top of the references section (descending order)
-compare_url = f'[$NEW_VERSION]: https://github.com/$GH_USER/$GH_REPO/compare/v$CURRENT_VERSION...v$NEW_VERSION\n'
-if compare_url not in content:
-    # Find the first reference line starting with '[' and insert before it
-    ref_match = re.search(r'^\[[0-9]+\.[0-9]+\.[0-9]+\]:', content, re.MULTILINE)
-    if ref_match:
-        idx = ref_match.start()
-        content = content[:idx] + compare_url + content[idx:]
-    else:
-        content += '\n' + compare_url
-with open('CHANGELOG.md', 'w') as f:
-    f.write(content)
-"
+# Nota: versión + CHANGELOG + release los genera python-semantic-release
+# al mergear a main. Este script ya no hace bump.
 
 # ── Commit ──
 # Run pre-commit hooks if installed
@@ -215,10 +137,9 @@ if command -v pre-commit &>/dev/null || uv run pre-commit --version &>/dev/null 
     echo "Running pre-commit hooks..."
     uv run pre-commit run --all-files || echo "⚠️  pre-commit found issues (CI will catch them)"
 fi
-git add pyproject.toml CHANGELOG.md
+git add -A
 git commit -m "$COMMIT_MSG
 
-Bump: $CURRENT_VERSION → $NEW_VERSION
 Closes #$ISSUE_NUMBER"
 
 # ── Push ──
@@ -251,13 +172,9 @@ $SUMMARY
 
 Ver detalles completos en el issue.
 
-## 📦 Version
+## 📦 Versión
 
-\`$CURRENT_VERSION\` → \`$NEW_VERSION\` ($BUMP)
-
-## 📝 Changelog
-
-See [CHANGELOG.md](https://github.com/$GH_USER/$GH_REPO/blob/$BRANCH/CHANGELOG.md)"
+La corta python-semantic-release al mergear (patch/minor según commits)."
 
 # Cleanup temp file
 rm -f "$PR_BODY_FILE"
