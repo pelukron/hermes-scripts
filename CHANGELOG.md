@@ -2,6 +2,12 @@
 
 Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.5] - 2026-09-15
+
+### 🤖 Automation
+- PRs piden review a `@pelukron` (workflow `pr-review` + `bump-and-pr.sh`); regla en `AGENTS.md`
+  [#108](https://github.com/pelukron/hermes-scripts/issues/108)
+
 ## [0.5.4] - 2026-09-15
 
 ### 📝 Documentation
@@ -304,6 +310,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.5.5]: https://github.com/pelukron/hermes-scripts/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/pelukron/hermes-scripts/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/pelukron/hermes-scripts/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/pelukron/hermes-scripts/compare/v0.5.1...v0.5.2

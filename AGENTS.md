@@ -6,6 +6,7 @@
 - Gate único: `bash bin/gate.sh` en local y CI. Debe estar verde antes del PR.
 - Ramas `{tipo}/{N}-slug`. Push normal; nunca `--force` ni `--amend` tras push.
 - El agente no mergea: PRs y commits; `@pelukron` revisa y mergea.
+- Todo PR pide review a `@pelukron` (auto: workflow `pr-review` + `bump-and-pr.sh`; GitHub omite el request si el autor es `@pelukron`).
 - Proceso completo: `PROJECT_MANAGEMENT.md` y `CONTRIBUTING.md`.
 - Contexto del repo: `CONTEXT.md`.
 - Emoji: fuera del código; en docs y labels sí, con el vocabulario de `PROJECT_MANAGEMENT.md`.
