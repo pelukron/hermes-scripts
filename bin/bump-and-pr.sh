@@ -293,6 +293,16 @@ print(json.dumps({'labels': ['$ISSUE_LABEL']}))
     echo "  Labels: $ISSUE_LABEL"
 fi
 
+# ── Pedir review a @pelukron ──
+if [ -n "$PR_NUMBER" ]; then
+    curl -s -X POST \
+        -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github+json" \
+        "$API/pulls/$PR_NUMBER/requested_reviewers" \
+        -d '{"reviewers":["pelukron"]}' > /dev/null
+    echo "  Reviewer: pelukron"
+fi
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  ✅ v$NEW_VERSION  lista para revisión"

@@ -1,0 +1,28 @@
+name: Auto-request review
+
+# Todo PR pide review a @pelukron (humanos, agentes y dependabot).
+# CODEOWNERS ya exige su aprobación; esto deja el request explícito y visible.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # GitHub no permite pedirle review al propio autor: se omite en ese caso.
+          AUTHOR="${{ github.event.pull_request.user.login }}"
+          if [ "$AUTHOR" = "pelukron" ]; then
+            echo "autor es pelukron: auto-review no permitido por GitHub, se omite"
+            exit 0
+          fi
+          gh pr edit "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --add-reviewer pelukron
