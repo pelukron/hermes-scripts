@@ -1,0 +1,22 @@
+name: Auto-assign PR
+
+# Todo PR queda asignado a @pelukron (humanos, agentes y dependabot).
+# La revision ya la exige CODEOWNERS; esto cubre la asignacion.
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr edit "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --add-assignee pelukron
