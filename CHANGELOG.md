@@ -2,6 +2,12 @@
 
 Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.1] - 2026-09-15
+
+### 🔧 Changed
+- `bin/gate.sh`: entrypoint único del quality-gate (`exec make check`); `ci.yml` lo llama sin duplicar pasos; README documenta el gate
+  [#100](https://github.com/pelukron/hermes-scripts/issues/100)
+
 ## [0.5.0] - 2026-09-15
 
 ### ✨ Added(cron)
@@ -280,6 +286,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.5.1]: https://github.com/pelukron/hermes-scripts/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/pelukron/hermes-scripts/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/pelukron/hermes-scripts/compare/v0.3.22...v0.4.0
 [0.3.22]: https://github.com/pelukron/hermes-scripts/compare/v0.3.21...v0.3.22

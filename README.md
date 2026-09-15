@@ -92,7 +92,8 @@ make test       # pytest -v
 ## CI/CD
 
 - [Flujo de desarrollo](CONTRIBUTING.md) — pipeline completo (bump → PR → CI → merge → release)
-- GitHub Actions: pytest + ruff + mypy + Bandit + changelog check en cada PR
+- Gate único: `bash bin/gate.sh` (= `make check`: ruff + format + mypy + Bandit + pytest). El CI ejecuta ese mismo comando, sin pasos duplicados.
+- GitHub Actions: gate + changelog check en cada PR
 - Conventional commits con commitizen
 - Keep a Changelog
 - Auto-release: tag + GitHub Release al mergear
