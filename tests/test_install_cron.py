@@ -99,6 +99,26 @@ class TestRenderWrapper:
         assert ic.WRAPPER_MARKER in content
         assert "/home/" not in content
 
+    def test_command_con_exec_no_se_duplica(self, tmp_path):
+        """Un comando que ya trae `exec` no debe generar `exec exec`.
+
+        `job-scout daily run` traia `exec "$HOME/empleo/bin/cron-run.sh"` en el manifiesto: el
+        prefijo ciego dejaba el wrapper en `exec exec ...` (rc=127) y el job no corria.
+        """
+        job = ic.Job(
+            name="demo",
+            description="demo",
+            schedule="0 9 * * *",
+            mode="no_agent",
+            deliver="origin",
+            enabled=True,
+            wrapper="demo.sh",
+            command='exec "$HOME/demo/bin/run.sh"',
+        )
+        content = ic.render_wrapper(job, tmp_path)
+        assert "exec exec" not in content
+        assert 'exec "$HOME/demo/bin/run.sh" 2>&1' in content
+
     def test_repo_por_env_con_fallback(self, tmp_path):
         job = ic.Job(
             name="demo",
