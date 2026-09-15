@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "doc": "Manifiesto de los cron jobs de Hermes. Fuente de verdad unica: bin/install-cron.sh (--dry-run / --check / aplicar). Los 'deliver' con ${nombre} se resuelven desde cron/targets.local.json (no versionado) para no filtrar IDs de chat en el repo.",
+  "defaults": {
+    "deliver": "origin",
+    "enabled": true,
+    "mode": "no_agent"
+  },
+  "jobs": [
+    {
+      "name": "backup-diario",
+      "description": "Backup de state.db + config de Hermes",
+      "schedule": "0 2 * * *",
+      "wrapper": "backup-diario.sh",
+      "command": "uv run python backup-diario.py",
+      "deliver": "${reports}"
+    },
+    {
+      "name": "cleanup-housekeeping",
+      "description": "Limpieza semanal: backups viejos, noticias >4d, caches npm/pnpm/pip",
+      "schedule": "0 3 * * 0",
+      "wrapper": "cleanup-housekeeping.sh",
+      "command": "uv run python cleanup-housekeeping.py",
+      "deliver": "origin"
+    },
+    {
+      "name": "reporte-uso-hermes",
+      "description": "Reporte diario de uso de Hermes (tokens/costo por modelo)",
+      "schedule": "5 8 * * *",
+      "wrapper": "reporte-uso.sh",
+      "command": "uv run python reporte-uso-hermes.py",
+      "deliver": "${reports}"
+    },
+    {
+      "name": "resumen-noticias-diario",
+      "description": "Resumen de noticias multi-region (fuentes: config/feeds.json)",
+      "schedule": "30 8 * * *",
+      "wrapper": "resumen-noticias.sh",
+      "command": "uv run python resumen-noticias-diario.py",
+      "deliver": "${empleo}"
+    },
+    {
+      "name": "resumen-rayados-diario",
+      "description": "Noticias de Rayados de Monterrey",
+      "schedule": "0 9 * * *",
+      "wrapper": "resumen-rayados.sh",
+      "command": "uv run python resumen-rayados-diario.py",
+      "deliver": "${rayados}"
+    },
+    {
+      "name": "resumen-tigres-diario",
+      "description": "Noticias de Tigres UANL",
+      "schedule": "0 9 * * *",
+      "wrapper": "resumen-tigres.sh",
+      "command": "uv run python resumen-tigres-diario.py",
+      "deliver": "${tigres}"
+    },
+    {
+      "name": "monitor-ram-mexico",
+      "description": "Monitor de precios de RAM (MX). Deshabilitado por defecto.",
+      "schedule": "*/30 * * * *",
+      "wrapper": "monitor-ram.sh",
+      "command": "uv run python monitor-ram-mexico.py",
+      "deliver": "origin",
+      "enabled": false
+    },
+    {
+      "name": "sistema-alertas",
+      "description": "Alertas de disco/CPU/memoria del servidor",
+      "schedule": "*/30 * * * *",
+      "wrapper": "sistema-alertas.sh",
+      "command": "bash bin/sistema-alertas-y-resumen.sh",
+      "deliver": "${reports}"
+    },
+    {
+      "name": "aviso-peak-19h",
+      "description": "Avisa la entrada de la ventana peak de la API DeepSeek (19:00 hora Monterrey)",
+      "schedule": "55 18 * * 0-4",
+      "wrapper": "aviso-peak.sh",
+      "command": "bash bin/aviso-peak.sh",
+      "deliver": "${personal}"
+    },
+    {
+      "name": "aviso-peak-00h",
+      "description": "Avisa la entrada de la ventana peak de la API DeepSeek (00:00 hora Monterrey)",
+      "schedule": "55 23 * * 0-4",
+      "wrapper": "aviso-peak.sh",
+      "command": "bash bin/aviso-peak.sh",
+      "deliver": "${personal}"
+    },
+    {
+      "name": "job-scout daily run",
+      "description": "Reporte diario del agente de empleo (repo externo hermes-empleo)",
+      "schedule": "0 8 * * *",
+      "wrapper": "job-scout-cron.sh",
+      "command": "exec \"$HOME/empleo/bin/cron-run.sh\"",
+      "deliver": "${empleo}",
+      "requires": [
+        "$HOME/empleo/bin/cron-run.sh"
+      ],
+      "model": "deepseek-flash",
+      "provider": "deepseek"
+    },
+    {
+      "name": "Hermes weekly update + backup",
+      "description": "Update semanal de Hermes Agent con backup previo",
+      "schedule": "0 4 * * 0",
+      "mode": "agent",
+      "deliver": "origin",
+      "model": "deepseek-flash",
+      "provider": "deepseek",
+      "skills": [
+        "hermes-agent"
+      ],
+      "prompt": "Ejecuta el update semanal de Hermes Agent con backup previo:\n\n1. Primero haz un backup rápido: `hermes backup -q -l \"pre-update-$(date +%Y%m%d)\"`\n2. Luego ejecuta: `hermes update --backup -y`\n3. Verifica la versión nueva: `hermes --version`\n4. Entrega un resumen con:\n   - ✅/❌ Resultado del backup (ruta del archivo)\n   - ✅/❌ Resultado del update (versión anterior → nueva)\n   - Si hubo errores, muestra el output relevante\n\nSi el update falla o hay errores, reporta exactamente qué salió mal."
+    }
+  ]
+}
