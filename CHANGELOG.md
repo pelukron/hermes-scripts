@@ -2,6 +2,12 @@
 
 Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.4] - 2026-09-15
+
+### 📝 Documentation
+- `CONTEXT.md`: vocabulario compartido, gate y CI, nomenclatura, mapa del repo, auditoría cross-repo 2026-09-15 y orden de ejecución
+  [#98](https://github.com/pelukron/hermes-scripts/issues/98)
+
 ## [0.5.3] - 2026-09-15
 
 ### 🤖 Automation
@@ -298,6 +304,7 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 - URLs con `)` escapadas a `%29` para evitar rotura de links Markdown
 - Títulos con `[]` limpiados para evitar conflicto con sintaxis de links
 
+[0.5.4]: https://github.com/pelukron/hermes-scripts/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/pelukron/hermes-scripts/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/pelukron/hermes-scripts/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/pelukron/hermes-scripts/compare/v0.5.0...v0.5.1
