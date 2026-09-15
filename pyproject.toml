@@ -26,7 +26,8 @@ build-backend = "hatchling.build"
 packages = ["src"]
 
 [tool.semantic_release]
-version_variable = "pyproject.toml:version"
+version_toml = ["pyproject.toml:project.version"]
+allow_zero_version = true
 tag_format = "v{version}"
 commit_message = "chore(release): v{version} [skip ci]"
 commit_parser = "conventional"
