@@ -115,7 +115,8 @@ with open('$BODY_FILE') as f:
 print(json.dumps({
     'title': '$COMMIT_MSG',
     'body': body,
-    'labels': ['$ISSUE_LABEL']
+    'labels': ['$ISSUE_LABEL'],
+    'assignees': ['pelukron']
 }))
 ")")
 
