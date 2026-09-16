@@ -14,3 +14,8 @@ cron/targets.local.json
 
 # Reportes generados (gate-audit): se regeneran con bin/gate-audit.py
 out/
+
+# Datos de cobertura: se regeneran con pytest --cov
+.coverage
+.coverage.*
+htmlcov/

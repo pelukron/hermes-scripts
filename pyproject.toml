@@ -12,6 +12,7 @@ dependencies = [
 dev = [
     "pre-commit>=4.6.0",
     "pytest",
+    "pytest-cov",
     "ruff",
     "mypy",
     "bandit",
@@ -35,6 +36,13 @@ commit_parser = "conventional"
 [tool.semantic_release.commit_parser_options]
 patch_tags = ["fix", "perf", "infra"]
 allowed_tags = ["feat", "fix", "perf", "infra", "build", "chore", "ci", "docs", "style", "refactor", "test"]
+
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*", "*/__pycache__/*", ".venv/*"]
+
+[tool.coverage.report]
+show_missing = true
 
 [tool.mypy]
 python_version = "3.11"
