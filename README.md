@@ -95,9 +95,15 @@ make test       # pytest -v
 
 ## CI/CD
 
-- [Flujo de desarrollo](CONTRIBUTING.md) — pipeline completo (bump → PR → CI → merge → release)
+- [Flujo de desarrollo](CONTRIBUTING.md) — pipeline completo (PR → CI → merge → release)
 - Gate único: `bash bin/gate.sh` (= `make check`: ruff + format + mypy + Bandit + pytest). El CI ejecuta ese mismo comando, sin pasos duplicados.
-- GitHub Actions: gate + changelog check en cada PR
-- Commits convencionales en español; versión + changelog + release los genera PSR al mergear
-- Keep a Changelog
-- Auto-release: tag + GitHub Release al mergear
+- GitHub Actions: gate + changelog intacto + review en cada PR
+- Commits convencionales en español; versión + release los genera PSR al mergear
+
+## Releases
+
+Cada merge a `main` corta release vía `python-semantic-release`:
+`feat` → minor, resto (`fix`, `perf`, `infra`, `docs`, `chore`, …) → patch.
+Las notas se generan de los commits (agrupadas + SHAs + compare) en la
+[página de Releases](https://github.com/pelukron/hermes-scripts/releases).
+`CHANGELOG.md` quedó congelado como registro histórico.
