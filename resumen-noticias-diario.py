@@ -18,7 +18,6 @@ from hermes_common import news_utils, retry_request
 
 # Helpers compartidos en src/hermes_common/news_utils.py (issue #70).
 clean_title = news_utils.clean_title
-shorten_url = news_utils.shorten_url
 
 # Re-exports de compatibilidad (tests y otros importadores usan mod.<helper>).
 __all__ = [
@@ -29,7 +28,6 @@ __all__ = [
     "fetch_currencies",
     "fetch_rss",
     "load_feeds",
-    "shorten_url",
 ]
 
 
@@ -220,8 +218,7 @@ def main():
                 for title, link in items[:1]:  # 1 item por fuente
                     clean = clean_title(title)
                     clean_link = escape_link(link)
-                    short_link = shorten_url(clean_link)
-                    source_lines.append(f"  [{clean}]({short_link})")
+                    source_lines.append(f"  [{clean}]({clean_link})")
                 sub_lines.append("\n".join(source_lines))
                 # Sin sleep por fuente: el rate-limit vive en fetch_all_rss (stagger).
 

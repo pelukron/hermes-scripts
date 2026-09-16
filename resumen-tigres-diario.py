@@ -157,7 +157,6 @@ now_str = news_utils.now_str
 parse_detail_page = news_utils.parse_detail_page
 parse_fecha_es = news_utils.parse_fecha_es
 resolve_url = news_utils.resolve_url
-shorten_url = news_utils.shorten_url
 title_similar = news_utils.title_similar
 
 # Re-exports de compatibilidad (tests y otros importadores usan mod.<helper>).
@@ -187,7 +186,6 @@ __all__ = [
     "parse_detail_page",
     "parse_fecha_es",
     "resolve_url",
-    "shorten_url",
     "smells_like_rumor",
     "title_similar",
 ]
@@ -517,7 +515,7 @@ def build_report_blocks() -> list:
     else:
         for item in mostradas:
             tag = "🎽" if item["oficial"] else "✓"
-            link = shorten_url(item.get("link", ""))
+            link = item.get("link", "")
             conf_lines.append(format_item_line(tag, item, link))
     blocks.append("\n".join(conf_lines))
 
@@ -532,7 +530,7 @@ def build_report_blocks() -> list:
         rum_lines.append("_No se encontraron rumores o filtraciones nuevos en las últimas 48h._\n")
     else:
         for item in mostradas_r:
-            link = shorten_url(item.get("link", ""))
+            link = item.get("link", "")
             rum_lines.append(format_item_line("📰", item, link))
     blocks.append("\n".join(rum_lines))
 

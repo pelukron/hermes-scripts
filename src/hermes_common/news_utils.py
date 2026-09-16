@@ -1,8 +1,8 @@
 """news_utils.py — helpers compartidos de noticias.
 
 Extraídos de resumen-tigres-diario.py, resumen-rayados-diario.py y
-resumen-noticias-diario.py (issue #70). Funciones puras sin estado global
-salvo el cache de URLs acortadas. Las funciones que dependen de la
+resumen-noticias-diario.py (issue #70). Funciones puras sin estado global.
+Las funciones que dependen de la
 configuración por equipo (dominios, keywords) reciben esas listas como
 parámetros; cada script las liga con sus constantes en wrappers finos.
 """
@@ -16,7 +16,7 @@ from urllib.parse import quote
 
 import requests
 
-from .common import parse_published, retry_request
+from .common import parse_published
 
 # Telegram: límite de un mensaje = 4096 caracteres; dejamos margen para cabeceras de formato.
 TELEGRAM_MAX_CHARS = 3000
@@ -281,38 +281,6 @@ def normalize_urls(items: list) -> list:
     return items
 
 
-# Cache global para URLs acortadas
-_URL_CACHE: dict[str, str] = {}
-
-
-def shorten_url(long_url: str, timeout: int = 5) -> str:
-    """Acorta URL con TinyURL (gratis, sin API key). Cachea resultados.
-
-    Args:
-        long_url: URL larga a acortar.
-        timeout: Timeout HTTP en segundos.
-
-    Returns:
-        str: URL acortada si es de Google News; la URL original si no.
-    """
-    if "news.google.com" not in long_url:
-        return long_url
-    if long_url in _URL_CACHE:
-        return _URL_CACHE[long_url]
-    try:
-        r = retry_request(
-            f"https://tinyurl.com/api-create.php?url={quote(long_url, safe='')}",
-            timeout=timeout,
-        )
-        if r.status_code == 200 and r.text.startswith("http"):
-            short = str(r.text.strip())
-            _URL_CACHE[long_url] = short
-            return short
-    except Exception as e:
-        logging.warning("TinyURL shorten failed: %s", e)
-    return long_url
-
-
 def resolve_url(google_news_url: str, timeout: int = 5) -> str:
     """Resuelve redirect de Google News a URL real del artículo.
 
@@ -336,7 +304,7 @@ def resolve_url(google_news_url: str, timeout: int = 5) -> str:
         if final and final != google_news_url and "news.google.com" not in final:
             return final
     except Exception as e:
-        logging.warning("TinyURL shorten failed: %s", e)
+        logging.warning("resolve_url failed: %s", e)
     return google_news_url
 
 

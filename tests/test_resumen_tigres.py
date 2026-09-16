@@ -522,7 +522,6 @@ def test_contador_refleja_items_mostrados():
         patch("hermes_common.HistoryManager") as mock_hist_cls,
         patch.object(mod, "fetch_google_news") as mock_gn,
         patch.object(mod, "fetch_tigres_com") as mock_tig,
-        patch.object(mod, "shorten_url", side_effect=lambda u: u),
     ):
         mock_hist_cls.return_value.exists.return_value = False
         mock_gn.side_effect = lambda q, cat: confirmadas if cat == "confirmadas" else []
@@ -679,10 +678,15 @@ class TestFormatItemLine:
             "published": datetime(2026, 9, 12, 15, 22, tzinfo=timezone.utc),
             "author": "Ernesto Ramos",
         }
-        line = format_item_line("🎽", item, "https://tinyurl.com/x")
+        line = format_item_line(
+            "🎽",
+            item,
+            "https://news.google.com/rss/articles/CBMiW2h0dHBzOi8vZXhhbXBsZS5jb20vbm90YS1sYXJnYS1jb24tdXJsLW11eS1sYXJnYS1wYXJhLXByb2Jhci1lbC1hbGlhcy1tYXJrZG93btIBX2h0dHBzOi8vZXhhbXBsZS5jb20vbm90YQ?oc=5",
+        )
         assert "(2026-09-12)" in line
         assert "por Ernesto Ramos" in line
         assert "[La Previa Tigres vs Rayados]" in line
+        assert "https://news.google.com/rss/articles/" in line
 
     def test_sin_fecha_no_muestra_parentesis(self):
         item = {"title": "Nota sin fecha", "source": "Medio", "published": None}
