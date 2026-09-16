@@ -1,4 +1,3 @@
-from . import news_utils
 from .common import (
     DEFAULT_NEWS_MAX_AGE_HOURS,
     MAX_RESPONSE_BYTES,
@@ -25,5 +24,4 @@ __all__ = [
     "parse_published",
     "is_within_max_age",
     "filter_by_max_age",
-    "news_utils",
 ]
