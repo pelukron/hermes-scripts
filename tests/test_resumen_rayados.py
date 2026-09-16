@@ -26,6 +26,9 @@ smells_like_rumor = mod.smells_like_rumor
 classify = mod.classify
 fetch_google_news = mod.fetch_google_news
 fetch_rayados_com = mod.fetch_rayados_com
+fetch_rayados_detail = mod.fetch_rayados_detail
+enrich_rayados_items = mod.enrich_rayados_items
+format_item_line = mod.format_item_line
 
 # ═══════════════════════════════════════════
 # clean_url
@@ -530,3 +533,118 @@ class TestFetchRayadosCom:
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 1
+
+
+# ═══════════════════════════════════════════
+# Fecha verificada y filtro 48h (issue #128)
+# ═══════════════════════════════════════════
+
+
+class TestRayadosSinFechaVerificada:
+    def test_items_salen_sin_published(self):
+        mock_resp = Mock()
+        mock_resp.text = RAYADOS_HTML
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
+            items = fetch_rayados_com()
+            assert len(items) == 2
+            assert all(i["published"] is None for i in items)
+            assert all(i["author"] is None for i in items)
+
+    def test_sin_fecha_se_descarta_con_drop(self):
+        from hermes_common import filter_by_max_age
+
+        mock_resp = Mock()
+        mock_resp.text = RAYADOS_HTML
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
+            items = fetch_rayados_com()
+            assert filter_by_max_age(items, missing="drop") == []
+
+    def test_con_fecha_reciente_se_conserva(self):
+        from datetime import datetime, timedelta, timezone
+
+        from hermes_common import filter_by_max_age
+
+        now = datetime(2026, 9, 16, 12, 0, 0, tzinfo=timezone.utc)
+        items = [
+            {
+                "title": "Nota oficial reciente",
+                "link": "https://www.rayados.com/es/noticias/1/x/",
+                "source": "rayados.com",
+                "oficial": True,
+                "published": now - timedelta(hours=5),
+                "author": "Redacción",
+            }
+        ]
+        kept = filter_by_max_age(items, missing="drop", now=now)
+        assert len(kept) == 1
+
+
+RAYADOS_DETAIL_HTML = """
+<html><head>
+<meta property="article:published_time" content="2026-09-14T10:00:00+00:00" />
+<meta name="author" content="Prensa Rayados" />
+</head><body><h1>Nota</h1></body></html>
+"""
+
+
+class TestFetchRayadosDetail:
+    def test_fecha_y_autor(self):
+        mock_resp = Mock()
+        mock_resp.text = RAYADOS_DETAIL_HTML
+        with patch.object(mod, "retry_request", return_value=mock_resp):
+            published, author = fetch_rayados_detail("https://www.rayados.com/es/noticias/1/x/")
+            assert published is not None
+            assert (published.year, published.month, published.day) == (2026, 9, 14)
+            assert author == "Prensa Rayados"
+
+    def test_sin_tags_retorna_nones(self):
+        mock_resp = Mock()
+        mock_resp.text = "<html><body><h1>Sin meta</h1></body></html>"
+        with patch.object(mod, "retry_request", return_value=mock_resp):
+            assert fetch_rayados_detail("https://www.rayados.com/es/noticias/1/x/") == (None, None)
+
+    def test_error_retorna_nones(self):
+        with patch.object(mod, "retry_request", side_effect=Exception("timeout")):
+            assert fetch_rayados_detail("https://www.rayados.com/es/noticias/1/x/") == (None, None)
+
+    def test_enrich_respeta_tope(self):
+        items = [
+            {
+                "title": f"Nota oficial suficientemente larga {i}",
+                "link": f"https://www.rayados.com/es/noticias/{i}/x/",
+                "source": "rayados.com",
+                "oficial": True,
+                "published": None,
+                "author": None,
+            }
+            for i in range(3)
+        ]
+        mock_resp = Mock()
+        mock_resp.text = RAYADOS_DETAIL_HTML
+        with patch.object(mod, "retry_request", return_value=mock_resp) as mock_req:
+            enrich_rayados_items(items, max_details=2)
+            assert mock_req.call_count == 2
+            assert items[0]["author"] == "Prensa Rayados"
+            assert items[2]["author"] is None
+
+
+class TestFormatItemLine:
+    def test_con_fecha_y_autor(self):
+        from datetime import datetime, timezone
+
+        item = {
+            "title": "Ganan las Rayadas en Guadalajara - rayados.com",
+            "source": "rayados.com",
+            "published": datetime(2026, 9, 14, 10, 0, tzinfo=timezone.utc),
+            "author": "Prensa Rayados",
+        }
+        line = format_item_line("🎽", item, "https://tinyurl.com/x")
+        assert "(2026-09-14)" in line
+        assert "por Prensa Rayados" in line
+        assert "[Ganan las Rayadas en Guadalajara]" in line
+
+    def test_sin_fecha_no_muestra_parentesis(self):
+        item = {"title": "Nota sin fecha", "source": "rayados.com", "published": None}
+        line = format_item_line("🎽", item, "")
+        assert "(" not in line
+        assert "Nota sin fecha" in line
