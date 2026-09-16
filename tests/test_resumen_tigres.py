@@ -26,6 +26,10 @@ smells_like_rumor = mod.smells_like_rumor
 classify = mod.classify
 fetch_google_news = mod.fetch_google_news
 fetch_tigres_com = mod.fetch_tigres_com
+parse_fecha_es = mod.parse_fecha_es
+fetch_tigres_detail = mod.fetch_tigres_detail
+enrich_tigres_items = mod.enrich_tigres_items
+format_item_line = mod.format_item_line
 
 # ═══════════════════════════════════════════
 # clean_url
@@ -532,3 +536,156 @@ def test_contador_refleja_items_mostrados():
     assert len(bullets) <= 8
     # Hubo recorte (12 originales > 8): el header debe indicar el total
     assert " de " in header, f"header {header!r} deberia indicar el total recortado"
+
+
+# ═══════════════════════════════════════════
+# Fecha del listado en español (issue #124)
+# ═══════════════════════════════════════════
+
+
+class TestParseFechaEs:
+    def test_mes_dia_ano(self):
+        got = parse_fecha_es("septiembre 12, 2026")
+        assert got is not None
+        assert (got.year, got.month, got.day) == (2026, 9, 12)
+
+    def test_dia_de_mes_de_ano(self):
+        got = parse_fecha_es("5 de septiembre de 2026")
+        assert got is not None
+        assert (got.year, got.month, got.day) == (2026, 9, 5)
+
+    def test_agosto(self):
+        got = parse_fecha_es("agosto 29, 2026")
+        assert got is not None
+        assert (got.year, got.month, got.day) == (2026, 8, 29)
+
+    def test_invalido(self):
+        assert parse_fecha_es("") is None
+        assert parse_fecha_es("ayer en la tarde") is None
+
+
+TIGRES_HTML_CON_FECHA = """
+<html><body>
+<div class="card"><time>septiembre 12, 2026</time>
+<a href="https://www.tigres.com.mx/es/noticias/nota-reciente-x/">
+<h2>Nota reciente con fecha del listado</h2></a></div>
+<div class="card"><time>agosto 21, 2026</time>
+<a href="https://www.tigres.com.mx/es/noticias/nota-vieja-zzz/">
+<h2>Nota vieja de agosto del listado</h2></a></div>
+</body></html>
+"""
+
+
+class TestFetchTigresComConFecha:
+    def test_listado_aporta_published(self):
+        mock_resp = Mock()
+        mock_resp.text = TIGRES_HTML_CON_FECHA
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
+            items = fetch_tigres_com()
+            assert len(items) == 2
+            assert items[0]["published"] is not None
+            assert (items[0]["published"].year, items[0]["published"].month) == (2026, 9)
+            assert (items[1]["published"].year, items[1]["published"].month) == (2026, 8)
+
+    def test_filtro_48h_descarta_agosto(self):
+        from datetime import datetime, timezone
+
+        from hermes_common import filter_by_max_age
+
+        now = datetime(2026, 9, 13, 12, 0, 0, tzinfo=timezone.utc)
+        mock_resp = Mock()
+        mock_resp.text = TIGRES_HTML_CON_FECHA
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
+            items = fetch_tigres_com()
+            kept = filter_by_max_age(items, missing="drop", now=now)
+            assert len(kept) == 1
+            assert "reciente" in kept[0]["title"].lower()
+
+    def test_sin_fecha_se_descarta_con_drop(self):
+        from hermes_common import filter_by_max_age
+
+        mock_resp = Mock()
+        mock_resp.text = TIGRES_HTML
+        with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
+            items = fetch_tigres_com()
+            assert all(i["published"] is None for i in items)
+            assert filter_by_max_age(items, missing="drop") == []
+
+
+TIGRES_DETAIL_HTML = """
+<html><head>
+<meta property="article:published_time" content="2026-09-12T15:22:23+00:00" />
+<meta name="author" content="Ernesto Ramos" />
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "Article",
+ "datePublished": "2026-09-12T15:22:23+00:00",
+ "author": {"name": "Ernesto Ramos"}}
+</script>
+</head><body><h1>Nota</h1></body></html>
+"""
+
+
+class TestFetchTigresDetail:
+    def test_fecha_y_autor(self):
+        mock_resp = Mock()
+        mock_resp.text = TIGRES_DETAIL_HTML
+        with patch.object(mod, "retry_request", return_value=mock_resp):
+            published, author = fetch_tigres_detail("https://www.tigres.com.mx/es/noticias/x/")
+            assert published is not None
+            assert (published.year, published.month, published.day) == (2026, 9, 12)
+            assert author == "Ernesto Ramos"
+
+    def test_error_retorna_nones(self):
+        with patch.object(mod, "retry_request", side_effect=Exception("timeout")):
+            assert fetch_tigres_detail("https://www.tigres.com.mx/es/noticias/x/") == (None, None)
+
+    def test_enrich_respeta_tope_y_completa(self):
+        from datetime import datetime, timezone
+
+        items = [
+            {
+                "title": "Nota reciente con fecha del listado",
+                "link": "https://www.tigres.com.mx/es/noticias/a/",
+                "source": "tigres.com.mx",
+                "oficial": True,
+                "published": datetime(2026, 9, 12, tzinfo=timezone.utc),
+                "author": None,
+            },
+            {
+                "title": "Otra nota reciente del listado",
+                "link": "https://www.tigres.com.mx/es/noticias/b/",
+                "source": "tigres.com.mx",
+                "oficial": True,
+                "published": datetime(2026, 9, 13, tzinfo=timezone.utc),
+                "author": None,
+            },
+        ]
+        mock_resp = Mock()
+        mock_resp.text = TIGRES_DETAIL_HTML
+        with patch.object(mod, "retry_request", return_value=mock_resp) as mock_req:
+            enrich_tigres_items(items, max_details=1)
+            assert mock_req.call_count == 1
+            assert items[0]["author"] == "Ernesto Ramos"
+            assert items[1]["author"] is None
+
+
+class TestFormatItemLine:
+    def test_con_fecha_y_autor(self):
+        from datetime import datetime, timezone
+
+        item = {
+            "title": "La Previa Tigres vs Rayados - tigres.com.mx",
+            "source": "tigres.com.mx",
+            "published": datetime(2026, 9, 12, 15, 22, tzinfo=timezone.utc),
+            "author": "Ernesto Ramos",
+        }
+        line = format_item_line("🎽", item, "https://tinyurl.com/x")
+        assert "(2026-09-12)" in line
+        assert "por Ernesto Ramos" in line
+        assert "[La Previa Tigres vs Rayados]" in line
+
+    def test_sin_fecha_no_muestra_parentesis(self):
+        item = {"title": "Nota sin fecha", "source": "Medio", "published": None}
+        line = format_item_line("✓", item, "")
+        assert "(" not in line
+        assert "Nota sin fecha" in line

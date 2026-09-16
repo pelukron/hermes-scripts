@@ -14,13 +14,15 @@ Uso:
   ~/.hermes/venv/bin/python ~/.hermes/scripts/resumen-tigres-diario.py
 """
 
+import json
 import logging
 import os
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from difflib import SequenceMatcher
+from typing import Optional
 from urllib.parse import quote, urljoin
 
 sys.path.append(os.path.dirname(__file__))
@@ -500,13 +502,195 @@ def fetch_google_news(query: str, category: str) -> list:
 # ---------------------------------------------------------------------------
 # tigres.com.mx scraping
 # ---------------------------------------------------------------------------
+MESES_ES = {
+    "enero": 1,
+    "febrero": 2,
+    "marzo": 3,
+    "abril": 4,
+    "mayo": 5,
+    "junio": 6,
+    "julio": 7,
+    "agosto": 8,
+    "septiembre": 9,
+    "setiembre": 9,
+    "octubre": 10,
+    "noviembre": 11,
+    "diciembre": 12,
+}
+
+
+def parse_fecha_es(text: str) -> Optional[datetime]:
+    """Interpreta fecha en español del listado ('septiembre 12, 2026').
+
+    Args:
+        text: Texto crudo del tag <time>.
+
+    Returns:
+        datetime aware UTC con día de publicación, o None si no parsea.
+    """
+    if not text or not text.strip():
+        return None
+    t = text.strip().lower()
+    m = re.search(r"([a-záéíóúñ]+)\s+(\d{1,2}),?\s+(\d{4})", t)
+    if m:
+        mes = MESES_ES.get(m.group(1))
+        if mes:
+            try:
+                return datetime(int(m.group(3)), mes, int(m.group(2)), tzinfo=timezone.utc)
+            except ValueError:
+                return None
+    m = re.search(r"(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+de\s+(\d{4})", t)
+    if m:
+        mes = MESES_ES.get(m.group(2))
+        if mes:
+            try:
+                return datetime(int(m.group(3)), mes, int(m.group(1)), tzinfo=timezone.utc)
+            except ValueError:
+                return None
+    return None
+
+
+def listing_time_of(link_tag) -> Optional[datetime]:
+    """Fecha del <time> dentro del padre inmediato de un <a> del listado.
+
+    Solo mira el padre inmediato para no contaminar con tarjetas vecinas.
+
+    Args:
+        link_tag: Tag <a> de BeautifulSoup.
+
+    Returns:
+        datetime o None si la tarjeta no trae fecha.
+    """
+    parent = getattr(link_tag, "parent", None)
+    if parent is None:
+        return None
+    time_tag = parent.find("time")
+    if time_tag is None:
+        return None
+    dt_attr = time_tag.get("datetime", "")
+    if dt_attr:
+        parsed = parse_published(dt_attr)
+        if parsed is not None:
+            return parsed
+    return parse_fecha_es(time_tag.get_text(" ", strip=True))
+
+
+def fetch_tigres_detail(link: str, timeout: int = 10) -> tuple:
+    """Extrae fecha real y autor de la página del artículo.
+
+    Orden: meta article:published_time → JSON-LD datePublished →
+    meta name author / JSON-LD author.name.
+
+    Args:
+        link: URL del artículo.
+        timeout: Timeout HTTP en segundos.
+
+    Returns:
+        tuple: (published datetime|None, author str|None).
+    """
+    try:
+        resp = retry_request(link, timeout=timeout, headers=hermes_common.get_headers("default"))
+        soup = BeautifulSoup(resp.text, "lxml")
+        published = None
+        author = None
+        meta_pub = soup.find("meta", attrs={"property": "article:published_time"})
+        if meta_pub and meta_pub.get("content"):
+            published = parse_published(str(meta_pub.get("content")))
+        if published is None:
+            for script in soup.find_all("script", type="application/ld+json"):
+                try:
+                    data = json.loads(script.get_text() or "")
+                except (ValueError, TypeError):
+                    continue
+                nodes = data if isinstance(data, list) else [data]
+                for node in nodes:
+                    if not isinstance(node, dict):
+                        continue
+                    graph = node.get("@graph", [node])
+                    if not isinstance(graph, list):
+                        graph = [graph]
+                    for entry in graph:
+                        if not isinstance(entry, dict):
+                            continue
+                        if published is None and entry.get("datePublished"):
+                            published = parse_published(entry.get("datePublished"))
+                        if author is None:
+                            auth = entry.get("author")
+                            if isinstance(auth, dict) and auth.get("name"):
+                                author = str(auth["name"]).strip()
+                            elif isinstance(auth, str) and auth.strip():
+                                author = auth.strip()
+                    if published is not None and author is not None:
+                        break
+        if author is None:
+            meta_author = soup.find("meta", attrs={"name": "author"})
+            if meta_author and meta_author.get("content"):
+                author = str(meta_author.get("content")).strip() or None
+        return published, author
+    except Exception as e:
+        logging.warning("Detalle tigres.com.mx falló (%s): %s", link, e)
+        return None, None
+
+
+def enrich_tigres_items(items: list, max_details: int = 12) -> list:
+    """Completa autor y confirma fecha visitando el artículo (solo supervivientes).
+
+    Args:
+        items: Items de tigres.com.mx ya prefiltrados por fecha del listado.
+        max_details: Tope de fetches de detalle por corrida.
+
+    Returns:
+        list: Los mismos items con 'author' y 'published' confirmados in-place.
+    """
+    for item in items[:max_details]:
+        link = item.get("link")
+        if not link:
+            continue
+        published, author = fetch_tigres_detail(link)
+        if published is not None:
+            item["published"] = published
+        if author and not item.get("author"):
+            item["author"] = author
+    return items
+
+
+def format_item_line(tag: str, item: dict, link: str) -> str:
+    """Formatea una línea de reporte con fecha y autor cuando existen.
+
+    Args:
+        tag: Emoji/prefijo (ej. '🎽' o '✓').
+        item: Diccionario de noticia.
+        link: URL ya acortada (puede ser vacía).
+
+    Returns:
+        str: Línea Markdown para Telegram.
+    """
+    title = clean_title(item["title"])
+    fecha = ""
+    published = item.get("published")
+    if isinstance(published, datetime):
+        pub = published
+        if pub.tzinfo is None:
+            pub = pub.replace(tzinfo=timezone.utc)
+        fecha = f" ({pub.strftime('%Y-%m-%d')})"
+    autor = f" — por {item['author']}" if item.get("author") else ""
+    head = f"- {tag} **{item['source']}**{fecha}: "
+    if link:
+        return f"{head}[{title}]({link}){autor}"
+    return f"{head}{title}{autor}"
+
+
 def fetch_tigres_com() -> list:
     """Extrae noticias recientes de tigres.com.mx/es/noticias/.
 
+    Cada tarjeta aporta su <time> en español; esa fecha se usa como
+    'published' para que el filtro de 48h aplique al sitio oficial.
+
     Returns:
         list: Lista de diccionarios con title, link, source='tigres.com.mx',
-        oficial=True, confiable=True, rumor=False. En caso de error, retorna
-        un solo item con mensaje de error.
+        oficial=True, confiable=True, rumor=False, published (datetime|None),
+        author (siempre None aquí; lo completa enrich_tigres_items).
+        En caso de error, retorna un solo item con mensaje de error.
     """
     items: list[dict] = []
     url = "https://www.tigres.com.mx/es/noticias/"
@@ -564,6 +748,8 @@ def fetch_tigres_com() -> list:
                     "rumor": False,
                     "origin": "tigres.com.mx",
                     "category": "confirmadas",
+                    "published": listing_time_of(a),
+                    "author": None,
                 }
             )
         return items
@@ -641,6 +827,9 @@ def build_report_blocks() -> list:
     Pipeline:
     1. Inicializa HistoryManager (TTL 72h) para evitar noticias repetidas.
     2. Recolecta de Google News (confirmadas + rumores) y tigres.com.mx.
+    2b. Prefiltra tigres.com.mx por fecha del listado (sin fecha = se descarta).
+    2c. Enriquece supervivientes oficiales con fecha real y autor del artículo.
+    2d. Filtra Google News a 48h (sin fecha = se conserva) y oficiales a 48h.
     3. Filtra por historial — descarta URLs ya enviadas.
     4. Clasifica en confirmadas vs rumores.
     5. Deduplica por título similar.
@@ -663,12 +852,17 @@ def build_report_blocks() -> list:
     tigres_error = len(tigres_items) == 1 and tigres_items[0].get("title", "").startswith("[Error")
     if tigres_error:
         # tigres.com.mx falló completamente; solo usar Google News
-        all_items = google_confirmadas + google_rumores
+        tigres_items = []
     else:
-        all_items = google_confirmadas + google_rumores + tigres_items
+        # 2b. Prefiltro por fecha del listado: sin fecha verificada no entra.
+        tigres_items = filter_by_max_age(tigres_items, missing="drop")
+        # 2c. Autor + confirmación de fecha desde el artículo (solo supervivientes).
+        enrich_tigres_items(tigres_items)
 
-    # 2b. Tirar notas fuera de la ventana de 48h (sin fecha = se quedan)
-    all_items = filter_by_max_age(all_items)
+    # 2d. Ventana de 48h: Google conserva sin-fecha; oficial exige fecha.
+    google_items = filter_by_max_age(google_confirmadas + google_rumores)
+    tigres_items = filter_by_max_age(tigres_items, missing="drop")
+    all_items = google_items + tigres_items
 
     # 3. Filtrar por historial (Desduplicación Histórica) con URLs normalizadas
     filtered_items = []
@@ -709,16 +903,12 @@ def build_report_blocks() -> list:
         "_Fuentes oficiales y medios establecidos_",
     ]
     if not mostradas:
-        conf_lines.append("_No se encontraron noticias confirmadas nuevas en las últimas 72h._\n")
+        conf_lines.append("_No se encontraron noticias confirmadas nuevas en las últimas 48h._\n")
     else:
         for item in mostradas:
             tag = "🎽" if item["oficial"] else "✓"
-            title = clean_title(item["title"])
             link = shorten_url(item.get("link", ""))
-            if link:
-                conf_lines.append(f"- {tag} **{item['source']}**: [{title}]({link})")
-            else:
-                conf_lines.append(f"- {tag} **{item['source']}**: {title}")
+            conf_lines.append(format_item_line(tag, item, link))
     blocks.append("\n".join(conf_lines))
 
     # Bloque de Rumores
@@ -729,15 +919,11 @@ def build_report_blocks() -> list:
         "_No confirmado oficialmente. Tomar con discreción_",
     ]
     if not mostradas_r:
-        rum_lines.append("_No se encontraron rumores o filtraciones nuevos en las últimas 72h._\n")
+        rum_lines.append("_No se encontraron rumores o filtraciones nuevos en las últimas 48h._\n")
     else:
         for item in mostradas_r:
-            title = clean_title(item["title"])
             link = shorten_url(item.get("link", ""))
-            if link:
-                rum_lines.append(f"- **{item['source']}**: [{title}]({link})")
-            else:
-                rum_lines.append(f"- **{item['source']}**: {title}")
+            rum_lines.append(format_item_line("📰", item, link))
     blocks.append("\n".join(rum_lines))
 
     return blocks
