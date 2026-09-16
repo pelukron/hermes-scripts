@@ -30,7 +30,7 @@ security:
 
 ## Ejecutar script principal
 run:
-	uv run python resumen-noticias-diario.py
+	uv run resumen-noticias-diario
 
 ## Limpiar cachés y artefactos
 clean:

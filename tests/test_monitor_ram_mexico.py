@@ -12,7 +12,9 @@ class TestImports:
     def test_script_syntax(self):
         import py_compile
 
-        script_path = os.path.join(os.path.dirname(__file__), "..", "monitor-ram-mexico.py")
+        script_path = os.path.join(
+            os.path.dirname(__file__), "..", "src", "scripts", "monitor_ram_mexico.py"
+        )
         py_compile.compile(script_path, doraise=True)
 
 

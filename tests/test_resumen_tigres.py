@@ -10,7 +10,8 @@ SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRIPT_DIR)
 
 spec = importlib.util.spec_from_file_location(
-    "resumen_tigres", os.path.join(SCRIPT_DIR, "resumen-tigres-diario.py")
+    "resumen_tigres",
+    os.path.join(SCRIPT_DIR, "src", "scripts", "resumen_tigres_diario.py"),
 )
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)

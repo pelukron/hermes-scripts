@@ -5,10 +5,7 @@ Output: Markdown. $0 tokens. API pública sin auth.
 """
 
 import json
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
 from hermes_common import retry_request
 
 API = "https://gamma-api.polymarket.com"

@@ -11,7 +11,7 @@ SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRIPT_DIR)
 
 spec = importlib.util.spec_from_file_location(
-    "polymarket_diario", os.path.join(SCRIPT_DIR, "polymarket-diario.py")
+    "polymarket_diario", os.path.join(SCRIPT_DIR, "src", "scripts", "polymarket_diario.py")
 )
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)

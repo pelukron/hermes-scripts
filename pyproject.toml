@@ -4,9 +4,22 @@ version = "0.5.5"
 description = "Script de resumen diario de noticias multi-región"
 requires-python = ">=3.11"
 dependencies = [
+    "beautifulsoup4",
     "defusedxml>=0.7.1",
+    "feedparser",
+    "lxml",
     "requests",
 ]
+
+[project.scripts]
+backup-diario = "scripts.backup_diario:main"
+cleanup-housekeeping = "scripts.cleanup_housekeeping:main"
+monitor-ram-mexico = "scripts.monitor_ram_mexico:main"
+polymarket-diario = "scripts.polymarket_diario:main"
+reporte-uso-hermes = "scripts.reporte_uso_hermes:main"
+resumen-noticias-diario = "scripts.resumen_noticias_diario:main"
+resumen-rayados-diario = "scripts.resumen_rayados_diario:main"
+resumen-tigres-diario = "scripts.resumen_tigres_diario:main"
 
 [dependency-groups]
 dev = [
@@ -24,7 +37,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src/hermes_common", "src/scripts"]
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
