@@ -185,9 +185,14 @@ class TestFormatItemLine:
             "published": datetime(2026, 9, 12, 15, 22, tzinfo=timezone.utc),
             "author": "Ernesto Ramos",
         }
-        line = news_utils.format_item_line("🎽", item, "https://tinyurl.com/x")
+        line = news_utils.format_item_line(
+            "🎽",
+            item,
+            "https://news.google.com/rss/articles/CBMiW2h0dHBzOi8vZXhhbXBsZS5jb20vbm90YS1sYXJnYS1jb24tdXJsLW11eS1sYXJnYS1wYXJhLXByb2Jhci1lbC1hbGlhcy1tYXJrZG93btIBX2h0dHBzOi8vZXhhbXBsZS5jb20vbm90YQ?oc=5",
+        )
         assert "(2026-09-12)" in line
         assert "por Ernesto Ramos" in line
+        assert "https://news.google.com/rss/articles/" in line
 
     def test_sin_fecha(self):
         item = {"title": "Nota sin fecha", "source": "Medio", "published": None}

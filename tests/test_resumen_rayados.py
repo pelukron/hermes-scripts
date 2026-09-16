@@ -638,10 +638,15 @@ class TestFormatItemLine:
             "published": datetime(2026, 9, 14, 10, 0, tzinfo=timezone.utc),
             "author": "Prensa Rayados",
         }
-        line = format_item_line("🎽", item, "https://tinyurl.com/x")
+        line = format_item_line(
+            "🎽",
+            item,
+            "https://news.google.com/rss/articles/CBMiW2h0dHBzOi8vZXhhbXBsZS5jb20vbm90YS1sYXJnYS1jb24tdXJsLW11eS1sYXJnYS1wYXJhLXByb2Jhci1lbC1hbGlhcy1tYXJrZG93btIBX2h0dHBzOi8vZXhhbXBsZS5jb20vbm90YQ?oc=5",
+        )
         assert "(2026-09-14)" in line
         assert "por Prensa Rayados" in line
         assert "[Ganan las Rayadas en Guadalajara]" in line
+        assert "https://news.google.com/rss/articles/" in line
 
     def test_sin_fecha_no_muestra_parentesis(self):
         item = {"title": "Nota sin fecha", "source": "rayados.com", "published": None}
