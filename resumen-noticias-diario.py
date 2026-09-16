@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -329,6 +330,32 @@ def fetch_rss(url, source_name=""):
         return []
 
 
+def fetch_all_rss(sources, max_workers=4, stagger=0.2):
+    """Fetch concurrente de feeds preservando el orden de entrada.
+
+    Args:
+        sources: Lista de (nombre, url).
+        max_workers: Hilos en paralelo.
+        stagger: Pausa entre envíos (rate-limiting respetuoso con los hosts).
+
+    Returns:
+        list: Una lista de items por fuente, en el mismo orden de entrada.
+    """
+    results: list = [[] for _ in sources]
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = []
+        for source_name, url in sources:
+            futures.append(pool.submit(fetch_rss, url, source_name))
+            if stagger > 0:
+                time.sleep(stagger)
+        for idx, future in enumerate(futures):
+            try:
+                results[idx] = future.result() or []
+            except Exception:
+                results[idx] = []
+    return results
+
+
 def fetch_crypto():
     try:
         ids = "bitcoin,ethereum,solana,binancecoin"
@@ -420,8 +447,8 @@ def main():
             sub_lines = []
             sub_has_content = False
 
-            for source_name, url in sources:
-                items = fetch_rss(url, source_name)
+            fetched = fetch_all_rss(sources)
+            for (source_name, url), items in zip(sources, fetched):
                 if not items:
                     continue
 
@@ -435,7 +462,7 @@ def main():
                     short_link = shorten_url(clean_link)
                     source_lines.append(f"  [{clean}]({short_link})")
                 sub_lines.append("\n".join(source_lines))
-                time.sleep(0.8)
+                # Sin sleep por fuente: el rate-limit vive en fetch_all_rss (stagger).
 
             if sub_has_content:
                 section_lines.append("\n".join(sub_lines))
