@@ -36,6 +36,8 @@ commit_parser = "conventional"
 [tool.semantic_release.commit_parser_options]
 patch_tags = ["fix", "perf", "infra"]
 allowed_tags = ["feat", "fix", "perf", "infra", "build", "chore", "ci", "docs", "style", "refactor", "test"]
+# 2 = LevelBump.PATCH: todo commit convencional corta release (feat sigue minor).
+default_bump_level = 2
 
 [tool.coverage.run]
 source = ["."]
