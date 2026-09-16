@@ -26,12 +26,14 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 MANIFEST_DEFAULT = "cron/jobs.json"
 TARGETS_LOCAL_DEFAULT = "cron/targets.local.json"
 WRAPPER_MARKER = "GENERADO por bin/install-cron.sh"
+QUIET_DIGEST_MAX = 5
 ABSOLUTE_HOME_RE = re.compile(r"/(?:home|Users)/[A-Za-z0-9._-]+")
 TARGET_REF_RE = re.compile(r"^\$\{([A-Za-z0-9_-]+)\}$")
 CRON_RANGES = ((0, 59), (0, 23), (1, 31), (1, 12), (0, 7))
@@ -246,6 +248,24 @@ def render_wrapper(job: Job, repo: Path) -> str:
     )
 
 
+def render_drift_digest(drift: list[str], date_str: str) -> str:
+    """Digest compacto del drift para Telegram: sin tablas, <= 8 lineas."""
+    lines = [f"🛡️ Cron drift — {date_str}"]
+    shown = drift[:QUIET_DIGEST_MAX]
+    lines += [f"- {line}" for line in shown]
+    if len(drift) > len(shown):
+        lines.append(f"… (+{len(drift) - len(shown)} más)")
+    lines.append("remedio: bin/install-cron.sh")
+    return "\n".join(lines)
+
+
+def live_extra_names(jobs: list[Job], hermes_home: Path) -> list[str]:
+    """Jobs reales que no están en el manifiesto (informativos, no drift)."""
+    wanted = {job.name for job in jobs if job.name}
+    live = {str(job.get("name") or "") for job in read_live_jobs(hermes_home)}
+    return sorted(name for name in live if name and name not in wanted)
+
+
 def read_live_jobs(hermes_home: Path) -> list[dict[str, Any]]:
     """Lee el estado real de los jobs (~/.hermes/cron/jobs.json)."""
     path = hermes_home / "cron" / "jobs.json"
@@ -444,6 +464,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--check", action="store_true")
     parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="solo con --check: sin drift no imprime nada; con drift imprime digest y rc 0",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="reemplaza wrappers existentes que no fueron generados por este instalador",
@@ -454,6 +479,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """Entrada: valida el manifiesto y ejecuta el modo pedido."""
     args = build_parser().parse_args(argv)
+    try:
+        reconfigure = getattr(sys.stdout, "reconfigure", None)
+        if callable(reconfigure):  # consolas Windows (cp1252)
+            reconfigure(encoding="utf-8")
+    except ValueError:
+        pass
+    if args.quiet and not args.check:
+        print("ERROR: --quiet solo es válido con --check", file=sys.stderr)
+        return 2
     repo = Path(args.repo).resolve() if args.repo else repo_root()
     hermes_home = (
         Path(args.hermes_home).expanduser() if args.hermes_home else Path.home() / ".hermes"
@@ -478,16 +512,26 @@ def main(argv: list[str] | None = None) -> int:
         for error in errors:
             print(f"  - {error}", file=sys.stderr)
         return 2
-    print(f"Manifiesto OK: {len(jobs)} job(s) ({repo})")
+    if not args.quiet:
+        print(f"Manifiesto OK: {len(jobs)} job(s) ({repo})")
 
     if args.check:
         drift = check_all(jobs, targets, hermes_home, repo)
+        extra = live_extra_names(jobs, hermes_home)
+        if args.quiet:
+            if drift:
+                print(render_drift_digest(drift, date.today().isoformat()))
+            return 0
         if drift:
             print("Drift detectado:")
             for line in drift:
                 print(f"  - {line}")
+            for name in extra:
+                print(f"info: job '{name}' existe en Hermes pero no en el manifiesto")
             return 1
         print("Sin drift: wrappers y jobs coinciden con el manifiesto")
+        for name in extra:
+            print(f"info: job '{name}' existe en Hermes pero no en el manifiesto")
         return 0
 
     for job in jobs:
