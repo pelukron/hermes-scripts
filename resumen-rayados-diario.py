@@ -14,12 +14,13 @@ Uso:
   ~/.hermes/venv/bin/python ~/.hermes/scripts/resumen-rayados-diario.py
 """
 
+import json
 import logging
 import os
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from urllib.parse import quote, urljoin
 
@@ -535,13 +536,123 @@ def fetch_google_news(query: str, category: str) -> list:
 # ---------------------------------------------------------------------------
 # rayados.com scraping
 # ---------------------------------------------------------------------------
+def fetch_rayados_detail(link: str, timeout: int = 10) -> tuple:
+    """Extrae fecha real y autor de la página del artículo.
+
+    Orden: meta article:published_time → JSON-LD datePublished →
+    meta name author / JSON-LD author.name. Hoy rayados.com no expone
+    ninguna (verificado 2026-09-16); queda a prueba de futuro.
+
+    Args:
+        link: URL del artículo.
+        timeout: Timeout HTTP en segundos.
+
+    Returns:
+        tuple: (published datetime|None, author str|None).
+    """
+    try:
+        resp = retry_request(link, timeout=timeout, headers=hermes_common.get_headers("default"))
+        soup = BeautifulSoup(resp.text, "lxml")
+        published = None
+        author = None
+        meta_pub = soup.find("meta", attrs={"property": "article:published_time"})
+        if meta_pub and meta_pub.get("content"):
+            published = parse_published(str(meta_pub.get("content")))
+        if published is None:
+            for script in soup.find_all("script", type="application/ld+json"):
+                try:
+                    data = json.loads(script.get_text() or "")
+                except (ValueError, TypeError):
+                    continue
+                nodes = data if isinstance(data, list) else [data]
+                for node in nodes:
+                    if not isinstance(node, dict):
+                        continue
+                    graph = node.get("@graph", [node])
+                    if not isinstance(graph, list):
+                        graph = [graph]
+                    for entry in graph:
+                        if not isinstance(entry, dict):
+                            continue
+                        if published is None and entry.get("datePublished"):
+                            published = parse_published(entry.get("datePublished"))
+                        if author is None:
+                            auth = entry.get("author")
+                            if isinstance(auth, dict) and auth.get("name"):
+                                author = str(auth["name"]).strip()
+                            elif isinstance(auth, str) and auth.strip():
+                                author = auth.strip()
+                    if published is not None and author is not None:
+                        break
+        if author is None:
+            meta_author = soup.find("meta", attrs={"name": "author"})
+            if meta_author and meta_author.get("content"):
+                author = str(meta_author.get("content")).strip() or None
+        return published, author
+    except Exception as e:
+        logging.warning("Detalle rayados.com falló (%s): %s", link, e)
+        return None, None
+
+
+def enrich_rayados_items(items: list, max_details: int = 12) -> list:
+    """Completa autor y fecha visitando el artículo (solo supervivientes).
+
+    Args:
+        items: Items de rayados.com ya prefiltrados por fecha.
+        max_details: Tope de fetches de detalle por corrida.
+
+    Returns:
+        list: Los mismos items con 'author' y 'published' confirmados in-place.
+    """
+    for item in items[:max_details]:
+        link = item.get("link")
+        if not link:
+            continue
+        published, author = fetch_rayados_detail(link)
+        if published is not None:
+            item["published"] = published
+        if author and not item.get("author"):
+            item["author"] = author
+    return items
+
+
+def format_item_line(tag: str, item: dict, link: str) -> str:
+    """Formatea una línea de reporte con fecha y autor cuando existen.
+
+    Args:
+        tag: Emoji/prefijo (ej. '🎽' o '✓').
+        item: Diccionario de noticia.
+        link: URL ya acortada (puede ser vacía).
+
+    Returns:
+        str: Línea Markdown para Telegram.
+    """
+    title = clean_title(item["title"])
+    fecha = ""
+    published = item.get("published")
+    if isinstance(published, datetime):
+        pub = published
+        if pub.tzinfo is None:
+            pub = pub.replace(tzinfo=timezone.utc)
+        fecha = f" ({pub.strftime('%Y-%m-%d')})"
+    autor = f" — por {item['author']}" if item.get("author") else ""
+    head = f"- {tag} **{item['source']}**{fecha}: "
+    if link:
+        return f"{head}[{title}]({link}){autor}"
+    return f"{head}{title}{autor}"
+
+
 def fetch_rayados_com() -> list:
     """Extrae noticias recientes de rayados.com/es/noticias/lista.
 
+    El sitio no expone fechas (verificado 2026-09-16); los items salen
+    con published=None y el pipeline los descarta con missing=drop.
+
     Returns:
         list: Lista de diccionarios con title, link, source='rayados.com',
-        oficial=True, confiable=True, rumor=False. En caso de error, retorna
-        un solo item con mensaje de error.
+        oficial=True, confiable=True, rumor=False, published (datetime|None),
+        author (siempre None aquí; lo completa enrich_rayados_items).
+        En caso de error, retorna un solo item con mensaje de error.
     """
     items = []
     url = "https://rayados.com/es/noticias/lista"
@@ -589,6 +700,8 @@ def fetch_rayados_com() -> list:
                     "rumor": False,
                     "origin": "rayados.com",
                     "category": "confirmadas",
+                    "published": None,
+                    "author": None,
                 }
             )
         return items
@@ -666,6 +779,9 @@ def build_report_blocks() -> list:
     Pipeline:
     1. Inicializa HistoryManager (TTL 72h) para evitar noticias repetidas.
     2. Recolecta de Google News (confirmadas + rumores) y rayados.com.
+    2b. Enriquece supervivientes oficiales con fecha real y autor del artículo.
+    2c. Filtra Google News a 48h (sin fecha = se conserva) y oficiales a 48h
+        (sin fecha verificada = se descarta).
     3. Filtra por historial — descarta URLs ya enviadas.
     4. Clasifica en confirmadas vs rumores.
     5. Deduplica por título similar.
@@ -690,12 +806,15 @@ def build_report_blocks() -> list:
     )
     if rayados_error:
         # rayados.com falló completamente; solo usar Google News
-        all_items = google_confirmadas + google_rumores
+        rayados_items = []
     else:
-        all_items = google_confirmadas + google_rumores + rayados_items
+        # 2b. Autor + fecha desde el artículo (solo supervivientes).
+        enrich_rayados_items(rayados_items)
 
-    # 2b. Tirar notas fuera de la ventana de 48h (sin fecha = se quedan)
-    all_items = filter_by_max_age(all_items)
+    # 2c. Ventana de 48h: Google conserva sin-fecha; oficial exige fecha.
+    google_items = filter_by_max_age(google_confirmadas + google_rumores)
+    rayados_items = filter_by_max_age(rayados_items, missing="drop")
+    all_items = google_items + rayados_items
 
     # 3. Filtrar por historial (Desduplicación Histórica) con URLs normalizadas
     filtered_items = []
@@ -738,12 +857,8 @@ def build_report_blocks() -> list:
     else:
         for item in confirmadas[:8]:
             tag = "🎽" if item["oficial"] else "✓"
-            title = clean_title(item["title"])
             link = shorten_url(item.get("link", ""))
-            if link:
-                conf_lines.append(f"- {tag} **{item['source']}**: [{title}]({link})")
-            else:
-                conf_lines.append(f"- {tag} **{item['source']}**: {title}")
+            conf_lines.append(format_item_line(tag, item, link))
     blocks.append("\n".join(conf_lines))
 
     # Bloque de Rumores
@@ -755,12 +870,8 @@ def build_report_blocks() -> list:
         rum_lines.append("_No se encontraron rumores o filtraciones nuevos en las últimas 48h._\n")
     else:
         for item in rumores[:8]:
-            title = clean_title(item["title"])
             link = shorten_url(item.get("link", ""))
-            if link:
-                rum_lines.append(f"- **{item['source']}**: [{title}]({link})")
-            else:
-                rum_lines.append(f"- **{item['source']}**: {title}")
+            rum_lines.append(format_item_line("📰", item, link))
     blocks.append("\n".join(rum_lines))
 
     return blocks
