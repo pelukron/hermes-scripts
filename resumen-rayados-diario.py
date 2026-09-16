@@ -272,6 +272,18 @@ def clean_url(url: str) -> str:
     return url.rstrip("?&")
 
 
+def canonical_title(title: str) -> str:
+    """Clave canónica de un titular: minúsculas + solo [a-záéíóúñ0-9].
+
+    Args:
+        title: Título a normalizar.
+
+    Returns:
+        str: Título normalizado ("" si no queda nada).
+    """
+    return re.sub(r"[^a-záéíóúñ0-9]", "", (title or "").lower())
+
+
 def title_similar(t1: str, t2: str, threshold: float = 0.85) -> bool:
     """Dos titulares son suficientemente similares (misma noticia).
 
@@ -285,28 +297,57 @@ def title_similar(t1: str, t2: str, threshold: float = 0.85) -> bool:
     """
     if not t1 or not t2:
         return False
-    a = re.sub(r"[^a-záéíóúñ0-9]", "", t1.lower())
-    b = re.sub(r"[^a-záéíóúñ0-9]", "", t2.lower())
+    a = canonical_title(t1)
+    b = canonical_title(t2)
     if not a or not b:
         return False
     return SequenceMatcher(None, a, b).ratio() > threshold
 
 
-def dedupe_by_title(items, threshold: float = 0.85):
+def dedupe_by_title(items, threshold: float = 0.85, bucket_chars: int = 12):
     """Elimina items con títulos muy similares (misma noticia, distinta URL).
+
+    Exactos por hash canónico O(1); casi-duplicados por cubetas de prefijo
+    (solo se compara dentro de la cubeta, no contra todo lo visto). Lineal
+    en la práctica; el peor caso (todo en una cubeta) degrada al O(n²) previo.
 
     Args:
         items: Lista de diccionarios con clave 'title'.
-        threshold: Umbral de similitud para title_similar.
+        threshold: Umbral de similitud para title_similar. Con >= 1.0 solo
+            colapsan canónicos idénticos (ruta puramente lineal).
+        bucket_chars: Prefijo canónico que define cada cubeta.
 
     Returns:
         list: Lista sin duplicados por título, conserva el primero.
     """
+    if threshold >= 1.0:
+        seen: set[str] = set()
+        exact: list[dict] = []
+        for item in items:
+            key = canonical_title(item.get("title", ""))
+            if not key:
+                exact.append(item)
+            elif key not in seen:
+                seen.add(key)
+                exact.append(item)
+        return exact
+    seen_keys: set[str] = set()
+    buckets: dict[str, list[dict]] = {}
     out: list[dict] = []
     for item in items:
         title = item.get("title", "")
-        if not any(title_similar(title, existing.get("title", ""), threshold) for existing in out):
+        key = canonical_title(title)
+        if not key:
             out.append(item)
+            continue
+        if key in seen_keys:
+            continue
+        bucket = buckets.setdefault(key[:bucket_chars], [])
+        if any(title_similar(title, kept.get("title", ""), threshold) for kept in bucket):
+            continue
+        seen_keys.add(key)
+        bucket.append(item)
+        out.append(item)
     return out
 
 

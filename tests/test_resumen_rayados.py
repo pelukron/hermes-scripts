@@ -16,6 +16,7 @@ spec.loader.exec_module(mod)
 
 clean_url = mod.clean_url
 clean_title = mod.clean_title
+canonical_title = mod.canonical_title
 title_similar = mod.title_similar
 dedupe = mod.dedupe
 dedupe_by_title = mod.dedupe_by_title
@@ -183,6 +184,57 @@ class TestDedupeByTitle:
         result = dedupe_by_title(items)
         assert len(result) == 1
         assert result[0]["title"] == "Noticia original"
+
+
+# ═══════════════════════════════════════════
+# canonical_title + dedupe lineal (#69)
+# ═══════════════════════════════════════════
+
+
+class TestCanonicalTitle:
+    def test_normaliza_mayusculas_y_puntuacion(self):
+        assert canonical_title("Rayados Ficha A Crack Mundial!!") == "rayadosfichaacrackmundial"
+
+    def test_vacio(self):
+        assert canonical_title("") == ""
+
+
+class TestDedupeLineal:
+    def test_exactos_colapsan_por_hash(self):
+        items = [
+            {"title": "Rayados gana 2-0"},
+            {"title": "Rayados GANA 2 0!!"},
+            {"title": "Otra noticia"},
+        ]
+        result = dedupe_by_title(items)
+        assert [i["title"] for i in result] == ["Rayados gana 2-0", "Otra noticia"]
+
+    def test_titulos_vacios_nunca_colapsan(self):
+        items = [{"title": ""}, {"title": ""}, {"title": "X"}]
+        assert len(dedupe_by_title(items)) == 3
+
+    def test_threshold_1_solo_exactos(self):
+        items = [
+            {"title": "Noticia original"},
+            {"title": "Noticia original (copia)"},
+            {"title": "Noticia original"},
+        ]
+        result = dedupe_by_title(items, threshold=1.0)
+        assert [i["title"] for i in result] == ["Noticia original", "Noticia original (copia)"]
+
+    def test_comparaciones_acotadas_no_cuadraticas(self, monkeypatch):
+        calls = {"n": 0}
+        real = mod.title_similar
+
+        def counting(t1, t2, threshold=0.85):
+            calls["n"] += 1
+            return real(t1, t2, threshold)
+
+        monkeypatch.setattr(mod, "title_similar", counting)
+        items = [{"title": f"Asunto-{i:04d}-abc relleno dedupe"} for i in range(200)]
+        result = mod.dedupe_by_title(items)
+        assert len(result) == 200
+        assert calls["n"] < 1000
 
 
 # ═══════════════════════════════════════════

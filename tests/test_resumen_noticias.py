@@ -3,6 +3,7 @@
 import importlib.util  # noqa: E402
 import os
 import sys
+import threading
 from unittest.mock import Mock, patch
 
 # Add script dir to path para importar
@@ -21,6 +22,7 @@ spec.loader.exec_module(mod)
 clean_title = mod.clean_title
 escape_link = mod.escape_link
 fetch_rss = mod.fetch_rss
+fetch_all_rss = mod.fetch_all_rss
 
 # ═══════════════════════════════════════════
 # clean_title
@@ -245,3 +247,49 @@ class TestFetchRss:
             items = fetch_rss(self.URL)
             assert len(items) == 1
             assert items[0][0] == "Has Title"
+
+
+# ═══════════════════════════════════════════
+# fetch_all_rss (#67)
+# ═══════════════════════════════════════════
+
+
+class TestFetchAllRss:
+    def test_preserva_orden_con_retrasos(self, monkeypatch):
+        import time
+
+        def lenta(url, source_name=""):
+            if "b" in url:
+                time.sleep(0.3)
+            return [(f"titular de {url}", url)]
+
+        monkeypatch.setattr(mod, "fetch_rss", lenta)
+        sources = [("B", "https://b.example/rss"), ("A", "https://a.example/rss")]
+        result = fetch_all_rss(sources, stagger=0)
+        assert [items[0][1] for items in result] == [
+            "https://b.example/rss",
+            "https://a.example/rss",
+        ]
+
+    def test_corre_en_paralelo(self, monkeypatch):
+        barrera = threading.Barrier(4, timeout=10)
+
+        def con_barrera(url, source_name=""):
+            barrera.wait()
+            return []
+
+        monkeypatch.setattr(mod, "fetch_rss", con_barrera)
+        sources = [(f"S{i}", f"https://s{i}.example/rss") for i in range(4)]
+        assert fetch_all_rss(sources, stagger=0) == [[], [], [], []]
+
+    def test_fallo_aislado_no_rompe_lote(self, monkeypatch):
+        def mixta(url, source_name=""):
+            if "mala" in url:
+                raise RuntimeError("caida")
+            return [("ok", url)]
+
+        monkeypatch.setattr(mod, "fetch_rss", mixta)
+        sources = [("Buena", "https://ok.example/rss"), ("Mala", "https://mala.example/rss")]
+        result = fetch_all_rss(sources, stagger=0)
+        assert result[0] == [("ok", "https://ok.example/rss")]
+        assert result[1] == []
