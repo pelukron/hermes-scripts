@@ -226,6 +226,8 @@ def render_wrapper(job: Job, repo: Path) -> str:
     command = job.command
     if command.startswith("uv "):
         command = '"$UV_BIN" ' + command[3:]
+    # El comando puede traer su propio `exec`: prefijar otro daria `exec exec ...` (rc=127).
+    prefix = "" if command.startswith("exec ") else "exec "
     return (
         "#!/usr/bin/env bash\n"
         f"# {WRAPPER_MARKER} desde cron/jobs.json — no editar a mano.\n"
@@ -240,7 +242,7 @@ def render_wrapper(job: Job, repo: Path) -> str:
         'UV_BIN="${UV:-$(command -v uv || true)}"\n'
         'if [ -z "$UV_BIN" ] || [ ! -x "$UV_BIN" ]; then UV_BIN="$HOME/.hermes/bin/uv"; fi\n'
         'cd "$REPO_DIR" || exit 1\n'
-        f"exec {command} 2>&1\n"
+        f"{prefix}{command} 2>&1\n"
     )
 
 
