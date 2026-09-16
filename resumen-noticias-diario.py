@@ -4,7 +4,6 @@
 import json
 import logging
 import os
-import re
 import subprocess
 import sys
 import time
@@ -13,227 +12,33 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 import defusedxml.ElementTree as ET  # noqa: N817
-import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from hermes_common import retry_request
+from hermes_common import news_utils, retry_request
 
-# ═══════════════════════════════════════════
-# FEEDS: región → subsección → [(nombre, url_rss), ...]
-# ═══════════════════════════════════════════
-FEEDS = [
-    (
-        "🌍 GEOPOLÍTICA & GLOBAL",
-        [
-            (
-                "Mainstream / Wires",
-                [
-                    (
-                        "Reuters",
-                        "https://news.google.com/rss/search?q=site:reuters.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                    (
-                        "AP",
-                        "https://news.google.com/rss/search?q=site:apnews.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                    (
-                        "Financial Times",
-                        "https://news.google.com/rss/search?q=site:ft.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                ],
-            ),
-            (
-                "Multipolar / Contrarian",
-                [
-                    ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
-                    (
-                        "SCMP (HK/CN)",
-                        "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                    (
-                        "ZeroHedge",
-                        "https://news.google.com/rss/search?q=site:zerohedge.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                ],
-            ),
-        ],
-    ),
-    (
-        "🇪🇺 EUROPA",
-        [
-            (
-                "Pro-UE / Centrista",
-                [
-                    ("France 24 (🇫🇷)", "https://www.france24.com/en/rss"),
-                    ("Le Monde EN (🇫🇷)", "https://www.lemonde.fr/en/rss/une.xml"),
-                    ("DW (🇩🇪)", "https://rss.dw.com/rdf/rss-en-all"),
-                    ("The Guardian (🇬🇧)", "https://www.theguardian.com/world/rss"),
-                    ("BBC Mundo", "http://feeds.bbci.co.uk/mundo/rss.xml"),
-                    ("Euronews", "https://www.euronews.com/rss"),
-                ],
-            ),
-            (
-                "Euroescéptica / Alt",
-                [
-                    ("RT", "https://actualidad.rt.com/rss"),
-                ],
-            ),
-        ],
-    ),
-    (
-        "🇺🇸 AMÉRICAS",
-        [
-            (
-                "Mainstream US",
-                [
-                    (
-                        "NYT",
-                        "https://news.google.com/rss/search?q=site:nytimes.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                    (
-                        "WaPo",
-                        "https://news.google.com/rss/search?q=site:washingtonpost.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                ],
-            ),
-            (
-                "Derecha / Conservador",
-                [
-                    ("Breitbart", "https://www.breitbart.com/feed/"),
-                    (
-                        "Fox News",
-                        "https://news.google.com/rss/search?q=site:foxnews.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                ],
-            ),
-            (
-                "Izquierda Radical",
-                [
-                    ("WSWS", "https://www.wsws.org/en/rss.xml"),
-                ],
-            ),
-            (
-                "Latinoamérica",
-                [
-                    (
-                        "El País (🇪🇸)",
-                        "https://news.google.com/rss/search?q=site:english.elpais.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                ],
-            ),
-        ],
-    ),
-    (
-        "🇷🇺 RUSIA",
-        [
-            (
-                "Estatal / Pro-Kremlin",
-                [
-                    ("RT EN", "https://www.rt.com/rss/"),
-                    (
-                        "Sputnik",
-                        "https://news.google.com/rss/search?q=site:sputnikglobe.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                ],
-            )
-        ],
-    ),
-    (
-        "🌏 ASIA-PACÍFICO",
-        [
-            (
-                "Asia-Pacífico",
-                [
-                    (
-                        "SCMP (🇭🇰)",
-                        "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                    (
-                        "Nikkei Asia (🇯🇵)",
-                        "https://news.google.com/rss/search?q=site:nikkei.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                    (
-                        "NHK World (🇯🇵)",
-                        "https://news.google.com/rss/search?q=site:nhk.or.jp+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                    (
-                        "Times of India (🇮🇳)",
-                        "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
-                    ),
-                    (
-                        "Xinhua (🇨🇳)",
-                        "https://news.google.com/rss/search?q=site:xinhuanet.com+when:24h&hl=en-US&gl=US&ceid=US:en",
-                    ),
-                ],
-            )
-        ],
-    ),
-    (
-        "💻 TECNOLOGÍA",
-        [
-            (
-                "Vanguardia",
-                [
-                    ("Hacker News", "https://hnrss.org/frontpage"),
-                    ("Ars Technica", "http://feeds.arstechnica.com/arstechnica/index"),
-                    ("Xataka", "https://www.xataka.com/feed.xml"),
-                ],
-            )
-        ],
-    ),
-    (
-        "🇲🇽 MÉXICO",
-        [
-            (
-                "Crítica / Mercados",
-                [
-                    (
-                        "Reforma",
-                        "https://news.google.com/rss/search?q=site:reforma.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
-                    ),
-                    ("El Financiero", "https://www.elfinanciero.com.mx/arc/outboundfeeds/rss/"),
-                ],
-            ),
-            (
-                "Oficialista",
-                [
-                    (
-                        "La Jornada",
-                        "https://news.google.com/rss/search?q=site:jornada.com.mx+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
-                    ),
-                    ("SinEmbargo", "https://www.sinembargo.mx/feed"),
-                ],
-            ),
-            (
-                "Local MTY",
-                [
-                    (
-                        "El Norte",
-                        "https://news.google.com/rss/search?q=site:elnorte.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
-                    ),
-                ],
-            ),
-        ],
-    ),
-    (
-        "⚽ DEPORTES",
-        [
-            (
-                "Liga MX / Rayados",
-                [
-                    (
-                        "MedioTiempo",
-                        "https://news.google.com/rss/search?q=site:mediotiempo.com+Rayados+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
-                    ),
-                    (
-                        "ESPN",
-                        "https://news.google.com/rss/search?q=site:espn.com.mx+Rayados+when:24h&hl=es-419&gl=MX&ceid=MX:es-419",
-                    ),
-                ],
-            )
-        ],
-    ),
+# Helpers compartidos en src/hermes_common/news_utils.py (issue #70).
+clean_title = news_utils.clean_title
+shorten_url = news_utils.shorten_url
+
+# Re-exports de compatibilidad (tests y otros importadores usan mod.<helper>).
+__all__ = [
+    "clean_title",
+    "escape_link",
+    "fetch_all_rss",
+    "fetch_crypto",
+    "fetch_currencies",
+    "fetch_rss",
+    "load_feeds",
+    "shorten_url",
 ]
+
+
+def escape_link(link):
+    """Normaliza URLs de Google News: quita tracking params y protege caracteres especiales."""
+    return news_utils.clean_url(link, escape_parens=True)
+
+
+# FEEDS hardcodeado eliminado (#70): la fuente viva es config/feeds.json vía load_feeds().
 
 
 # ── Dataclasses ──
@@ -388,50 +193,6 @@ def fetch_currencies():
         return [("💵 USD/MXN", mxn, "Base USD")] if mxn else []
     except Exception:
         return []
-
-
-def clean_title(title):
-    """Limpia título: remueve source suffix, escapa caracteres."""
-    # Remove " - SourceName" suffix
-    title = title.split(" - ")[0].strip()
-    # Replace brackets that break markdown
-    title = title.replace("[", "(").replace("]", ")")
-    return title
-
-
-def escape_link(link):
-    """Normaliza URLs de Google News: quita tracking params y protege caracteres especiales."""
-    link = re.sub(r"[?&]oc=\d+", "", link)
-    link = re.sub(r"[?&]utm_[^&]+", "", link)
-    link = re.sub(r"[?&]ceid=[^&]+", "", link)
-    # Si queda solo '?' al final, quitarlo
-    link = re.sub(r"[?&]$", "", link)
-    # Proteger ) en URLs (rompe Markdown [text](url))
-    link = link.replace(")", "%29")
-    return link
-
-
-# Cache global para URLs acortadas (evita llamadas repetidas a TinyURL)
-_URL_CACHE: dict[str, str] = {}
-
-
-def shorten_url(long_url, timeout=5):
-    """Acorta URL con TinyURL (gratis, sin API key). Cachea resultados."""
-    if "news.google.com" not in long_url:
-        return long_url
-    if long_url in _URL_CACHE:
-        return _URL_CACHE[long_url]
-    try:
-        r = requests.get(
-            "https://tinyurl.com/api-create.php", params={"url": long_url}, timeout=timeout
-        )
-        if r.status_code == 200 and r.text.startswith("http"):
-            short = r.text.strip()
-            _URL_CACHE[long_url] = short
-            return short
-    except Exception as e:
-        logging.warning("TinyURL shorten failed for %s: %s", long_url[:120], e)
-    return long_url
 
 
 def main():

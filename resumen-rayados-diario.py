@@ -20,18 +20,15 @@ import os
 import re
 import sys
 import time
-from datetime import datetime, timezone
-from difflib import SequenceMatcher
-from urllib.parse import quote, urljoin
+from urllib.parse import urljoin
 
 sys.path.append(os.path.dirname(__file__))
 import hermes_common
-from hermes_common import filter_by_max_age, parse_published, retry_request
+from hermes_common import filter_by_max_age, news_utils, parse_published, retry_request
 
 # Cron job uses the Hermes venv by default; ensure deps are installed if missing.
 try:
-    import feedparser
-    import requests
+    import feedparser  # noqa: F401 — re-exportado en __all__ (target de mocks en tests)
     from bs4 import BeautifulSoup
 except ModuleNotFoundError:
     import shutil
@@ -57,8 +54,7 @@ except ModuleNotFoundError:
     except subprocess.CalledProcessError as e:
         logging.warning("Failed to install runtime deps: %s", e)
         raise
-    import feedparser
-    import requests
+    import feedparser  # noqa: F401 — re-exportado en __all__ (target de mocks en tests)
     from bs4 import BeautifulSoup
 
 # Telegram: límite de un mensaje = 4096 caracteres; dejamos margen para cabeceras de formato.
@@ -135,52 +131,50 @@ RUMOR_KEYWORDS = [
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers compartidos en src/hermes_common/news_utils.py (issue #70).
+# Aquí solo quedan wrappers finos ligados a las constantes de Rayados.
+# Los alias directos mantienen compatibilidad con mod.<helper>.
 # ---------------------------------------------------------------------------
-def now_str():
-    """Devuelve timestamp actual con zona horaria para el reporte.
+build_google_news_url = news_utils.build_google_news_url
+canonical_title = news_utils.canonical_title
+clean_title = news_utils.clean_title
+clean_url = news_utils.clean_url
+dedupe = news_utils.dedupe
+dedupe_by_title = news_utils.dedupe_by_title
+domain_of = news_utils.domain_of
+format_item_line = news_utils.format_item_line
+normalize = news_utils.normalize
+normalize_urls = news_utils.normalize_urls
+now_str = news_utils.now_str
+resolve_url = news_utils.resolve_url
+shorten_url = news_utils.shorten_url
+title_similar = news_utils.title_similar
 
-    Returns:
-        str: Fecha y hora en formato 'YYYY-MM-DD HH:MM TZ'.
-    """
-    tz = datetime.now().astimezone().tzname() or "hora local"
-    return f"{datetime.now().strftime('%Y-%m-%d %H:%M')} {tz}"
-
-
-def normalize(url: str) -> str:
-    """Limpia URL para comparación de dominio.
-
-    Args:
-        url: URL a normalizar.
-
-    Returns:
-        str: URL sin protocolo, en minúsculas.
-    """
-    url = url.strip().lower()
-    if url.startswith("http://"):
-        url = url[7:]
-    elif url.startswith("https://"):
-        url = url[8:]
-    return url
-
-
-def domain_of(url: str) -> str:
-    """Extrae el dominio de una URL (sin protocolo ni www).
-
-    Args:
-        url: URL de la cual extraer el dominio.
-
-    Returns:
-        str: Dominio limpio, ej. 'rayados.com'.
-    """
-    url = normalize(url)
-    parts = url.split("/")
-    if not parts:
-        return ""
-    host = parts[0]
-    if host.startswith("www."):
-        host = host[4:]
-    return host
+# Re-exports de compatibilidad (tests y otros importadores usan mod.<helper>).
+__all__ = [
+    "build_google_news_url",
+    "canonical_title",
+    "classify",
+    "clean_title",
+    "clean_url",
+    "dedupe",
+    "dedupe_by_title",
+    "domain_of",
+    "feedparser",
+    "fetch_google_news",
+    "fetch_rayados_com",
+    "format_item_line",
+    "is_confiable",
+    "is_confiable_by_url",
+    "is_oficial",
+    "normalize",
+    "normalize_urls",
+    "now_str",
+    "resolve_url",
+    "shorten_url",
+    "smells_like_rumor",
+    "title_similar",
+]
 
 
 def is_oficial(url: str) -> bool:
@@ -192,7 +186,7 @@ def is_oficial(url: str) -> bool:
     Returns:
         bool: True si el dominio pertenece a SITIOS_OFICIALES.
     """
-    return any(d in domain_of(url) for d in SITIOS_OFICIALES)
+    return news_utils.is_oficial(url, SITIOS_OFICIALES)
 
 
 def is_confiable_by_url(url: str) -> bool:
@@ -204,7 +198,7 @@ def is_confiable_by_url(url: str) -> bool:
     Returns:
         bool: True si el dominio está en SITIOS_OFICIALES o SITIOS_CONFIABLES.
     """
-    return is_oficial(url) or any(d in domain_of(url) for d in SITIOS_CONFIABLES)
+    return news_utils.is_confiable_by_url(url, SITIOS_OFICIALES, SITIOS_CONFIABLES)
 
 
 def is_confiable(source: str, url: str) -> bool:
@@ -217,10 +211,7 @@ def is_confiable(source: str, url: str) -> bool:
     Returns:
         bool: True si la fuente o dominio es confiable.
     """
-    source_clean = source.lower()
-    if any(d in source_clean for d in SITIOS_OFICIALES + SITIOS_CONFIABLES):
-        return True
-    return is_confiable_by_url(url)
+    return news_utils.is_confiable(source, url, SITIOS_OFICIALES, SITIOS_CONFIABLES)
 
 
 def smells_like_rumor(title: str) -> bool:
@@ -232,234 +223,17 @@ def smells_like_rumor(title: str) -> bool:
     Returns:
         bool: True si el título contiene alguna keyword de rumor.
     """
-    t = title.lower()
-    return any(kw in t for kw in RUMOR_KEYWORDS)
-
-
-def dedupe(items, key=lambda x: x["link"] or x["title"]):
-    """Elimina duplicados conservando el orden. Usa URL normalizada.
-
-    Args:
-        items: Lista de diccionarios con noticias.
-        key: Función lambda para extraer la clave de deduplicación.
-
-    Returns:
-        list: Lista sin duplicados, orden original conservado.
-    """
-    seen = set()
-    out = []
-    for item in items:
-        k = key(item)
-        if k:
-            k = clean_url(k)
-        if k and k not in seen:
-            seen.add(k)
-            out.append(item)
-    return out
-
-
-def clean_url(url: str) -> str:
-    """Quita tracking params y normaliza URL Google News.
-
-    Args:
-        url: URL a limpiar.
-
-    Returns:
-        str: URL sin parámetros de tracking (oc, utm_, ceid).
-    """
-    url = re.sub(r"[?&]oc=\d+", "", url)
-    url = re.sub(r"[?&]utm_[^&]+", "", url)
-    url = re.sub(r"[?&]ceid=[^&]+", "", url)
-    return url.rstrip("?&")
-
-
-def canonical_title(title: str) -> str:
-    """Clave canónica de un titular: minúsculas + solo [a-záéíóúñ0-9].
-
-    Args:
-        title: Título a normalizar.
-
-    Returns:
-        str: Título normalizado ("" si no queda nada).
-    """
-    return re.sub(r"[^a-záéíóúñ0-9]", "", (title or "").lower())
-
-
-def title_similar(t1: str, t2: str, threshold: float = 0.85) -> bool:
-    """Dos titulares son suficientemente similares (misma noticia).
-
-    Args:
-        t1: Primer título.
-        t2: Segundo título.
-        threshold: Umbral de similitud SequenceMatcher (0.0 a 1.0).
-
-    Returns:
-        bool: True si la similitud supera el threshold.
-    """
-    if not t1 or not t2:
-        return False
-    a = canonical_title(t1)
-    b = canonical_title(t2)
-    if not a or not b:
-        return False
-    return SequenceMatcher(None, a, b).ratio() > threshold
-
-
-def dedupe_by_title(items, threshold: float = 0.85, bucket_chars: int = 12):
-    """Elimina items con títulos muy similares (misma noticia, distinta URL).
-
-    Exactos por hash canónico O(1); casi-duplicados por cubetas de prefijo
-    (solo se compara dentro de la cubeta, no contra todo lo visto). Lineal
-    en la práctica; el peor caso (todo en una cubeta) degrada al O(n²) previo.
-
-    Args:
-        items: Lista de diccionarios con clave 'title'.
-        threshold: Umbral de similitud para title_similar. Con >= 1.0 solo
-            colapsan canónicos idénticos (ruta puramente lineal).
-        bucket_chars: Prefijo canónico que define cada cubeta.
-
-    Returns:
-        list: Lista sin duplicados por título, conserva el primero.
-    """
-    if threshold >= 1.0:
-        seen: set[str] = set()
-        exact: list[dict] = []
-        for item in items:
-            key = canonical_title(item.get("title", ""))
-            if not key:
-                exact.append(item)
-            elif key not in seen:
-                seen.add(key)
-                exact.append(item)
-        return exact
-    seen_keys: set[str] = set()
-    buckets: dict[str, list[dict]] = {}
-    out: list[dict] = []
-    for item in items:
-        title = item.get("title", "")
-        key = canonical_title(title)
-        if not key:
-            out.append(item)
-            continue
-        if key in seen_keys:
-            continue
-        bucket = buckets.setdefault(key[:bucket_chars], [])
-        if any(title_similar(title, kept.get("title", ""), threshold) for kept in bucket):
-            continue
-        seen_keys.add(key)
-        bucket.append(item)
-        out.append(item)
-    return out
-
-
-def clean_title(title: str) -> str:
-    """Limpia título: quita source suffix, escapa [] para Markdown.
-
-    Args:
-        title: Título de la noticia.
-
-    Returns:
-        str: Título sin sufijo de fuente y con brackets escapados.
-    """
-    # Quitar " - SourceName" al final
-    title = title.split(" - ")[0].strip()
-    # Reemplazar brackets que rompen markdown
-    title = title.replace("[", "(").replace("]", ")")
-    return title
-
-
-def normalize_urls(items):
-    """Normaliza URLs de todos los items in-place.
-
-    Args:
-        items: Lista de diccionarios con clave 'link'.
-
-    Returns:
-        list: La misma lista con URLs normalizadas vía clean_url.
-    """
-    for item in items:
-        if item.get("link"):
-            item["link"] = clean_url(item["link"])
-    return items
-
-
-# Cache global para URLs acortadas
-_URL_CACHE: dict[str, str] = {}
-
-
-def shorten_url(long_url, timeout=5):
-    """Acorta URL con TinyURL (gratis, sin API key). Cachea resultados.
-
-    Args:
-        long_url: URL larga a acortar.
-        timeout: Timeout HTTP en segundos.
-
-    Returns:
-        str: URL acortada si es de Google News; la URL original si no.
-    """
-    if "news.google.com" not in long_url:
-        return long_url
-    if long_url in _URL_CACHE:
-        return _URL_CACHE[long_url]
-    try:
-        r = retry_request(
-            f"https://tinyurl.com/api-create.php?url={quote(long_url, safe='')}",
-            timeout=timeout,
-        )
-        if r.status_code == 200 and r.text.startswith("http"):
-            short = r.text.strip()
-            _URL_CACHE[long_url] = short
-            return short
-    except Exception as e:
-        logging.warning("TinyURL shorten failed: %s", e)
-    return long_url
-
-
-def resolve_url(google_news_url: str, timeout: int = 5) -> str:
-    """Resuelve redirect de Google News a URL real del artículo.
-
-    Args:
-        google_news_url: URL de Google News a resolver.
-        timeout: Timeout HTTP en segundos.
-
-    Returns:
-        str: URL final tras redirects, o la original si falla la resolución.
-    """
-    if "news.google.com" not in google_news_url:
-        return google_news_url
-    try:
-        resp = requests.head(
-            google_news_url,
-            allow_redirects=True,
-            timeout=timeout,
-            headers={"User-Agent": "Mozilla/5.0"},
-        )
-        final = resp.url
-        if final and final != google_news_url and "news.google.com" not in final:
-            return final
-    except Exception as e:
-        logging.warning("TinyURL shorten failed: %s", e)
-    return google_news_url
+    return news_utils.smells_like_rumor(title, RUMOR_KEYWORDS)
 
 
 # ---------------------------------------------------------------------------
 # Google News RSS
 # ---------------------------------------------------------------------------
-def build_google_news_url(query: str) -> str:
-    """Construye URL de Google News RSS para una consulta.
-
-    Args:
-        query: Términos de búsqueda para Google News.
-
-    Returns:
-        str: URL completa del feed RSS de Google News (es-419, MX).
-    """
-    encoded = quote(query)
-    return f"https://news.google.com/rss/search?q={encoded}&hl=es-419&gl=MX&ceid=MX:es-419"
-
-
 def fetch_google_news(query: str, category: str) -> list:
     """Obtiene noticias de Google News RSS para una consulta.
+
+    Wrapper fino ligado a las constantes de Rayados; la lógica vive en
+    news_utils.fetch_google_news.
 
     Args:
         query: Términos de búsqueda para el feed RSS.
@@ -467,70 +241,11 @@ def fetch_google_news(query: str, category: str) -> list:
 
     Returns:
         list: Lista de diccionarios con title, link, source, oficial,
-        confiable, rumor, origin y category. En caso de error, retorna
-        un solo item con mensaje de error.
+        confiable, rumor, origin y category.
     """
-    items = []
-    try:
-        url = build_google_news_url(query)
-        feed = feedparser.parse(url)
-        for entry in feed.entries[:15]:
-            title = entry.get("title", "").strip()
-            link = entry.get("link", "").strip()
-            source = (
-                getattr(entry, "source", {}).get("title", "") if hasattr(entry, "source") else ""
-            )
-            if not source:
-                source = entry.get("author", "Google News")
-            if not title:
-                continue
-
-            # Google News RSS a veces redirige; intentamos conservar URL original
-            if not link and entry.get("id"):
-                link = entry.get("id")
-
-            # El source es el medio real; limpiar título de Google News si trae el sufijo
-            for suffix in (f" - {source}", f" - {source.strip()}"):
-                if title.endswith(suffix):
-                    title = title[: -len(suffix)].strip()
-
-            # Determinar confiabilidad y categoría
-            oficial = is_oficial(link)
-            confiable = is_confiable(source, link)
-            rumor = smells_like_rumor(title)
-
-            items.append(
-                {
-                    "title": title,
-                    "link": link,
-                    "source": source,
-                    "oficial": oficial,
-                    "confiable": confiable,
-                    "rumor": rumor,
-                    "origin": "google-news",
-                    "category": category,
-                    "published": parse_published(
-                        entry.get("published_parsed")
-                        or entry.get("published")
-                        or entry.get("updated")
-                    ),
-                }
-            )
-        return items
-    except Exception as e:
-        return [
-            {
-                "title": f"[Error Google News ({category}): {str(e)[:80]}]",
-                "link": "",
-                "source": "",
-                "oficial": False,
-                "confiable": False,
-                "rumor": False,
-                "origin": "google-news",
-                "category": category,
-                "published": None,
-            }
-        ]
+    return news_utils.fetch_google_news(
+        query, category, SITIOS_OFICIALES, SITIOS_CONFIABLES, RUMOR_KEYWORDS
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -616,30 +331,30 @@ def enrich_rayados_items(items: list, max_details: int = 12) -> list:
     return items
 
 
-def format_item_line(tag: str, item: dict, link: str) -> str:
-    """Formatea una línea de reporte con fecha y autor cuando existen.
+# def format_item_line(tag: str, item: dict, link: str) -> str:
+#     """Formatea una línea de reporte con fecha y autor cuando existen.
 
-    Args:
-        tag: Emoji/prefijo (ej. '🎽' o '✓').
-        item: Diccionario de noticia.
-        link: URL ya acortada (puede ser vacía).
+#     Args:
+#         tag: Emoji/prefijo (ej. '🎽' o '✓').
+#         item: Diccionario de noticia.
+#         link: URL ya acortada (puede ser vacía).
 
-    Returns:
-        str: Línea Markdown para Telegram.
-    """
-    title = clean_title(item["title"])
-    fecha = ""
-    published = item.get("published")
-    if isinstance(published, datetime):
-        pub = published
-        if pub.tzinfo is None:
-            pub = pub.replace(tzinfo=timezone.utc)
-        fecha = f" ({pub.strftime('%Y-%m-%d')})"
-    autor = f" — por {item['author']}" if item.get("author") else ""
-    head = f"- {tag} **{item['source']}**{fecha}: "
-    if link:
-        return f"{head}[{title}]({link}){autor}"
-    return f"{head}{title}{autor}"
+#     Returns:
+#         str: Línea Markdown para Telegram.
+#     """
+#     title = clean_title(item["title"])
+#     fecha = ""
+#     published = item.get("published")
+#     if isinstance(published, datetime):
+#         pub = published
+#         if pub.tzinfo is None:
+#             pub = pub.replace(tzinfo=timezone.utc)
+#         fecha = f" ({pub.strftime('%Y-%m-%d')})"
+#     autor = f" — por {item['author']}" if item.get("author") else ""
+#     head = f"- {tag} **{item['source']}**{fecha}: "
+#     if link:
+#         return f"{head}[{title}]({link}){autor}"
+#     return f"{head}{title}{autor}"
 
 
 def fetch_rayados_com() -> list:
@@ -724,14 +439,7 @@ def fetch_rayados_com() -> list:
 # Clasificación y ensamble
 # ---------------------------------------------------------------------------
 def classify(all_items: list) -> tuple:
-    """Clasifica items en confirmadas y rumores.
-
-    Criterios de clasificación:
-    - Items con 'origin' que empieza con 'Error' → confirmadas (visibles).
-    - Items oficiales → confirmadas.
-    - Items de categoría 'rumores' o con flag 'rumor' → rumores.
-    - Items confiables (medios establecidos) → confirmadas.
-    - Resto (fuente desconocida, título objetivo) → confirmadas.
+    """Clasifica items en confirmadas y rumores (wrapper ligado a Rayados).
 
     Args:
         all_items: Lista de diccionarios con noticias sin clasificar.
@@ -739,32 +447,7 @@ def classify(all_items: list) -> tuple:
     Returns:
         tuple: (confirmadas, rumores) — dos listas deduplicadas por URL.
     """
-    confirmadas = []
-    rumores = []
-
-    for item in all_items:
-        if item["origin"].startswith("Error"):
-            # Mensajes de error van a confirmadas para que sean visibles
-            confirmadas.append(item)
-            continue
-
-        if item["oficial"]:
-            confirmadas.append(item)
-            continue
-
-        # Si venía de la query de rumores o el título suena a rumor, va a rumores
-        if item["category"] == "rumores" or item["rumor"]:
-            rumores.append(item)
-            continue
-
-        # Lo que queda es de la query de confirmadas
-        if item["confiable"]:
-            confirmadas.append(item)
-        else:
-            # Fuente desconocida pero título objetivo: reportar como confirmada
-            confirmadas.append(item)
-
-    return dedupe(confirmadas), dedupe(rumores)
+    return news_utils.classify(all_items, SITIOS_OFICIALES, SITIOS_CONFIABLES)
 
 
 # ---------------------------------------------------------------------------
