@@ -23,7 +23,13 @@ import time
 from urllib.parse import urljoin
 
 import hermes_common
-from hermes_common import filter_by_max_age, news_utils, parse_published, retry_request
+from hermes_common import (
+    filter_by_max_age,
+    get_repo_version,
+    news_utils,
+    parse_published,
+    retry_request,
+)
 
 # Cron job uses the Hermes venv by default; ensure deps are installed if missing.
 try:
@@ -162,6 +168,7 @@ __all__ = [
     "fetch_google_news",
     "fetch_rayados_com",
     "format_item_line",
+    "get_repo_version",
     "is_confiable",
     "is_confiable_by_url",
     "is_oficial",
@@ -523,6 +530,7 @@ def build_report_blocks() -> list:
     header = [
         "⚽ **Rayados de Monterrey — Noticias del día**",
         f"_Actualizado: {now_str()}_",
+        f"_hermes-scripts {get_repo_version()}_",
         "Fuentes: Google News RSS + rayados.com",
     ]
     blocks.append("\n".join(header))
