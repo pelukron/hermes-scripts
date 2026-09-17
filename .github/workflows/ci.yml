@@ -8,6 +8,10 @@ on:
 
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -17,11 +21,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Python
-        run: uv python install 3.11
+      - name: Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install deps
-        run: uv sync
+        run: uv sync --locked --python ${{ matrix.python-version }}
 
       - name: Install shellcheck
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
@@ -44,8 +48,25 @@ jobs:
       - name: Gate
         run: bash bin/gate.sh
 
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Python
+        run: uv python install 3.11
+
+      - name: Install deps
+        run: uv sync --locked --python 3.11
+
+      - name: pip-audit
+        run: uv run --with pip-audit pip-audit
+
   notify:
-    needs: test
+    needs: [test, audit]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -54,13 +75,14 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          STATUS="${{ needs.test.result }}"
-          if [ "$STATUS" = "success" ]; then
+          STATUS_TEST="${{ needs.test.result }}"
+          STATUS_AUDIT="${{ needs.audit.result }}"
+          if [ "$STATUS_TEST" = "success" ] && [ "$STATUS_AUDIT" = "success" ]; then
             EMOJI="✅"
             TEXT="CI pasó: ${{ github.repository }}%0A%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}"
           else
             EMOJI="❌"
-            TEXT="CI falló: ${{ github.repository }}%0A%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}%0AURL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            TEXT="CI falló: ${{ github.repository }}%0A%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}%0AURL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}%0Atest=${STATUS_TEST} audit=${STATUS_AUDIT}"
           fi
           curl -s -X POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
