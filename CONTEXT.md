@@ -7,7 +7,7 @@
 
 | Término | Significado en este repo |
 |---|---|
-| **Gate** | `bash bin/gate.sh` (= `make check`: ruff check + ruff format + mypy + bandit + pytest). Mismo comando en local y CI. |
+| **Gate** | `bash bin/gate.sh` (= `make check`: ruff check + C901 + ruff format + mypy + bandit + pytest + shellcheck en CI). Mismo comando en local y CI. |
 | **Work order** | GitHub issue. Todo cambio cierra un issue con `Closes #N` en el PR. |
 | **Epic** | Issue padre con label `👑 epic`, checklist de hijos y milestone. Board: Project #3. |
 | **Drift (cron)** | Diferencia entre `cron/jobs.json` (deseado) y jobs reales de Hermes. Se revisa con `bin/install-cron.sh --check`. |
@@ -31,8 +31,8 @@
 
 - `src/scripts/` (entrypoints de cron: `resumen_*_diario`, `monitor_ram_mexico`, `polymarket_diario`, `reporte_uso_hermes`, `backup_diario`, `cleanup_housekeeping`; comandos con guiones vía `[project.scripts]`), `hermes_common.py` en raíz solo como compat (fuente viva en `src/`).
 - `src/hermes_common/` (utilidades compartidas), `src/install_cron.py`, `src/generate_issue_body.py`.
-- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (10 helpers: `bump-and-pr.sh`, `post-merge.sh`, …), `tests/` (257 tests, 2026-09-15).
-- Deuda conocida (epics #59/#60): scripts con guiones en raíz → `src/scripts/` con entrypoints (#71); helpers duplicados → `news_utils.py` (#70); `print` → `logging` (#72); dicts → dataclasses (#73); falta `pytest-cov` 80% (#74); fetch concurrente (#67); dedup O(n²) (#69).
+- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (12 helpers + `shellcheck` en CI), `tests/` (340 tests, 2026-09-17).
+- Deuda restante (epic #60): solo #73 dataclasses (PR #142); cerrados #70/#71/#72/#74 + epic #59 + #67/#69.
 
 ## 5. Auditoría 2026-09-15 (snapshot)
 

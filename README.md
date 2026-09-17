@@ -8,17 +8,19 @@ Scripts Python para automatización diaria de Hermes Agent. Monorepo con tests, 
 |---|---|---|
 | `resumen-noticias-diario` | Noticias multi-región 12 secciones 39 fuentes | 8:30 AM |
 | `resumen-rayados-diario` | Noticias Rayados de Monterrey | 9:00 AM |
+| `resumen-tigres-diario` | Noticias Tigres UANL | 9:00 AM |
 | `monitor-ram-mexico` | Monitoreo precios RAM en Amazon/Cyberpuerta | Cada 30 min |
 | `polymarket-diario` | Mercados de predicción (geopolítica, elecciones, deportes) | Subprocess de noticias |
 | `reporte-uso-hermes` | Reporte diario de uso de Hermes | 8:00 AM |
 | `backup-diario` | Backup de state.db + config | 2:00 AM |
+| `cleanup-housekeeping` | Limpieza semanal (backups, noticias >4d, caches) | Dom 3:00 AM |
 | `bin/sistema-alertas-y-resumen.sh` | Alertas disco/CPU/memoria | Cada 30 min |
 
 ## Stack
 
 - **Python** >= 3.11
 - **uv** para dependencias y virtualenv
-- **pytest** (149 tests)
+- **pytest** (340 tests)
 - **pre-commit** para hooks de lint pre-commit
 - **python-semantic-release** para versionado + changelog + releases desde commits convencionales
 
@@ -63,18 +65,24 @@ make test       # pytest -v
 ```
 .
 ├── src/
-│   ├── hermes_common/         # Utilidades compartidas (retry_request, get_headers, HistoryManager)
-│   ├── scripts/               # Entrypoints de cron: resumen_*_diario, monitor_ram_mexico,
-│   │   │                       # polymarket_diario, reporte_uso_hermes, backup_diario,
-│   │   │                       # cleanup_housekeeping (issue #71)
+│   ├── hermes_common/         # Utilidades compartidas (common.py, news_utils.py)
+│   ├── scripts/               # Entrypoints de cron (issue #71)
+│   │   ├── resumen_noticias_diario.py
+│   │   ├── resumen_rayados_diario.py
+│   │   ├── resumen_tigres_diario.py
+│   │   ├── monitor_ram_mexico.py
+│   │   ├── polymarket_diario.py
+│   │   ├── reporte_uso_hermes.py
+│   │   ├── backup_diario.py
+│   │   └── cleanup_housekeeping.py
+│   ├── install_cron.py        # Manifiesto cron declarativo
+│   ├── gate_audit.py          # Auditoría de gates cross-repo
 │   └── generate_issue_body.py # Generador de bodies enriquecidos para issues
 ├── config/
 │   └── feeds.json              # Configuración de feeds RSS
-├── bin/
-│   ├── bump-and-pr.sh          # Flujo: issue → rama → commit → push → PR (sin bump)
-│   ├── post-merge.sh           # Tag + release + issue comment post-merge
-│   ├── sistema-alertas-y-resumen.sh   # Alertas del sistema
-│   └── update-external-skills.sh     # Sync de skills externos
+├── bin/                        # Helpers shell (gate.sh, install-cron.sh, aviso-peak.sh, …)
+├── cron/
+│   └── jobs.json               # Manifiesto de cron jobs
 ├── hermes_common.py            # Legacy compat (moved to src/)
 ├── pyproject.toml
 ├── uv.lock
@@ -82,12 +90,18 @@ make test       # pytest -v
 ├── Makefile
 └── tests/
     ├── test_hermes_common.py
+    ├── test_news_utils.py
     ├── test_resumen_noticias.py
     ├── test_resumen_rayados.py
+    ├── test_resumen_tigres.py
     ├── test_monitor_ram.py
+    ├── test_monitor_ram_mexico.py
     ├── test_polymarket_diario.py
     ├── test_reporte_uso_hermes.py
-    └── test_backup_diario.py
+    ├── test_backup_diario.py
+    ├── test_install_cron.py
+    ├── test_gate_audit.py
+    └── test_aviso_peak.py
 ```
 
 ## CI/CD
