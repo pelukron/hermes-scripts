@@ -26,3 +26,24 @@ jobs:
             echo "   Todo PR cierra un issue: agrega 'Closes #N' al body."
             exit 1
           }
+
+  # PSR solo corta release desde commits convencionales (allowed_tags en
+  # pyproject.toml). Sin este guard, un titulo no convencional mergea en
+  # silencio y el issue queda en limbo hasta el proximo tag.
+  commitlint:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'dependabot/')
+    steps:
+      - name: Exigir titulo Conventional Commits
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "$TITLE" | grep -qE '^(feat|fix|perf|infra|build|chore|ci|docs|style|refactor|test)(\([^)]+\))?: .+' && {
+            echo "✅ Titulo convencional ($TITLE)"
+          } || {
+            echo "❌ El titulo debe ser Conventional Commits: 'tipo: descripcion'"
+            echo ""
+            echo "   Tipos validos (PSR): feat, fix, perf, infra, build, chore, ci, docs, style, refactor, test."
+            echo "   Ej: 'fix: corregir race condition en cache'. Titulo actual: $TITLE"
+            exit 1
+          }
