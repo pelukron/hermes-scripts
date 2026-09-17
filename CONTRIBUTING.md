@@ -149,8 +149,12 @@ Al mergear un PR a main, `python-semantic-release`:
    (`GH013`) ni eximirse en repos personales, y sin `PSR_TOKEN` el job falla
    en fail-fast.
 
-`CHANGELOG.md` quedó congelado como registro histórico (lo siguen leyendo
-`backup-diario` y la memoria del proyecto); las notas nuevas viven en cada Release.
+`CHANGELOG.md` lo escribe PSR al mergear (no tocarlo en PRs: CI lo exige
+intacto); las notas también viven en cada Release.
+
+> Formato: `templates/` (Jinja PSR propio) — secciones emoji por tipo,
+> una línea por `Closes #N` (subjects unidos con `;`), links issue/PR/SHA.
+> `tests/test_changelog_template.py` exige sintaxis + mapa que cubra `allowed_tags`.
 
 ## Git hooks
 
