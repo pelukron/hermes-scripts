@@ -24,6 +24,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -62,22 +63,23 @@ jobs:
             git push origin HEAD:main
           fi
 
-      - name: Comment on linked issue
+      - name: Link issues (released)
         if: steps.psr.outputs.tag_after != steps.psr.outputs.tag_before
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ steps.psr.outputs.tag_after }}"
-          ISSUE=$(git log --pretty=%B -5 | grep -oP 'Closes #\K\d+' | head -1)
-          if [ -z "$ISSUE" ]; then
-            PR_NUM=$(git log -1 --pretty=%s | grep -oP '\(#\K\d+' | head -1)
-            if [ -n "$PR_NUM" ]; then
-              ISSUE=$(gh pr view "$PR_NUM" --json body --jq '.body' | grep -oP 'Closes #\K\d+' | head -1)
-            fi
-          fi
-          if [ -n "$ISSUE" ]; then
-            gh issue comment "$ISSUE" --body "✅ Released in [$TAG](https://github.com/${{ github.repository }}/releases/tag/$TAG)"
-          fi
+          bash bin/link-issue-release.sh \
+            --range "${{ steps.psr.outputs.tag_before }}..HEAD" \
+            --tag "${{ steps.psr.outputs.tag_after }}"
+
+      - name: Link issues (merged sin release)
+        if: steps.psr.outputs.tag_after == steps.psr.outputs.tag_before
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BASE="${{ steps.psr.outputs.tag_before }}"
+          if [ -z "$BASE" ]; then BASE="HEAD~5"; fi
+          bash bin/link-issue-release.sh --range "$BASE..HEAD"
 
       - name: Notificar Telegram
         if: steps.psr.outputs.tag_after != steps.psr.outputs.tag_before

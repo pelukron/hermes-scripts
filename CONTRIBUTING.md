@@ -139,7 +139,13 @@ Al mergear un PR a main, `python-semantic-release`:
 1. Calcula el bump desde los commits (feat→minor; fix/perf/infra→patch)
 2. Actualiza `version` en `pyproject.toml`, commitea `chore(release): vX.Y.Z [skip ci]`
 3. Crea tag `vX.Y.Z` + GitHub Release con notas generadas de los commits
-4. Sincroniza `uv.lock` y comenta en el issue: ✅ Released in vX.Y.Z
+4. Sincroniza `uv.lock` y vincula issues vía `bin/link-issue-release.sh`:
+   con bump comenta `✅ Released in vX.Y.Z`; sin bump (`docs/refactor/ci/test`,
+   semver puro: no bumpean) comenta `✅ Merged en main <sha> sin release`.
+   CI solo deja ese comment canónico; `.hermes/EPICS_TRACKING.md` + checklist
+   del epic se sincronizan en local. Requiere bypass del ruleset para
+   `github-actions[bot]` (push del bump + tag + `uv.lock`); sin bypass PSR
+   falla con `GH013`.
 
 `CHANGELOG.md` quedó congelado como registro histórico (lo siguen leyendo
 `backup-diario` y la memoria del proyecto); las notas nuevas viven en cada Release.
