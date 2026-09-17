@@ -7,6 +7,7 @@ Todo cambio sigue este pipeline. No hay push directo a `main`.
 ```bash
 ./bin/bump-and-pr.sh "tipo: descripción"
   │
+  ├─ 0. Worktree por issue (un issue = un árbol; ver AGENTS.md y abajo)
   ├─ 1. Issue con body enriquecido (Summary, Problem, Changes, AC, Risks)
   ├─ 2. Rama semántica ({tipo}/{N}-slug)
   ├─ 3. Commit con Closes #N (sin bump, sin CHANGELOG)
@@ -31,9 +32,12 @@ PSR al mergear: bump + tag + GitHub Release + comment en issue
 # 1. Asegurar main limpio y actualizado
 git checkout main && git pull origin main
 
-# 2. Hacer tus cambios (archivos modificados pero sin commit)
+# 2. Worktree por issue (regla de oro: un issue = un árbol = una rama)
+git worktree add ../w150-mi-issue -b docs/150-mi-issue
 
-# 3. Ejecutar bin/bump-and-pr.sh
+# 3. Hacer tus cambios dentro del worktree (modificados pero sin commit)
+
+# 4. Ejecutar bin/bump-and-pr.sh
 ./bin/bump-and-pr.sh "feat: agregar nueva funcionalidad"
 
 # Esto crea: Issue + Rama + Commit + Push + PR (asignado a @pelukron)
@@ -48,8 +52,8 @@ Cuando no puedes usar `bin/bump-and-pr.sh` (ej. sin token, sin acceso a API):
 # 1. Pull latest
 git checkout main && git pull origin main
 
-# 2. Crear rama semántica (con número de issue)
-git checkout -b fix/123-mi-cambio
+# 2. Crear rama semántica (con número de issue) en su propio worktree
+git worktree add ../w123-mi-cambio -b fix/123-mi-cambio   # un issue = un árbol
 
 # 3. Hacer cambios
 #    ... editar archivos ...
@@ -83,6 +87,22 @@ gh pr create --title "fix: descripción del cambio" \
   --body "Closes #N" --base main
 gh pr edit <PR_NUM> --add-assignee pelukron --add-label "🐛 hotfix"
 ```
+
+## Worktree por issue (regla de oro)
+
+Un issue = un worktree = una rama. Dos issues en el mismo árbol mezclan cambios, pisan ramas y meten
+scope colado en el PR. Si el worktree no existe, el agente que trabaja en paralelo lo crea.
+
+```bash
+git worktree add ../w150-worktree-por-issue -b docs/150-worktree-por-issue
+cd ../w150-worktree-por-issue
+bash bin/gate.sh
+git commit -am "docs: regla de oro worktree por issue"
+git push -u origin docs/150-worktree-por-issue
+cd - && git worktree remove ../w150-worktree-por-issue   # tras el merge
+```
+
+`git worktree list` muestra los activos. La regla completa vive en `AGENTS.md`.
 
 ## Tipos de cambio
 
