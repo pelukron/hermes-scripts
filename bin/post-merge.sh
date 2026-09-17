@@ -55,7 +55,7 @@ gh release create "v$VERSION" \
     --generate-notes=false 2>/dev/null || echo "  ⚠️  Release ya existe o falló"
 
 # ── 3. Comment on linked issue ──
-ISSUE_NUM=$(gh pr view "$PR_NUM" --json body --jq '.body' 2>/dev/null | grep -oP 'Closes #\K\d+' | head -1)
+ISSUE_NUM=$(gh pr view "$PR_NUM" --json body --jq '.body' 2>/dev/null | grep -oE 'Closes #[0-9]+' | grep -oE '[0-9]+' | head -1)
 if [ -n "$ISSUE_NUM" ]; then
     echo "  Comentando en Issue #$ISSUE_NUM..."
     gh issue comment "$ISSUE_NUM" --body "✅ Released in [v$VERSION](https://github.com/pelukron/hermes-scripts/releases/tag/v$VERSION)"
