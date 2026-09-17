@@ -93,7 +93,7 @@ make test       # pytest -v
 ## CI/CD
 
 - [Flujo de desarrollo](CONTRIBUTING.md) — pipeline completo (PR → CI → merge → release)
-- Gate único: `bash bin/gate.sh` (= `make check`: ruff + format + mypy + Bandit + pytest). El CI ejecuta ese mismo comando, sin pasos duplicados.
+- Gate único: `bash bin/gate.sh` (= `make check`: ruff + format + mypy + Bandit + pytest + C901 complejidad). El CI ejecuta ese mismo comando, sin pasos duplicados.
 - GitHub Actions: gate + changelog intacto + review en cada PR
 - Commits convencionales en español; versión + release los genera PSR al mergear
 
