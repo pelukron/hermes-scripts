@@ -86,8 +86,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TAG: ${{ steps.psr.outputs.tag_after }}
         run: |
-          NL=$'\n'
-          TAG="${{ steps.psr.outputs.tag_after }}"
-          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
-          bash bin/notify-telegram.sh "🚀 ${GITHUB_REPOSITORY} ${TAG} publicado${NL}${RELEASE_URL}"
+          TEXT="$(python3 src/notify_render.py --release)"
+          bash bin/notify-telegram.sh "${TEXT}"
