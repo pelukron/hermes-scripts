@@ -536,3 +536,21 @@ class TestQuiet:
         wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
         result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
+
+
+class TestManifestFueraDeLaVentanaPeak:
+    """Los jobs que gastan CPU no deben caer en la ventana peak de DeepSeek.
+
+    Peak: 01:00-04:00 y 06:00-10:00 UTC de lunes a viernes = 19:00-22:00 y
+    00:00-04:00 en Monterrey (UTC-6).
+    """
+
+    def test_backup_diario_no_arranca_en_peak(self):
+        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
+        jobs = [job for job in ic.parse_jobs(manifest) if job.name == "backup-diario"]
+        assert len(jobs) == 1
+        schedule = jobs[0].schedule
+        minute, hour, *_ = schedule.split()
+        start = int(hour) + int(minute) / 60
+        assert not (0 <= start < 4), f"backup-diario cae en peak: {schedule}"
+        assert not (19 <= start < 22), f"backup-diario cae en peak: {schedule}"

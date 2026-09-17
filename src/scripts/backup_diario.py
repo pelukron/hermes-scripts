@@ -21,6 +21,79 @@ RETENTION_DAYS = 7
 SCRIPT_DIR = Path(__file__).resolve().parent
 CHANGELOG = SCRIPT_DIR / "CHANGELOG.md"
 
+# Elementos de ~/.hermes que no son configuracion y dominan el tamano del
+# tarball. Medido el 2026-09-16 en el host: node 320 MB, backups 302 MB,
+# bin 89 MB, state.db.retired-wal-* 154 MB, audits 44 MB, lsp 34 MB. Con ellos
+# dentro el tarball llegaba a ~965 MB y gzip no terminaba en los 600 s del
+# runner de cron: el archivo quedaba truncado y el job salia en error (#144).
+EXCLUDED_NAMES = frozenset(
+    {
+        "state.db",
+        "state.db-shm",
+        "state.db-wal",
+        "cache",
+        "venv",
+        "backup",
+        "state-snapshots",
+        "logs",
+        "node",
+        "backups",
+        "bin",
+        "lsp",
+        "lazy-target",
+        "audits",
+        ".curator_backups",
+        "models_dev_cache.json",
+    }
+)
+EXCLUDED_PREFIXES = ("state.db.retired-wal-",)
+EXCLUDED_SUFFIXES = (".lock",)
+MAX_TAR_BYTES = 200 * 1024 * 1024
+
+
+def is_excluded(name):
+    """True si el elemento de ~/.hermes no es configuracion y no se respalda.
+
+    Args:
+        name: Nombre del elemento en el primer nivel de ~/.hermes.
+
+    Returns:
+        bool: True si debe quedar fuera del tarball.
+    """
+    return (
+        name in EXCLUDED_NAMES
+        or name.startswith(EXCLUDED_PREFIXES)
+        or name.endswith(EXCLUDED_SUFFIXES)
+    )
+
+
+def verify_artifacts(paths):
+    """Verifica que cada artefacto se pueda leer completo.
+
+    Args:
+        paths: Iterable de rutas (o None) generadas por el backup.
+
+    Returns:
+        list: rutas corruptas (truncadas o ilegibles); vacia si todo esta bien.
+    """
+    corrupt = []
+    for path in paths:
+        if path is None:
+            continue
+        try:
+            if str(path).endswith(".tar.gz"):
+                with tarfile.open(path, "r:gz") as tar:
+                    for _ in tar:
+                        pass
+            else:
+                with gzip.open(path, "rb") as handle:
+                    while handle.read(1 << 20):
+                        pass
+        except Exception as exc:
+            log.error(f"✗ {path.name} corrupto: {exc}")
+            corrupt.append(path)
+    return corrupt
+
 
 def dump_sqlite(state_db, backup_dir, date_str):
     """Create a gzip-compressed SQLite dump of state.db.
@@ -40,10 +113,15 @@ def dump_sqlite(state_db, backup_dir, date_str):
     dump_path = backup_dir / f"state_{date_str}.sql.gz"
     try:
         conn = sqlite3.connect(str(state_db))
-        dump = "\n".join(conn.iterdump())
-        conn.close()
-        with gzip.open(dump_path, "wt", encoding="utf-8") as f:
-            f.write(dump)
+        try:
+            # Streaming: state.db ya pasa de 60 MB y materializar el dump
+            # completo (lista + join) costaba ~100 MB de pico en RAM.
+            with gzip.open(dump_path, "wt", encoding="utf-8") as f:
+                for statement in conn.iterdump():
+                    f.write(statement)
+                    f.write("\n")
+        finally:
+            conn.close()
         log.info(f"✓ state.db dump → {dump_path} ({dump_path.stat().st_size} bytes)")
         return dump_path
     except Exception as e:
@@ -62,20 +140,10 @@ def backup_config(hermes_dir, backup_dir, date_str):
     Returns:
         Path: Path to the created tarball.
     """
-    excluded = {
-        "state.db",
-        "state.db-shm",
-        "state.db-wal",
-        "cache",
-        "venv",
-        "backup",
-        "state-snapshots",
-        "logs",
-    }
     tar_path = backup_dir / f"hermes_{date_str}.tar.gz"
     with tarfile.open(tar_path, "w:gz") as tar:
         for item in sorted(hermes_dir.iterdir()):
-            if item.name in excluded:
+            if is_excluded(item.name):
                 continue
             tar.add(item, arcname=f".hermes/{item.name}")
     log.info(f"✓ hermes config → {tar_path} ({tar_path.stat().st_size} bytes)")
@@ -154,15 +222,30 @@ def release_note_unreleased(changelog_path):
 
 
 def main():
-    """Run daily backup: SQL dump, config tarball, bak cleanup, rotation."""
+    """Run daily backup: SQL dump, config tarball, bak cleanup, rotation.
+
+    Returns:
+        int: 0 si ambos artefactos se verifican; 1 si alguno quedo corrupto.
+    """
     setup_logging()
     date_str = datetime.now().strftime("%Y-%m-%d")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
-    dump_sqlite(STATE_DB, BACKUP_DIR, date_str)
-    backup_config(HERMES, BACKUP_DIR, date_str)
+    dump = dump_sqlite(STATE_DB, BACKUP_DIR, date_str)
+    tarball = backup_config(HERMES, BACKUP_DIR, date_str)
     cleanup_bak_files(HERMES)
     rotate_backups(BACKUP_DIR)
+
+    corrupt = verify_artifacts([dump, tarball])
+    if corrupt:
+        log.error(
+            "✗ Respaldo invalido, no se reporta como OK: "
+            + ", ".join(path.name for path in corrupt)
+        )
+        return 1
+
+    if tarball.stat().st_size > MAX_TAR_BYTES:
+        log.warning(f"⚠️ tarball de {tarball.stat().st_size} bytes: revisar exclusiones")
 
     output = []
     output.append(f"**📦 Backup OK — {date_str}**")
@@ -179,7 +262,8 @@ def main():
         output.append("```")
 
     log.info("\n".join(output))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
