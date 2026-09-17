@@ -14,7 +14,8 @@ sys.path.insert(0, SCRIPT_DIR)
 # Usamos import directo del script (sin .py)
 
 spec = importlib.util.spec_from_file_location(
-    "resumen_noticias", os.path.join(SCRIPT_DIR, "resumen-noticias-diario.py")
+    "resumen_noticias",
+    os.path.join(SCRIPT_DIR, "src", "scripts", "resumen_noticias_diario.py"),
 )
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)

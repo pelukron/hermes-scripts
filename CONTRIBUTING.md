@@ -116,7 +116,7 @@ Al mergear un PR a main, `python-semantic-release`:
 4. Sincroniza `uv.lock` y comenta en el issue: ✅ Released in vX.Y.Z
 
 `CHANGELOG.md` quedó congelado como registro histórico (lo siguen leyendo
-`backup-diario.py` y la memoria del proyecto); las notas nuevas viven en cada Release.
+`backup-diario` y la memoria del proyecto); las notas nuevas viven en cada Release.
 
 ## Git hooks
 

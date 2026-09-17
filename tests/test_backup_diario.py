@@ -10,7 +10,9 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 
-spec = importlib.util.spec_from_file_location("backup_diario", SCRIPTS_DIR / "backup-diario.py")
+spec = importlib.util.spec_from_file_location(
+    "backup_diario", SCRIPTS_DIR / "src" / "scripts" / "backup_diario.py"
+)
 _mod = importlib.util.module_from_spec(spec)
 sys.modules["backup_diario"] = _mod
 spec.loader.exec_module(_mod)

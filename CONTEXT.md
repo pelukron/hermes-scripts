@@ -29,7 +29,7 @@
 
 ## 4. Mapa del repo
 
-- Raíz plana (legado): `resumen-*.py`, `monitor-ram-mexico.py`, `polymarket-diario.py`, `reporte-uso-hermes.py`, `backup-diario.py`, `cleanup-housekeeping.py`, `hermes_common.py` (compat, movido a `src/`).
+- `src/scripts/` (entrypoints de cron: `resumen_*_diario`, `monitor_ram_mexico`, `polymarket_diario`, `reporte_uso_hermes`, `backup_diario`, `cleanup_housekeeping`; comandos con guiones vía `[project.scripts]`), `hermes_common.py` en raíz solo como compat (fuente viva en `src/`).
 - `src/hermes_common/` (utilidades compartidas), `src/install_cron.py`, `src/generate_issue_body.py`.
 - `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (10 helpers: `bump-and-pr.sh`, `post-merge.sh`, …), `tests/` (257 tests, 2026-09-15).
 - Deuda conocida (epics #59/#60): scripts con guiones en raíz → `src/scripts/` con entrypoints (#71); helpers duplicados → `news_utils.py` (#70); `print` → `logging` (#72); dicts → dataclasses (#73); falta `pytest-cov` 80% (#74); fetch concurrente (#67); dedup O(n²) (#69).

@@ -12,7 +12,7 @@
       "description": "Backup de state.db + config de Hermes",
       "schedule": "0 2 * * *",
       "wrapper": "backup-diario.sh",
-      "command": "uv run python backup-diario.py",
+      "command": "uv run backup-diario",
       "deliver": "${reports}"
     },
     {
@@ -20,7 +20,7 @@
       "description": "Limpieza semanal: backups viejos, noticias >4d, caches npm/pnpm/pip",
       "schedule": "0 3 * * 0",
       "wrapper": "cleanup-housekeeping.sh",
-      "command": "uv run python cleanup-housekeeping.py",
+      "command": "uv run cleanup-housekeeping",
       "deliver": "origin"
     },
     {
@@ -28,7 +28,7 @@
       "description": "Reporte diario de uso de Hermes (tokens/costo por modelo)",
       "schedule": "5 8 * * *",
       "wrapper": "reporte-uso.sh",
-      "command": "uv run python reporte-uso-hermes.py",
+      "command": "uv run reporte-uso-hermes",
       "deliver": "${reports}"
     },
     {
@@ -36,7 +36,7 @@
       "description": "Resumen de noticias multi-region (fuentes: config/feeds.json)",
       "schedule": "30 8 * * *",
       "wrapper": "resumen-noticias.sh",
-      "command": "uv run python resumen-noticias-diario.py",
+      "command": "uv run resumen-noticias-diario",
       "deliver": "${empleo}"
     },
     {
@@ -44,7 +44,7 @@
       "description": "Noticias de Rayados de Monterrey",
       "schedule": "0 9 * * *",
       "wrapper": "resumen-rayados.sh",
-      "command": "uv run python resumen-rayados-diario.py",
+      "command": "uv run resumen-rayados-diario",
       "deliver": "${rayados}"
     },
     {
@@ -52,7 +52,7 @@
       "description": "Noticias de Tigres UANL",
       "schedule": "0 9 * * *",
       "wrapper": "resumen-tigres.sh",
-      "command": "uv run python resumen-tigres-diario.py",
+      "command": "uv run resumen-tigres-diario",
       "deliver": "${tigres}"
     },
     {
@@ -60,7 +60,7 @@
       "description": "Monitor de precios de RAM (MX). Deshabilitado por defecto.",
       "schedule": "*/30 * * * *",
       "wrapper": "monitor-ram.sh",
-      "command": "uv run python monitor-ram-mexico.py",
+      "command": "uv run monitor-ram-mexico",
       "deliver": "origin",
       "enabled": false
     },

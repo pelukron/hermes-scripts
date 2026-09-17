@@ -3,15 +3,12 @@ import argparse
 import json
 import os
 import re
-import sys
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import requests
 
-# Import hermes_common
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from hermes_common import get_headers, retry_request, smart_truncate
 
 # ------------------------------- CONFIGURACIÓN -------------------------------
