@@ -10,7 +10,7 @@
     {
       "name": "backup-diario",
       "description": "Backup de state.db + config de Hermes",
-      "schedule": "0 2 * * *",
+      "schedule": "10 4 * * *",
       "wrapper": "backup-diario.sh",
       "command": "uv run backup-diario",
       "deliver": "${reports}"
