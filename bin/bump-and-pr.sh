@@ -1,9 +1,10 @@
 #!/bin/bash
 # bump-and-pr.sh — Automatiza: issue → rama → commit → push → PR
 # (La versión + CHANGELOG + release los genera python-semantic-release al mergear.)
-# Uso: bump-and-pr.sh "<tipo>: <descripción>" [--body-file <path>]
+# Uso: bump-and-pr.sh "<tipo>: <descripción>" [--body-file <path>] [--worktree]
 # Ej:  bump-and-pr.sh "fix: corregir imports muertos"
 #      bump-and-pr.sh "feat: nuevo endpoint" --body-file /tmp/issue.md
+#      bump-and-pr.sh "docs: regla de oro" --worktree   # solo issue+worktree+rama, sin commit
 
 set -euo pipefail
 
@@ -29,14 +30,19 @@ API="https://api.github.com/repos/$GH_USER/$GH_REPO"
 # ── Argumentos ──
 COMMIT_MSG="${1:-}"
 ISSUE_BODY_FILE=""  # Opcional: archivo con cuerpo de issue enriquecido
+WORKTREE_MODE=0     # Opcional: solo issue + worktree + rama (sin commit/push/PR)
 
-# Parse optional --body-file argument
+# Parse optional arguments
 shift 1 2>/dev/null || true
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --body-file)
             ISSUE_BODY_FILE="${2:-}"
             shift 2
+            ;;
+        --worktree)
+            WORKTREE_MODE=1
+            shift
             ;;
         *)
             shift
@@ -45,7 +51,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$COMMIT_MSG" ]; then
-    echo "Uso: $0 \"tipo: descripción\""
+    echo "Uso: $0 \"tipo: descripción\" [--body-file <path>] [--worktree]"
     echo "Ej:  $0 \"fix: corregir imports muertos\""
     exit 1
 fi
@@ -64,19 +70,11 @@ git pull origin main --ff-only 2>/dev/null || echo "⚠️  No se pudo hacer pul
 
 cd "$SCRIPT_DIR/.." || exit 1
 
-# ── Crear rama ──
+# ── Crear rama (el N llega con el issue; banner tras conocerlo) ──
 TYPE=$(echo "$COMMIT_MSG" | cut -d: -f1 | tr -d ' ')
 SLUG=$(echo "$COMMIT_MSG" | cut -d: -f2- | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
 BRANCH="${TYPE}/${SLUG}"
 BRANCH=$(echo "$BRANCH" | cut -c1-80)
-
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Rama:  $BRANCH"
-echo "  Commit: $COMMIT_MSG"
-echo "  (Versión + changelog: los genera PSR al mergear)"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
 
 # ── Crear Issue con cuerpo enriquecido (awesome-copilot style) ──
 echo "Generando cuerpo de issue..."
@@ -123,9 +121,31 @@ print(json.dumps({
 ISSUE_NUMBER=$(echo "$ISSUE_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('number','?'))" 2>/dev/null)
 echo "  Issue: #$ISSUE_NUMBER"
 
+# Rama con N (contrato {tipo}/{N}-slug: un issue = un worktree = una rama)
+BRANCH="${TYPE}/${ISSUE_NUMBER}-${SLUG}"
+BRANCH=$(echo "$BRANCH" | cut -c1-80)
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Issue:  #$ISSUE_NUMBER"
+echo "  Rama:  $BRANCH"
+echo "  Commit: $COMMIT_MSG"
+echo "  (Versión + changelog: los genera PSR al mergear)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
 # Cleanup
 # Keep BODY_FILE for PR body reuse
 PR_BODY_FILE="$BODY_FILE"
+
+if [ "$WORKTREE_MODE" -eq 1 ]; then
+    git worktree add "../w${ISSUE_NUMBER}-${SLUG}" -b "$BRANCH"
+    rm -f "$PR_BODY_FILE"
+    echo ""
+    echo "  👉 Trabaja en ../w${ISSUE_NUMBER}-${SLUG}: edita, gate, commit, push y PR manual."
+    echo "  (Modo --worktree: sin commit automatico porque aun no hay cambios.)"
+    exit 0
+fi
 
 git checkout -b "$BRANCH"
 
@@ -223,6 +243,6 @@ fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ✅ v$NEW_VERSION  lista para revisión"
+echo "  ✅ Issue #$ISSUE_NUMBER listo para revisión"
 echo "  🔗 $PR_URL"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
