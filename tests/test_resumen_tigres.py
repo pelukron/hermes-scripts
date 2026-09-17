@@ -31,6 +31,7 @@ parse_fecha_es = mod.parse_fecha_es
 fetch_tigres_detail = mod.fetch_tigres_detail
 enrich_tigres_items = mod.enrich_tigres_items
 format_item_line = mod.format_item_line
+NewsItem = mod.NewsItem
 
 # ═══════════════════════════════════════════
 # clean_url
@@ -144,19 +145,19 @@ class TestTitleSimilar:
 class TestDedupe:
     def test_elimina_duplicados_por_link(self):
         items = [
-            {"title": "Noticia 1", "link": "https://a.com/1"},
-            {"title": "Noticia 1 dup", "link": "https://a.com/1"},
-            {"title": "Noticia 2", "link": "https://a.com/2"},
+            NewsItem(title="Noticia 1", link="https://a.com/1"),
+            NewsItem(title="Noticia 1 dup", link="https://a.com/1"),
+            NewsItem(title="Noticia 2", link="https://a.com/2"),
         ]
         result = dedupe(items)
         assert len(result) == 2
-        assert result[0]["title"] == "Noticia 1"
-        assert result[1]["title"] == "Noticia 2"
+        assert result[0].title == "Noticia 1"
+        assert result[1].title == "Noticia 2"
 
     def test_sin_duplicados(self):
         items = [
-            {"title": "A", "link": "https://a.com/a"},
-            {"title": "B", "link": "https://a.com/b"},
+            NewsItem(title="A", link="https://a.com/a"),
+            NewsItem(title="B", link="https://a.com/b"),
         ]
         result = dedupe(items)
         assert len(result) == 2
@@ -173,21 +174,21 @@ class TestDedupe:
 class TestDedupeByTitle:
     def test_elimina_titulos_similares(self):
         items = [
-            {"title": "Tigres ficha a crack mundial"},
-            {"title": "Tigres Ficha A Crack Mundial!!"},
-            {"title": "Tigres pierde clásico"},
+            NewsItem(title="Tigres ficha a crack mundial"),
+            NewsItem(title="Tigres Ficha A Crack Mundial!!"),
+            NewsItem(title="Tigres pierde clásico"),
         ]
         result = dedupe_by_title(items)
         assert len(result) == 2
 
     def test_conserva_primero(self):
         items = [
-            {"title": "Noticia original"},
-            {"title": "Noticia original (copia)"},
+            NewsItem(title="Noticia original"),
+            NewsItem(title="Noticia original (copia)"),
         ]
         result = dedupe_by_title(items)
         assert len(result) == 1
-        assert result[0]["title"] == "Noticia original"
+        assert result[0].title == "Noticia original"
 
 
 # ═══════════════════════════════════════════
@@ -249,16 +250,15 @@ class TestSmellsLikeRumor:
 class TestClassify:
     def test_oficial_va_a_confirmadas(self):
         items = [
-            {
-                "title": "Noticia oficial",
-                "link": "https://www.tigres.com.mx/es/noticia/",
-                "source": "tigres.com.mx",
-                "oficial": True,
-                "confiable": True,
-                "rumor": False,
-                "origin": "tigres.com.mx",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="Noticia oficial",
+                link="https://www.tigres.com.mx/es/noticia/",
+                source="tigres.com.mx",
+                oficial=True,
+                confiable=True,
+                origin="tigres.com.mx",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 1
@@ -266,16 +266,15 @@ class TestClassify:
 
     def test_rumor_va_a_rumores(self):
         items = [
-            {
-                "title": "Rumor de fichaje",
-                "link": "https://mediotiempo.com/rumor",
-                "source": "mediotiempo.com",
-                "oficial": False,
-                "confiable": True,
-                "rumor": True,
-                "origin": "google-news",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="Rumor de fichaje",
+                link="https://mediotiempo.com/rumor",
+                source="mediotiempo.com",
+                confiable=True,
+                rumor=True,
+                origin="google-news",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 0
@@ -283,16 +282,12 @@ class TestClassify:
 
     def test_error_va_a_confirmadas(self):
         items = [
-            {
-                "title": "[Error tigres.com.mx: timeout]",
-                "link": "",
-                "source": "tigres.com.mx",
-                "oficial": False,
-                "confiable": False,
-                "rumor": False,
-                "origin": "Error",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="[Error tigres.com.mx: timeout]",
+                source="tigres.com.mx",
+                origin="Error",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 1
@@ -300,16 +295,14 @@ class TestClassify:
 
     def test_confiable_sin_rumor_confirmada(self):
         items = [
-            {
-                "title": "Tigres gana",
-                "link": "https://espn.com.mx/nota",
-                "source": "ESPN",
-                "oficial": False,
-                "confiable": True,
-                "rumor": False,
-                "origin": "google-news",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="Tigres gana",
+                link="https://espn.com.mx/nota",
+                source="ESPN",
+                confiable=True,
+                origin="google-news",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 1
@@ -318,16 +311,13 @@ class TestClassify:
     def test_desconocido_sin_rumor_confirmada(self):
         """Fuente desconocida pero título objetivo: confirmada igual."""
         items = [
-            {
-                "title": "Tigres anuncia nuevo patrocinador",
-                "link": "https://blograndom.com/tigres",
-                "source": "Blog Random",
-                "oficial": False,
-                "confiable": False,
-                "rumor": False,
-                "origin": "google-news",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="Tigres anuncia nuevo patrocinador",
+                link="https://blograndom.com/tigres",
+                source="Blog Random",
+                origin="google-news",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 1
@@ -379,9 +369,9 @@ class TestFetchGoogleNews:
             items = fetch_google_news("Tigres", "confirmadas")
             assert len(items) == 1
             item = items[0]
-            assert "Tigres" in item["title"]
-            assert item["origin"] == "google-news"
-            assert item["category"] == "confirmadas"
+            assert "Tigres" in item.title
+            assert item.origin == "google-news"
+            assert item.category == "confirmadas"
 
     def test_detecta_oficial(self):
         mock_feed = Mock()
@@ -398,13 +388,13 @@ class TestFetchGoogleNews:
         with patch.object(mod.feedparser, "parse", return_value=mock_feed):
             items = fetch_google_news("Tigres", "confirmadas")
             assert len(items) == 1
-            assert items[0]["oficial"] is True
+            assert items[0].oficial is True
 
     def test_excepcion_retorna_error_item(self):
         with patch.object(mod.feedparser, "parse", side_effect=Exception("timeout")):
             items = fetch_google_news("Tigres", "confirmadas")
             assert len(items) == 1
-            assert items[0]["title"].startswith("[Error")
+            assert items[0].title.startswith("[Error")
 
 
 # ═══════════════════════════════════════════
@@ -430,10 +420,10 @@ class TestFetchTigresCom:
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_tigres_com()
             assert len(items) == 2
-            assert items[0]["title"] == "Comunicado Oficial, Víctor Manuel Vucetich."
-            assert items[0]["source"] == "tigres.com.mx"
-            assert items[0]["oficial"] is True
-            assert "tigres.com.mx/es/noticias/comunicado-oficial" in items[0]["link"]
+            assert items[0].title == "Comunicado Oficial, Víctor Manuel Vucetich."
+            assert items[0].source == "tigres.com.mx"
+            assert items[0].oficial is True
+            assert "tigres.com.mx/es/noticias/comunicado-oficial" in items[0].link
 
     def test_excepcion_retorna_error_item(self):
         with patch.object(
@@ -443,7 +433,7 @@ class TestFetchTigresCom:
         ):
             items = fetch_tigres_com()
             assert len(items) == 1
-            assert items[0]["title"].startswith("[Error tigres.com.mx")
+            assert items[0].title.startswith("[Error tigres.com.mx")
 
     def test_items_sin_heading_usan_title_attr(self):
         html = """
@@ -457,7 +447,7 @@ class TestFetchTigresCom:
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_tigres_com()
             assert len(items) == 1
-            assert items[0]["title"] == "Título desde atributo title"
+            assert items[0].title == "Título desde atributo title"
 
     def test_titulos_cortos_ignorados(self):
         """Títulos con menos de 10 caracteres se ignoran."""
@@ -503,17 +493,15 @@ def test_queries_no_usan_operador_and_explicito():
 # ═══════════════════════════════════════════
 
 
-def _mk_confirmada(i: int) -> dict:
-    return {
-        "title": f"Nota {i}",
-        "link": f"https://ejemplo.com/{i}",
-        "source": "Medio",
-        "oficial": False,
-        "confiable": True,
-        "rumor": False,
-        "origin": "gn",
-        "category": "confirmadas",
-    }
+def _mk_confirmada(i: int) -> NewsItem:
+    return NewsItem(
+        title=f"Nota {i}",
+        link=f"https://ejemplo.com/{i}",
+        source="Medio",
+        confiable=True,
+        origin="gn",
+        category="confirmadas",
+    )
 
 
 def test_contador_refleja_items_mostrados():
@@ -583,9 +571,9 @@ class TestFetchTigresComConFecha:
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_tigres_com()
             assert len(items) == 2
-            assert items[0]["published"] is not None
-            assert (items[0]["published"].year, items[0]["published"].month) == (2026, 9)
-            assert (items[1]["published"].year, items[1]["published"].month) == (2026, 8)
+            assert items[0].published is not None
+            assert (items[0].published.year, items[0].published.month) == (2026, 9)
+            assert (items[1].published.year, items[1].published.month) == (2026, 8)
 
     def test_filtro_48h_descarta_agosto(self):
         from datetime import datetime, timezone
@@ -599,7 +587,7 @@ class TestFetchTigresComConFecha:
             items = fetch_tigres_com()
             kept = filter_by_max_age(items, missing="drop", now=now)
             assert len(kept) == 1
-            assert "reciente" in kept[0]["title"].lower()
+            assert "reciente" in kept[0].title.lower()
 
     def test_sin_fecha_se_descarta_con_drop(self):
         from hermes_common import filter_by_max_age
@@ -608,7 +596,7 @@ class TestFetchTigresComConFecha:
         mock_resp.text = TIGRES_HTML
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_tigres_com()
-            assert all(i["published"] is None for i in items)
+            assert all(i.published is None for i in items)
             assert filter_by_max_age(items, missing="drop") == []
 
 
@@ -643,42 +631,40 @@ class TestFetchTigresDetail:
         from datetime import datetime, timezone
 
         items = [
-            {
-                "title": "Nota reciente con fecha del listado",
-                "link": "https://www.tigres.com.mx/es/noticias/a/",
-                "source": "tigres.com.mx",
-                "oficial": True,
-                "published": datetime(2026, 9, 12, tzinfo=timezone.utc),
-                "author": None,
-            },
-            {
-                "title": "Otra nota reciente del listado",
-                "link": "https://www.tigres.com.mx/es/noticias/b/",
-                "source": "tigres.com.mx",
-                "oficial": True,
-                "published": datetime(2026, 9, 13, tzinfo=timezone.utc),
-                "author": None,
-            },
+            NewsItem(
+                title="Nota reciente con fecha del listado",
+                link="https://www.tigres.com.mx/es/noticias/a/",
+                source="tigres.com.mx",
+                oficial=True,
+                published=datetime(2026, 9, 12, tzinfo=timezone.utc),
+            ),
+            NewsItem(
+                title="Otra nota reciente del listado",
+                link="https://www.tigres.com.mx/es/noticias/b/",
+                source="tigres.com.mx",
+                oficial=True,
+                published=datetime(2026, 9, 13, tzinfo=timezone.utc),
+            ),
         ]
         mock_resp = Mock()
         mock_resp.text = TIGRES_DETAIL_HTML
         with patch.object(mod, "retry_request", return_value=mock_resp) as mock_req:
             enrich_tigres_items(items, max_details=1)
             assert mock_req.call_count == 1
-            assert items[0]["author"] == "Ernesto Ramos"
-            assert items[1]["author"] is None
+            assert items[0].author == "Ernesto Ramos"
+            assert items[1].author is None
 
 
 class TestFormatItemLine:
     def test_con_fecha_y_autor(self):
         from datetime import datetime, timezone
 
-        item = {
-            "title": "La Previa Tigres vs Rayados - tigres.com.mx",
-            "source": "tigres.com.mx",
-            "published": datetime(2026, 9, 12, 15, 22, tzinfo=timezone.utc),
-            "author": "Ernesto Ramos",
-        }
+        item = NewsItem(
+            title="La Previa Tigres vs Rayados - tigres.com.mx",
+            source="tigres.com.mx",
+            published=datetime(2026, 9, 12, 15, 22, tzinfo=timezone.utc),
+            author="Ernesto Ramos",
+        )
         line = format_item_line(
             "🎽",
             item,
@@ -690,7 +676,7 @@ class TestFormatItemLine:
         assert "https://news.google.com/rss/articles/" in line
 
     def test_sin_fecha_no_muestra_parentesis(self):
-        item = {"title": "Nota sin fecha", "source": "Medio", "published": None}
+        item = NewsItem(title="Nota sin fecha", source="Medio")
         line = format_item_line("✓", item, "")
         assert "(" not in line
         assert "Nota sin fecha" in line
