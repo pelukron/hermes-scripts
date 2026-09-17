@@ -8,9 +8,9 @@ sync:
 lock:
 	uv lock
 
-## Ejecutar tests con pytest + cobertura mínima (piso: [tool.coverage] + --cov-fail-under)
+## Ejecutar tests con pytest + cobertura mínima (piso actual: 70 %; objetivo: 80 %)
 test:
-	uv run pytest -v --cov --cov-report=term-missing --cov-fail-under=65
+	uv run pytest -v --cov --cov-report=term-missing --cov-fail-under=70
 
 ## Lint con ruff
 lint:

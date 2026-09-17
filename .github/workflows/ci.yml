@@ -8,6 +8,10 @@ on:
 
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -17,11 +21,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Python
-        run: uv python install 3.11
+      - name: Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install deps
-        run: uv sync
+        run: uv sync --locked --python ${{ matrix.python-version }}
 
       - name: Install shellcheck
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
@@ -44,8 +48,25 @@ jobs:
       - name: Gate
         run: bash bin/gate.sh
 
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Python
+        run: uv python install 3.11
+
+      - name: Install deps
+        run: uv sync --locked --python 3.11
+
+      - name: pip-audit
+        run: uv run pip-audit
+
   notify:
-    needs: test
+    needs: [test, audit]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -53,7 +74,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          STATUS: ${{ needs.test.result }}
+          STATUS_TEST: ${{ needs.test.result }}
+          STATUS_AUDIT: ${{ needs.audit.result }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -62,18 +84,19 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           NL=$'\n'
-          # En un PR, "ref" es el ref sintetico (<n>/merge): el numero y el enlace
-          # reales salen del evento. En un push no hay PR y va el mensaje de siempre.
-          if [ -n "${PR_NUMBER}" ]; then
-            if [ "${STATUS}" = "success" ]; then
-              TEXT="✅ PR #${PR_NUMBER} listo para review${NL}${PR_TITLE}${NL}${PR_URL}${NL}CI en verde (test=${STATUS})${NL}Commit: ${SHA}"
+          CHECKS="test=${STATUS_TEST} audit=${STATUS_AUDIT}"
+          # En un PR, "ref" es el ref sintetico (<n>/merge): el numero y el enlace reales
+          # salen del evento. En un push no hay PR y va el mensaje de siempre.
+          if [ "${STATUS_TEST}" = "success" ] && [ "${STATUS_AUDIT}" = "success" ]; then
+            if [ -n "${PR_NUMBER}" ]; then
+              TEXT="✅ PR #${PR_NUMBER} listo para review${NL}${PR_TITLE}${NL}${PR_URL}${NL}CI en verde (${CHECKS})${NL}Commit: ${SHA}"
             else
-              TEXT="❌ PR #${PR_NUMBER} fallo el CI (test=${STATUS})${NL}${PR_TITLE}${NL}${PR_URL}${NL}Run: ${RUN_URL}${NL}Commit: ${SHA}"
+              TEXT="✅ CI paso: ${GITHUB_REPOSITORY}${NL}${NL}Branch: ${REF}${NL}Commit: ${SHA}"
             fi
-          elif [ "${STATUS}" = "success" ]; then
-            TEXT="✅ CI paso: ${GITHUB_REPOSITORY}${NL}${NL}Branch: ${REF}${NL}Commit: ${SHA}"
+          elif [ -n "${PR_NUMBER}" ]; then
+            TEXT="❌ PR #${PR_NUMBER} fallo el CI (${CHECKS})${NL}${PR_TITLE}${NL}${PR_URL}${NL}Run: ${RUN_URL}${NL}Commit: ${SHA}"
           else
-            TEXT="❌ CI fallo: ${GITHUB_REPOSITORY}${NL}${NL}Branch: ${REF}${NL}Commit: ${SHA}${NL}URL: ${RUN_URL}"
+            TEXT="❌ CI fallo: ${GITHUB_REPOSITORY}${NL}${NL}Branch: ${REF}${NL}Commit: ${SHA}${NL}URL: ${RUN_URL}${NL}${CHECKS}"
           fi
           # Sin parse_mode: el titulo del PR puede traer <, & o comillas y romperia
           # el parser de HTML de Telegram, justo cuando el aviso importa.

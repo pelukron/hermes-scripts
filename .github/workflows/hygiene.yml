@@ -1,0 +1,28 @@
+name: Hygiene
+
+# Todo PR debe cerrar un issue con Closes/Fixes/Resolves #N en el body.
+# Exime a dependabot (sus PRs no siguen el flujo de issues).
+
+# pull_request (no _target): el check debe correr con el archivo del propio PR,
+# si no GitHub usaría la versión de main y jamás validaría su PR de introducción.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+jobs:
+  closes:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'dependabot/')
+    steps:
+      - name: Exigir Closes/Fixes/Resolves #N
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          echo "$BODY" | grep -qiE '(close[sd]?|closing|fix(es|ed|ing)?|resolve[sd]?|resolving) +#[0-9]+' && {
+            echo "✅ El body referencia un issue (Closes/Fixes/Resolves #N)"
+          } || {
+            echo "❌ Falta 'Closes #N' (o Fixes/Resolves) en el body del PR"
+            echo ""
+            echo "   Todo PR cierra un issue: agrega 'Closes #N' al body."
+            exit 1
+          }
