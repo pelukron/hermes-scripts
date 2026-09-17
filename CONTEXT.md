@@ -55,3 +55,4 @@
 - Epic gate: #98 (medición y alcance). Hijos: #99, #100, #101, #102.
 - Tracking del agente: `.hermes/EPICS_TRACKING.md`. Planes viejos: `.hermes/plans/`.
 - Gestión: `PROJECT_MANAGEMENT.md` (board Project #3, milestones, labels, CLI).
+- Memoria del agente: `.hermes/EPICS_TRACKING.md` (local, no versionado) + `CONTEXT.md` (compartido, versionado). Sin `memory-bank/` versionado por decisión #152 (duplicaría lo anterior).
