@@ -151,6 +151,7 @@ dedupe = news_utils.dedupe
 dedupe_by_title = news_utils.dedupe_by_title
 domain_of = news_utils.domain_of
 format_item_line = news_utils.format_item_line
+NewsItem = news_utils.NewsItem
 normalize = news_utils.normalize
 normalize_urls = news_utils.normalize_urls
 now_str = news_utils.now_str
@@ -172,6 +173,7 @@ __all__ = [
     "fetch_rayados_com",
     "format_item_line",
     "get_repo_version",
+    "NewsItem",
     "is_confiable",
     "is_confiable_by_url",
     "is_oficial",
@@ -327,14 +329,14 @@ def enrich_rayados_items(items: list, max_details: int = 12) -> list:
         list: Los mismos items con 'author' y 'published' confirmados in-place.
     """
     for item in items[:max_details]:
-        link = item.get("link")
+        link = item.link
         if not link:
             continue
         published, author = fetch_rayados_detail(link)
         if published is not None:
-            item["published"] = published
-        if author and not item.get("author"):
-            item["author"] = author
+            item.published = published
+        if author and not item.author:
+            item.author = author
     return items
 
 
@@ -371,12 +373,12 @@ def fetch_rayados_com() -> list:
     con published=None y el pipeline los descarta con missing=drop.
 
     Returns:
-        list: Lista de diccionarios con title, link, source='rayados.com',
+        list: Lista de NewsItem con title, link, source='rayados.com',
         oficial=True, confiable=True, rumor=False, published (datetime|None),
         author (siempre None aquí; lo completa enrich_rayados_items).
         En caso de error, retorna un solo item con mensaje de error.
     """
-    items = []
+    items: list[news_utils.NewsItem] = []
     url = "https://rayados.com/es/noticias/lista"
     try:
         resp = retry_request(url, timeout=TIMEOUT, headers=hermes_common.get_headers("default"))
@@ -413,32 +415,26 @@ def fetch_rayados_com() -> list:
             seen.add(full_link)
 
             items.append(
-                {
-                    "title": title,
-                    "link": full_link,
-                    "source": "rayados.com",
-                    "oficial": True,
-                    "confiable": True,
-                    "rumor": False,
-                    "origin": "rayados.com",
-                    "category": "confirmadas",
-                    "published": None,
-                    "author": None,
-                }
+                news_utils.NewsItem(
+                    title=title,
+                    link=full_link,
+                    source="rayados.com",
+                    oficial=True,
+                    confiable=True,
+                    rumor=False,
+                    origin="rayados.com",
+                    category="confirmadas",
+                )
             )
         return items
     except Exception as e:
         return [
-            {
-                "title": f"[Error rayados.com: {str(e)[:80]}]",
-                "link": "",
-                "source": "rayados.com",
-                "oficial": False,
-                "confiable": False,
-                "rumor": False,
-                "origin": "rayados.com",
-                "category": "confirmadas",
-            }
+            news_utils.NewsItem(
+                title=f"[Error rayados.com: {str(e)[:80]}]",
+                source="rayados.com",
+                origin="rayados.com",
+                category="confirmadas",
+            )
         ]
 
 
@@ -449,7 +445,7 @@ def classify(all_items: list) -> tuple:
     """Clasifica items en confirmadas y rumores (wrapper ligado a Rayados).
 
     Args:
-        all_items: Lista de diccionarios con noticias sin clasificar.
+        all_items: Lista de NewsItem sin clasificar.
 
     Returns:
         tuple: (confirmadas, rumores) — dos listas deduplicadas por URL.
@@ -509,10 +505,10 @@ def build_report_blocks() -> list:
     # 3. Filtrar por historial (Desduplicación Histórica) con URLs normalizadas
     filtered_items = []
     for item in all_items:
-        link = item.get("link")
+        link = item.link
         if link:
             link = clean_url(link)
-            item["link"] = link
+            item.link = link
         if link and history.exists(link):
             continue
         filtered_items.append(item)
@@ -547,8 +543,8 @@ def build_report_blocks() -> list:
         conf_lines.append("_No se encontraron noticias confirmadas nuevas en las últimas 48h._\n")
     else:
         for item in confirmadas[:8]:
-            tag = "🎽" if item["oficial"] else "✓"
-            link = item.get("link", "")
+            tag = "🎽" if item.oficial else "✓"
+            link = item.link
             conf_lines.append(format_item_line(tag, item, link))
     blocks.append("\n".join(conf_lines))
 
@@ -561,7 +557,7 @@ def build_report_blocks() -> list:
         rum_lines.append("_No se encontraron rumores o filtraciones nuevos en las últimas 48h._\n")
     else:
         for item in rumores[:8]:
-            link = item.get("link", "")
+            link = item.link
             rum_lines.append(format_item_line("📰", item, link))
     blocks.append("\n".join(rum_lines))
 

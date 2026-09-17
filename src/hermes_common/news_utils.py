@@ -9,6 +9,7 @@ parámetros; cada script las liga con sus constantes en wrappers finos.
 
 import logging
 import re
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from typing import Any, Callable, Optional
@@ -23,6 +24,26 @@ TELEGRAM_MAX_CHARS = 3000
 
 # Máximo de items que se muestran por sección (confirmadas / rumores)
 MAX_ITEMS_POR_SECCION = 8
+
+
+@dataclass
+class NewsItem:
+    """Noticia tipada del pipeline (issue #73).
+
+    Reemplaza los dicts informales: los productores la construyen y los
+    helpers la consumen por atributo.
+    """
+
+    title: str = ""
+    link: str = ""
+    source: str = ""
+    oficial: bool = False
+    confiable: bool = False
+    rumor: bool = False
+    origin: str = ""
+    category: str = ""
+    published: Optional[datetime] = None
+    author: Optional[str] = None
 
 
 def now_str() -> str:
@@ -130,15 +151,15 @@ def smells_like_rumor(title: str, rumor_keywords: list) -> bool:
     return any(kw in t for kw in rumor_keywords)
 
 
-def dedupe(items: list, key: Callable = lambda x: x["link"] or x["title"]) -> list:
+def dedupe(items: list[NewsItem], key: Callable = lambda x: x.link or x.title) -> list[NewsItem]:
     """Elimina duplicados conservando el orden. Usa URL normalizada.
 
     Args:
-        items: Lista de diccionarios con noticias.
+        items: Lista de NewsItem.
         key: Función para extraer la clave de deduplicación.
 
     Returns:
-        list: Lista sin duplicados, orden original conservado.
+        list[NewsItem]: Lista sin duplicados, orden original conservado.
     """
     seen = set()
     out = []
@@ -203,7 +224,9 @@ def title_similar(t1: str, t2: str, threshold: float = 0.85) -> bool:
     return SequenceMatcher(None, a, b).ratio() > threshold
 
 
-def dedupe_by_title(items: list, threshold: float = 0.85, bucket_chars: int = 12) -> list:
+def dedupe_by_title(
+    items: list[NewsItem], threshold: float = 0.85, bucket_chars: int = 12
+) -> list[NewsItem]:
     """Elimina items con títulos muy similares (misma noticia, distinta URL).
 
     Exactos por hash canónico O(1); casi-duplicados por cubetas de prefijo
@@ -211,19 +234,19 @@ def dedupe_by_title(items: list, threshold: float = 0.85, bucket_chars: int = 12
     en la práctica; el peor caso (todo en una cubeta) degrada al O(n²) previo.
 
     Args:
-        items: Lista de diccionarios con clave 'title'.
+        items: Lista de NewsItem.
         threshold: Umbral de similitud para title_similar. Con >= 1.0 solo
             colapsan canónicos idénticos (ruta puramente lineal).
         bucket_chars: Prefijo canónico que define cada cubeta.
 
     Returns:
-        list: Lista sin duplicados por título, conserva el primero.
+        list[NewsItem]: Lista sin duplicados por título, conserva el primero.
     """
     if threshold >= 1.0:
         seen: set[str] = set()
-        exact: list[dict] = []
+        exact: list[NewsItem] = []
         for item in items:
-            key = canonical_title(item.get("title", ""))
+            key = canonical_title(item.title)
             if not key:
                 exact.append(item)
             elif key not in seen:
@@ -231,10 +254,10 @@ def dedupe_by_title(items: list, threshold: float = 0.85, bucket_chars: int = 12
                 exact.append(item)
         return exact
     seen_keys: set[str] = set()
-    buckets: dict[str, list[dict]] = {}
-    out: list[dict] = []
+    buckets: dict[str, list[NewsItem]] = {}
+    out: list[NewsItem] = []
     for item in items:
-        title = item.get("title", "")
+        title = item.title
         key = canonical_title(title)
         if not key:
             out.append(item)
@@ -242,7 +265,7 @@ def dedupe_by_title(items: list, threshold: float = 0.85, bucket_chars: int = 12
         if key in seen_keys:
             continue
         bucket = buckets.setdefault(key[:bucket_chars], [])
-        if any(title_similar(title, kept.get("title", ""), threshold) for kept in bucket):
+        if any(title_similar(title, kept.title, threshold) for kept in bucket):
             continue
         seen_keys.add(key)
         bucket.append(item)
@@ -266,18 +289,18 @@ def clean_title(title: str) -> str:
     return title
 
 
-def normalize_urls(items: list) -> list:
+def normalize_urls(items: list[NewsItem]) -> list[NewsItem]:
     """Normaliza URLs de todos los items in-place.
 
     Args:
-        items: Lista de diccionarios con clave 'link'.
+        items: Lista de NewsItem.
 
     Returns:
-        list: La misma lista con URLs normalizadas vía clean_url.
+        list[NewsItem]: La misma lista con URLs normalizadas vía clean_url.
     """
     for item in items:
-        if item.get("link"):
-            item["link"] = clean_url(item["link"])
+        if item.link:
+            item.link = clean_url(item.link)
     return items
 
 
@@ -338,13 +361,12 @@ def fetch_google_news(
         rumor_keywords: Palabras que indican rumor.
 
     Returns:
-        list: Lista de diccionarios con title, link, source, oficial,
-        confiable, rumor, origin y category. En caso de error, retorna
+        list[NewsItem]: Lista de NewsItem. En caso de error, retorna
         un solo item con mensaje de error.
     """
     import feedparser
 
-    items = []
+    items: list[NewsItem] = []
     try:
         url = build_google_news_url(query)
         feed = feedparser.parse(url)
@@ -374,36 +396,30 @@ def fetch_google_news(
             rumor = smells_like_rumor(title, rumor_keywords)
 
             items.append(
-                {
-                    "title": title,
-                    "link": link,
-                    "source": source,
-                    "oficial": oficial,
-                    "confiable": confiable,
-                    "rumor": rumor,
-                    "origin": "google-news",
-                    "category": category,
-                    "published": parse_published(
+                NewsItem(
+                    title=title,
+                    link=link,
+                    source=source,
+                    oficial=oficial,
+                    confiable=confiable,
+                    rumor=rumor,
+                    origin="google-news",
+                    category=category,
+                    published=parse_published(
                         entry.get("published_parsed")
                         or entry.get("published")
                         or entry.get("updated")
                     ),
-                }
+                )
             )
         return items
     except Exception as e:
         return [
-            {
-                "title": f"[Error Google News ({category}): {str(e)[:80]}]",
-                "link": "",
-                "source": "",
-                "oficial": False,
-                "confiable": False,
-                "rumor": False,
-                "origin": "google-news",
-                "category": category,
-                "published": None,
-            }
+            NewsItem(
+                title=f"[Error Google News ({category}): {str(e)[:80]}]",
+                origin="google-news",
+                category=category,
+            )
         ]
 
 
@@ -418,7 +434,7 @@ def classify(all_items: list, sitios_oficiales: list, sitios_confiables: list) -
     - Resto (fuente desconocida, título objetivo) → confirmadas.
 
     Args:
-        all_items: Lista de diccionarios con noticias sin clasificar.
+        all_items: Lista de NewsItem sin clasificar.
         sitios_oficiales: Dominios oficiales del equipo.
         sitios_confiables: Dominios de medios establecidos.
 
@@ -429,22 +445,22 @@ def classify(all_items: list, sitios_oficiales: list, sitios_confiables: list) -
     rumores = []
 
     for item in all_items:
-        if item["origin"].startswith("Error"):
+        if item.origin.startswith("Error"):
             # Mensajes de error van a confirmadas para que sean visibles
             confirmadas.append(item)
             continue
 
-        if item["oficial"]:
+        if item.oficial:
             confirmadas.append(item)
             continue
 
         # Si venía de la query de rumores o el título suena a rumor, va a rumores
-        if item["category"] == "rumores" or item["rumor"]:
+        if item.category == "rumores" or item.rumor:
             rumores.append(item)
             continue
 
         # Lo que queda es de la query de confirmadas
-        if item["confiable"]:
+        if item.confiable:
             confirmadas.append(item)
         else:
             # Fuente desconocida pero título objetivo: reportar como confirmada
@@ -453,38 +469,38 @@ def classify(all_items: list, sitios_oficiales: list, sitios_confiables: list) -
     return dedupe(confirmadas), dedupe(rumores)
 
 
-def format_item_line(tag: str, item: dict, link: str) -> str:
+def format_item_line(tag: str, item: NewsItem, link: str) -> str:
     """Formatea una línea de reporte con fecha y autor cuando existen.
 
     Args:
         tag: Emoji/prefijo (ej. '🎽' o '✓').
-        item: Diccionario de noticia (claves 'title', 'source',
-            opcional 'published' datetime y 'author').
-        link: URL ya acortada (puede ser vacía).
+        item: NewsItem (usa 'title', 'source', opcional 'published' datetime
+            y 'author').
+        link: URL del item (puede ser vacía).
 
     Returns:
         str: Línea Markdown para Telegram.
     """
-    title = clean_title(item["title"])
+    title = clean_title(item.title)
     fecha = ""
-    published = item.get("published")
+    published = item.published
     if isinstance(published, datetime):
         pub = published
         if pub.tzinfo is None:
             pub = pub.replace(tzinfo=timezone.utc)
         fecha = f" ({pub.strftime('%Y-%m-%d')})"
-    autor = f" — por {item['author']}" if item.get("author") else ""
-    head = f"- {tag} **{item['source']}**{fecha}: "
+    autor = f" — por {item.author}" if item.author else ""
+    head = f"- {tag} **{item.source}**{fecha}: "
     if link:
         return f"{head}[{title}]({link}){autor}"
     return f"{head}{title}{autor}"
 
 
 def enrich_from_detail(
-    items: list,
+    items: list[NewsItem],
     fetch_detail: Callable[[str], tuple],
     max_details: int = 12,
-) -> list:
+) -> list[NewsItem]:
     """Completa autor y confirma fecha visitando el artículo.
 
     Genérico sobre fetch_detail para no duplicar el loop por equipo.
@@ -498,14 +514,14 @@ def enrich_from_detail(
         list: Los mismos items con 'author' y 'published' confirmados in-place.
     """
     for item in items[:max_details]:
-        link = item.get("link")
+        link = item.link
         if not link:
             continue
         published, author = fetch_detail(link)
         if published is not None:
-            item["published"] = published
-        if author and not item.get("author"):
-            item["author"] = author
+            item.published = published
+        if author and not item.author:
+            item.author = author
     return items
 
 

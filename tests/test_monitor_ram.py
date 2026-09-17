@@ -17,6 +17,7 @@ spec.loader.exec_module(mod)
 limpiar_precio = mod.limpiar_precio
 extraer_precio_amazon = mod.extraer_precio_amazon
 calcular_comparativa = mod.calcular_comparativa
+RamResult = mod.RamResult
 
 # ═══════════════════════════════════════════
 # limpiar_precio
@@ -102,81 +103,81 @@ class TestExtraerPrecioAmazon:
 class TestCalcularComparativa:
     def test_solo_individuales(self):
         resultados = [
-            {
-                "id": "a",
-                "tienda": "Amazon",
-                "name": "RAM 16GB",
-                "type": "individual",
-                "precio": 600.0,
-                "shipping": 0.0,
-            },
-            {
-                "id": "b",
-                "tienda": "Cyber",
-                "name": "RAM 16GB",
-                "type": "individual",
-                "precio": 550.0,
-                "shipping": 133.0,
-            },
+            RamResult(
+                id="a",
+                tienda="Amazon",
+                name="RAM 16GB",
+                type="individual",
+                precio=600.0,
+                shipping=0.0,
+            ),
+            RamResult(
+                id="b",
+                tienda="Cyber",
+                name="RAM 16GB",
+                type="individual",
+                precio=550.0,
+                shipping=133.0,
+            ),
         ]
         comp = calcular_comparativa(resultados)
-        assert comp["recomendado"]["id"] == "a"
-        assert comp["precio_final_recomendacion"] == 1200.0  # 600*2
-        assert comp["ahorro"] == 0.0
+        assert comp.recomendado.id == "a"
+        assert comp.precio_final_recomendacion == 1200.0  # 600*2
+        assert comp.ahorro == 0.0
 
     def test_combo_vs_individuales(self):
         resultados = [
-            {
-                "id": "indiv",
-                "tienda": "Amazon",
-                "name": "RAM 16GB",
-                "type": "individual",
-                "precio": 700.0,
-                "shipping": 0.0,
-            },
-            {
-                "id": "combo",
-                "tienda": "Amazon",
-                "name": "RAM 32GB Kit",
-                "type": "combo",
-                "precio": 1200.0,
-                "shipping": 0.0,
-            },
+            RamResult(
+                id="indiv",
+                tienda="Amazon",
+                name="RAM 16GB",
+                type="individual",
+                precio=700.0,
+                shipping=0.0,
+            ),
+            RamResult(
+                id="combo",
+                tienda="Amazon",
+                name="RAM 32GB Kit",
+                type="combo",
+                precio=1200.0,
+                shipping=0.0,
+            ),
         ]
         comp = calcular_comparativa(resultados)
-        assert comp["recomendado"]["id"] == "combo"
-        assert comp["precio_final_recomendacion"] == 1200.0
-        assert comp["ahorro"] == 200.0  # 1400 - 1200
+        assert comp.recomendado.id == "combo"
+        assert comp.precio_final_recomendacion == 1200.0
+        assert comp.ahorro == 200.0  # 1400 - 1200
 
     def test_sin_precios(self):
         resultados = [
-            {
-                "id": "a",
-                "tienda": "Amazon",
-                "name": "RAM",
-                "type": "individual",
-                "precio": None,
-                "shipping": 0.0,
-            },
+            RamResult(
+                id="a",
+                tienda="Amazon",
+                name="RAM",
+                type="individual",
+                precio=None,
+                shipping=0.0,
+            ),
         ]
         comp = calcular_comparativa(resultados)
-        assert comp["recomendado"] is None
-        assert comp["precio_final_recomendacion"] == 0
+        assert comp.recomendado is None
+        assert comp.precio_final_recomendacion == 0
 
     def test_cyberpuerta_con_shipping(self):
         """Costo total incluye shipping."""
         resultados = [
-            {
-                "id": "cyb",
-                "tienda": "Cyberpuerta",
-                "name": "RAM 16GB",
-                "type": "individual",
-                "precio": 600.0,
-                "shipping": 133.0,
-            },
+            RamResult(
+                id="cyb",
+                tienda="Cyberpuerta",
+                name="RAM 16GB",
+                type="individual",
+                precio=600.0,
+                shipping=133.0,
+            ),
         ]
         comp = calcular_comparativa(resultados)
-        assert comp["precio_final_recomendacion"] == 1333.0  # (600*2) + 133
+        assert comp.precio_final_recomendacion == 1333.0  # (600*2) + 133
 
 
 # ═══════════════════════════════════════════

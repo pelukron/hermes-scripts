@@ -6,10 +6,23 @@ Output: Markdown. $0 tokens. API pública sin auth.
 
 import json
 import logging
+from dataclasses import dataclass
+from typing import Optional
 
 from hermes_common import retry_request, setup_logging
 
 log = logging.getLogger("hermes")
+
+
+@dataclass
+class MarketEntry:
+    """Mercado clasificado para el reporte (issue #73)."""
+
+    title: str = "?"
+    question: str = "?"
+    prob: Optional[float] = None
+    vol: str = "—"
+
 
 API = "https://gamma-api.polymarket.com"
 
@@ -189,21 +202,21 @@ def main():
             leader, prob = best_market(ev.get("markets"))
             if leader and prob and 5.0 <= prob <= 95.0:
                 cats[cat].append(
-                    {
-                        "title": (ev.get("title") or "?")[:50],
-                        "question": (leader.get("question") or "?")[:55],
-                        "prob": prob,
-                        "vol": fmt_vol(ev.get("volume", 0)),
-                    }
+                    MarketEntry(
+                        title=(ev.get("title") or "?")[:50],
+                        question=(leader.get("question") or "?")[:55],
+                        prob=prob,
+                        vol=fmt_vol(ev.get("volume", 0)),
+                    )
                 )
 
     # Geopolítica
     if cats["geopolitica"]:
         log.info("🌍 GEOPOLÍTICA")
         for item in cats["geopolitica"]:
-            log.info(f"- **{item['title']}**")
-            log.info(f"  🔮 {item['question']} → **{item['prob']}%**")
-            log.info(f"  📊 Vol: {item['vol']}")
+            log.info(f"- **{item.title}**")
+            log.info(f"  🔮 {item.question} → **{item.prob}%**")
+            log.info(f"  📊 Vol: {item.vol}")
         log.info("")
 
     # Elecciones
@@ -212,7 +225,7 @@ def main():
         log.info("| Candidato | Prob | Vol |")
         log.info("|-----------|------|-----|")
         for item in cats["elecciones"]:
-            log.info(f"| {item['question']} | {item['prob']}% | {item['vol']} |")
+            log.info(f"| {item.question} | {item.prob}% | {item.vol} |")
         log.info("")
 
     # Deportes
@@ -221,7 +234,7 @@ def main():
         log.info("| Evento | Top | Prob | Vol |")
         log.info("|--------|-----|------|-----|")
         for item in cats["deportes"]:
-            log.info(f"| {item['title']} | {item['question']} | {item['prob']}% | {item['vol']} |")
+            log.info(f"| {item.title} | {item.question} | {item.prob}% | {item.vol} |")
         log.info("")
 
     total = sum(float(ev.get("volume", 0) or 0) for ev in events[:10])

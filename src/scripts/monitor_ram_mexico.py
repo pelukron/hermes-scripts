@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import time
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -21,46 +22,81 @@ COSTO_ENVIO_CYBERPUERTA = 133.00
 
 HISTORICO_PATH = os.path.expanduser("~/.hermes/ram-mexico-history.json")
 
+
+@dataclass
+class RamProduct:
+    """Producto monitoreado (issue #73)."""
+
+    id: str
+    tienda: str
+    name: str
+    type: str
+    url: str = ""
+    sku: str = ""
+    shipping: float = 0.0
+
+
+@dataclass
+class RamResult(RamProduct):
+    """Producto + precio detectado y costos calculados in-place."""
+
+    precio: Optional[float] = None
+    precio_final: Optional[float] = None
+    costo_32gb: Optional[float] = None
+
+
+@dataclass
+class RamSummary:
+    """Comparativa para 32 GB."""
+
+    recomendado: Optional[RamResult] = None
+    precio_final_recomendacion: float = 0
+    recomendacion_texto: str = "No disponible"
+    mejor_combo: Optional[RamResult] = None
+    costo_dos_individuales: Optional[float] = None
+    ahorro: float = 0.0
+
+
 AMAZON_HEADERS = get_headers("amazon")
 CYBER_HEADERS = get_headers("cyberpuerta")
 
 PRODUCTOS = [
-    {
-        "id": "amazon_fury_16gb",
-        "tienda": "Amazon México",
-        "name": "Kingston Fury Impact 16 GB 3200 MHz SODIMM",
-        "type": "individual",
-        "url": "https://www.amazon.com.mx/dp/B097QLN123",
-        "sku": "B097QLN123",
-        "shipping": 0.0,
-    },
-    {
-        "id": "amazon_fury_2x16_kit",
-        "tienda": "Amazon México",
-        "name": "Kingston Fury Impact 32 GB Kit (2×16 GB) 3200 MHz SODIMM",
-        "type": "combo",
-        "url": "https://www.amazon.com.mx/dp/B097QJ25NY",
-        "sku": "B097QJ25NY",
-        "shipping": 0.0,
-    },
-    {
-        "id": "cyberpuerta_fury_16gb",
-        "tienda": "Cyberpuerta",
-        "name": "Kingston Fury Impact 16 GB 3200 MHz SODIMM",
-        "type": "individual",
-        "url": "https://www.cyberpuerta.mx/Computo-Hardware/Memorias-RAM-y-Flash/Memorias-RAM-para-Laptop/Memoria-RAM-para-Laptop-Kingston-FURY-Impact-DDR4-3200MHz-16GB-Non-ECC-CL20-260-pin-SO-DIMM-XMP.html",
-        "sku": "KF432S20IB/16",
-        "shipping": COSTO_ENVIO_CYBERPUERTA,
-    },
-    {
-        "id": "cyberpuerta_fury_2x16_kit",
-        "tienda": "Cyberpuerta",
-        "name": "Kingston Fury Impact 32 GB Kit (2×16 GB) 3200 MHz SODIMM",
-        "type": "combo",
-        "url": "https://www.cyberpuerta.mx/Computo-Hardware/Memorias-RAM-y-Flash/Memorias-RAM-para-Laptop/Kit-Memoria-RAM-Kingston-FURY-Impact-DDR4-3200MHz-32GB-2-x-16GB-CL20-SO-DIMM-XMP.html",
-        "sku": "KF432S20IBK2/32",
-        "shipping": COSTO_ENVIO_CYBERPUERTA,
-    },
+    RamProduct(
+        id="amazon_fury_16gb",
+        tienda="Amazon México",
+        name="Kingston Fury Impact 16 GB 3200 MHz SODIMM",
+        type="individual",
+        url="https://www.amazon.com.mx/dp/B097QLN123",
+        sku="B097QLN123",
+        shipping=0.0,
+    ),
+    RamProduct(
+        id="amazon_fury_2x16_kit",
+        tienda="Amazon México",
+        name="Kingston Fury Impact 32 GB Kit (2×16 GB) 3200 MHz SODIMM",
+        type="combo",
+        url="https://www.amazon.com.mx/dp/B097QJ25NY",
+        sku="B097QJ25NY",
+        shipping=0.0,
+    ),
+    RamProduct(
+        id="cyberpuerta_fury_16gb",
+        tienda="Cyberpuerta",
+        name="Kingston Fury Impact 16 GB 3200 MHz SODIMM",
+        type="individual",
+        url="https://www.cyberpuerta.mx/Computo-Hardware/Memorias-RAM-y-Flash/Memorias-RAM-para-Laptop/Memoria-RAM-para-Laptop-Kingston-FURY-Impact-DDR4-320MHz-16GB-Non-ECC-CL20-260-pin-SO-DIMM-XMP.html",
+        sku="KF432S20IB/16",
+        shipping=COSTO_ENVIO_CYBERPUERTA,
+    ),
+    RamProduct(
+        id="cyberpuerta_fury_2x16_kit",
+        tienda="Cyberpuerta",
+        name="Kingston Fury Impact 32 GB Kit (2×16 GB) 3200 MHz SODIMM",
+        type="combo",
+        url="https://www.cyberpuerta.mx/Computo-Hardware/Memorias-RAM-y-Flash/Memorias-RAM-para-Laptop/Kit-Memoria-RAM-Kingston-FURY-Impact-DDR4-320MHz-32GB-2-x-16GB-CL20-SO-DIMM-XMP.html",
+        sku="KF432S20IBK2/32",
+        shipping=COSTO_ENVIO_CYBERPUERTA,
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -196,11 +232,11 @@ def precio_cyberpuerta(url: str) -> Optional[float]:
         return None
 
 
-def precio_amazon(producto: Dict[str, Any]) -> Optional[float]:
+def precio_amazon(producto: RamProduct) -> Optional[float]:
     """Obtiene precio de producto en Amazon México vía scraping HTML.
 
     Args:
-        producto (Dict[str, Any]): Diccionario con clave 'url'.
+        producto (RamProduct): Producto con 'url'.
 
     Returns:
         Optional[float]: Precio detectado, o None si falla/timeout.
@@ -208,7 +244,7 @@ def precio_amazon(producto: Dict[str, Any]) -> Optional[float]:
     """
     try:
         r = retry_request(
-            producto["url"],
+            producto.url,
             timeout=5,
         )
         if r.status_code == 200:
@@ -220,81 +256,76 @@ def precio_amazon(producto: Dict[str, Any]) -> Optional[float]:
         return None
 
 
-def obtener_precio(producto: Dict[str, Any]) -> Optional[float]:
+def obtener_precio(producto: RamProduct) -> Optional[float]:
     """Despacha a scraper correcto según tienda del producto.
 
     Args:
-        producto (Dict[str, Any]): Diccionario con claves 'tienda' y 'url'.
+        producto (RamProduct): Producto con 'tienda' y 'url'.
 
     Returns:
         Optional[float]: Precio detectado, o None.
 
     """
-    if producto["tienda"] == "Amazon México":
+    if producto.tienda == "Amazon México":
         return precio_amazon(producto)
-    if producto["tienda"] == "Cyberpuerta":
-        return precio_cyberpuerta(producto["url"])
+    if producto.tienda == "Cyberpuerta":
+        return precio_cyberpuerta(producto.url)
     return None
 
 
-def calcular_comparativa(resultados: List[Dict[str, Any]]) -> Dict[str, Any]:
+def calcular_comparativa(resultados: List[RamResult]) -> RamSummary:
     """Calcula mejor opción para 32 GB comparando combos vs 2 individuales.
 
     Args:
-        resultados (List[Dict[str, Any]]): Lista de productos con precios.
+        resultados (List[RamResult]): Lista de productos con precios.
 
     Returns:
-        Dict con claves: recomendado, precio_final_recomendacion,
-        recomendacion_texto, mejor_combo, costo_dos_individuales, ahorro.
+        RamSummary: Recomendación y costos comparados.
 
     """
     for r in resultados:
-        if r["precio"] is not None:
-            if r["type"] == "individual":
-                r["costo_32gb"] = (r["precio"] * 2) + r["shipping"]
+        if r.precio is not None:
+            if r.type == "individual":
+                r.costo_32gb = (r.precio * 2) + r.shipping
             else:
-                r["costo_32gb"] = r["precio"] + r["shipping"]
-            r["precio_final"] = r["precio"] + r["shipping"]
+                r.costo_32gb = r.precio + r.shipping
+            r.precio_final = r.precio + r.shipping
         else:
-            r["costo_32gb"] = None
-            r["precio_final"] = None
+            r.costo_32gb = None
+            r.precio_final = None
 
-    opciones = [r for r in resultados if r["costo_32gb"] is not None]
+    opciones = [r for r in resultados if r.costo_32gb is not None]
     if not opciones:
-        return {
-            "recomendado": None,
-            "precio_final_recomendacion": 0,
-            "recomendacion_texto": "No disponible",
-            "mejor_combo": None,
-            "costo_dos_individuales": None,
-        }
+        return RamSummary()
 
-    recomendado = min(opciones, key=lambda x: x["costo_32gb"])
+    recomendado = min(opciones, key=lambda x: x.costo_32gb or 0)
 
-    indivs = [r for r in opciones if r["type"] == "individual"]
-    mejor_indiv = min(indivs, key=lambda x: x["costo_32gb"]) if indivs else None
-    costo_2_indivs = mejor_indiv["costo_32gb"] if mejor_indiv else None
+    indivs = [r for r in opciones if r.type == "individual"]
+    mejor_indiv = min(indivs, key=lambda x: x.costo_32gb or 0) if indivs else None
+    costo_2_indivs = mejor_indiv.costo_32gb if mejor_indiv else None
 
-    combos = [r for r in opciones if r["type"] == "combo"]
-    mejor_combo = min(combos, key=lambda x: x["costo_32gb"]) if combos else None
+    combos = [r for r in opciones if r.type == "combo"]
+    mejor_combo = min(combos, key=lambda x: x.costo_32gb or 0) if combos else None
 
-    if recomendado["type"] == "combo":
-        name_trunc = smart_truncate(recomendado["name"], 25)
-        texto_rec = f"{name_trunc} ({recomendado['tienda']})"
-        ahorro = (costo_2_indivs - recomendado["costo_32gb"]) if costo_2_indivs else 0.0
+    # costo_32gb es non-None en opciones; el `or 0.0` es guarda de tipado.
+    rec_costo = recomendado.costo_32gb or 0.0
+    if recomendado.type == "combo":
+        name_trunc = smart_truncate(recomendado.name, 25)
+        texto_rec = f"{name_trunc} ({recomendado.tienda})"
+        ahorro = (costo_2_indivs - rec_costo) if costo_2_indivs else 0.0
     else:
-        name_trunc = smart_truncate(recomendado["name"], 25)
-        texto_rec = f"2 × {name_trunc} ({recomendado['tienda']})"
+        name_trunc = smart_truncate(recomendado.name, 25)
+        texto_rec = f"2 × {name_trunc} ({recomendado.tienda})"
         ahorro = 0.0
 
-    return {
-        "recomendado": recomendado,
-        "precio_final_recomendacion": recomendado["costo_32gb"],
-        "recomendacion_texto": texto_rec,
-        "mejor_combo": mejor_combo,
-        "costo_dos_individuales": costo_2_indivs,
-        "ahorro": ahorro,
-    }
+    return RamSummary(
+        recomendado=recomendado,
+        precio_final_recomendacion=rec_costo,
+        recomendacion_texto=texto_rec,
+        mejor_combo=mejor_combo,
+        costo_dos_individuales=costo_2_indivs,
+        ahorro=ahorro,
+    )
 
 
 def main():
@@ -322,7 +353,7 @@ def main():
     for prod in PRODUCTOS:
         precio_actual = obtener_precio(prod)
         if precio_actual:
-            prod_id = prod["id"]
+            prod_id = prod.id
             stats = historial.get(prod_id, {})
 
             # Migración/Inicialización: si stats es float (formato viejo)
@@ -343,8 +374,8 @@ def main():
                     hay_oferta_nueva = True
                     ahorro_vs_hist = precio_min_previo - precio_actual
                     detalles_alerta.append(
-                        f"🔥 **NUEVO MÍNIMO HISTÓRICO** en {prod['tienda']}\\n"
-                        f"📦 {prod['name']}\\n"
+                        f"🔥 **NUEVO MÍNIMO HISTÓRICO** en {prod.tienda}\\n"
+                        f"📦 {prod.name}\\n"
                         "💰 Precio: **${:,.2f}** (Bajó ${:,.2f} del mínimo)".format(
                             precio_actual, ahorro_vs_hist
                         )
@@ -362,8 +393,8 @@ def main():
                     ahorro_vs_last = precio_last_previo - precio_actual
                     porcentaje_caida = (ahorro_vs_last / precio_last_previo) * 100
                     detalles_alerta.append(
-                        f"⚡ **BAJADA REPENTINA ({porcentaje_caida:.1f}%)** en {prod['tienda']}\n"
-                        f"📦 {prod['name']}\n"
+                        f"⚡ **BAJADA REPENTINA ({porcentaje_caida:.1f}%)** en {prod.tienda}\n"
+                        f"📦 {prod.name}\n"
                         f"💰 Precio: **${precio_actual:,.2f}** (Antes: ${precio_last_previo:,.2f})"
                     )
                     stats["ultimo_alerta"] = ahora
@@ -375,7 +406,7 @@ def main():
             stats["last"] = precio_actual
             historial[prod_id] = stats
 
-        resultados.append({**prod, "precio": precio_actual})
+        resultados.append(RamResult(**asdict(prod), precio=precio_actual))
         time.sleep(1)
 
     guardar_historial(historial)
@@ -390,7 +421,7 @@ def main():
             log.info(detalle)
         log.info("\n" + "─" * 20 + "\n")
 
-    if not comp["recomendado"]:
+    if not comp.recomendado:
         if args.force or es_hora_resumen:
             log.info(f"🛒 RAM Monitor - {ahora_str}\nStatus: Sin stock/precios detectados.")
         return
@@ -399,7 +430,7 @@ def main():
     log.info(f"🛒 RAM Monitor - {ahora_str}")
     log.info(
         "💰 Mejor: **{}** - **${:,.2f}**".format(
-            comp["recomendacion_texto"], comp["precio_final_recomendacion"]
+            comp.recomendacion_texto, comp.precio_final_recomendacion
         )
     )
 
@@ -409,19 +440,19 @@ def main():
     tienda_map = {"Amazon México": "Amazon", "Cyberpuerta": "Cyber"}
 
     for r in resultados:
-        tienda = tienda_map.get(r["tienda"], r["tienda"])
-        nombre_simple = smart_truncate(r["name"], 30)
-        unit = f"${r['precio_final']:,.0f}" if r["precio_final"] else "N/A"
-        total = f"${r['costo_32gb']:,.0f}" if r["costo_32gb"] else "N/A"
-        marker = "✅ " if r["costo_32gb"] == comp["precio_final_recomendacion"] else "  "
+        tienda = tienda_map.get(r.tienda, r.tienda)
+        nombre_simple = smart_truncate(r.name, 30)
+        unit = f"${r.precio_final:,.0f}" if r.precio_final else "N/A"
+        total = f"${r.costo_32gb:,.0f}" if r.costo_32gb else "N/A"
+        marker = "✅ " if r.costo_32gb == comp.precio_final_recomendacion else "  "
         log.info(f"| {marker}{tienda:<6} | {nombre_simple} | {unit:>6} | {total:>6} |")
 
     log.info("\n🔗 **Comprar (haz clic en la tienda):**")
     for r in resultados:
-        if r["precio"]:
-            nombre_corto = smart_truncate(r["name"], 15)
-            tienda = tienda_map.get(r["tienda"], r["tienda"])
-            log.info(f"- [🛒 {tienda} - {nombre_corto} (${r['precio']:,.0f})]({r['url']})")
+        if r.precio:
+            nombre_corto = smart_truncate(r.name, 15)
+            tienda = tienda_map.get(r.tienda, r.tienda)
+            log.info(f"- [🛒 {tienda} - {nombre_corto} (${r.precio:,.0f})]({r.url})")
 
 
 if __name__ == "__main__":
