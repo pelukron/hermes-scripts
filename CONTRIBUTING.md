@@ -143,9 +143,11 @@ Al mergear un PR a main, `python-semantic-release`:
    con bump comenta `✅ Released in vX.Y.Z`; sin bump (`docs/refactor/ci/test`,
    semver puro: no bumpean) comenta `✅ Merged en main <sha> sin release`.
    CI solo deja ese comment canónico; `.hermes/EPICS_TRACKING.md` + checklist
-   del epic se sincronizan en local. Requiere bypass del ruleset para
-   `github-actions[bot]` (push del bump + tag + `uv.lock`); sin bypass PSR
-   falla con `GH013`.
+   del epic se sincronizan en local. El push del bump + tag + `uv.lock` usa el
+   secret `PSR_TOKEN` (PAT classic de `@pelukron` con scope `repo`, bypass
+   always en el ruleset); `GITHUB_TOKEN` no puede pushear a `main` protegida
+   (`GH013`) ni eximirse en repos personales, y sin `PSR_TOKEN` el job falla
+   en fail-fast.
 
 `CHANGELOG.md` lo escribe PSR al mergear (no tocarlo en PRs: CI lo exige
 intacto); las notas también viven en cada Release.

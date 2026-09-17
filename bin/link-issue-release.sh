@@ -35,7 +35,7 @@ fi
 ISSUES="$(git log --pretty=%B "$RANGE" 2>/dev/null | grep -oiE '(close[sd]?|closing|fix(es|ed|ing)?|resolve[sd]?|resolving) +#[0-9]+' | grep -oE '[0-9]+' | sort -u || true)"
 
 # 2. Fallback: merge-commits "Merge pull request #PR" -> body del PR -> Closes #N.
-MERGE_PRS="$(git log --pretty=%s "$RANGE" 2>/dev/null | grep -oP 'Merge pull request #\K[0-9]+' | sort -u || true)"
+MERGE_PRS="$(git log --pretty=%s "$RANGE" 2>/dev/null | grep -oE 'Merge pull request #[0-9]+' | grep -oE '[0-9]+' | sort -u || true)"
 if [[ -n "$MERGE_PRS" ]]; then
     while IFS= read -r pr; do
         [[ -z "$pr" ]] && continue
