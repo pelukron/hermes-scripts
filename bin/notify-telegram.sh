@@ -31,6 +31,9 @@ RESPUESTA=$(curl -s -X POST \
 # comprobacion el aviso se pierde en silencio y el paso queda verde.
 case "${RESPUESTA}" in
   *'"ok":true'*)
+    # Deja rastro en el log del CI de que el aviso salio de verdad (message_id).
+    ID=$(printf '%s' "${RESPUESTA}" | grep -o '"message_id":[0-9]*' | head -1 | cut -d: -f2)
+    echo "telegram: aviso entregado (message_id=${ID:-desconocido})"
     exit 0
     ;;
   *)
