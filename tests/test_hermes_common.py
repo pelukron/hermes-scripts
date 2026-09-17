@@ -18,6 +18,7 @@ from hermes_common import (
     is_within_max_age,
     parse_published,
     retry_request,
+    setup_logging,
 )
 
 URL = "https://example.com/test"
@@ -326,3 +327,33 @@ class TestGetRepoVersion:
         assert run("commit", "-m", "t").returncode == 0
         assert run("tag", "v9.9.9").returncode == 0
         assert get_repo_version(tmp_path) == "v9.9.9"
+
+
+class TestSetupLogging:
+    def test_default_info_y_stdout(self, capsys):
+        import logging
+
+        log = setup_logging()
+        assert log.level == logging.INFO
+        log.info("hola")
+        out = capsys.readouterr().out
+        assert out == "hola\n"
+
+    def test_nivel_por_env(self, monkeypatch):
+        import logging
+
+        monkeypatch.setenv("HERMES_LOG_LEVEL", "debug")
+        assert setup_logging().level == logging.DEBUG
+
+    def test_nivel_invalido_cae_a_info(self, monkeypatch):
+        import logging
+
+        monkeypatch.setenv("HERMES_LOG_LEVEL", "no-existe")
+        assert setup_logging().level == logging.INFO
+
+    def test_sin_handlers_duplicados(self):
+        import logging
+
+        setup_logging()
+        setup_logging()
+        assert len(logging.getLogger("hermes").handlers) == 1

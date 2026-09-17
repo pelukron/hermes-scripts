@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import logging
 import os
 import re
 import time
@@ -9,7 +10,9 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from hermes_common import get_headers, retry_request, smart_truncate
+from hermes_common import get_headers, retry_request, setup_logging, smart_truncate
+
+log = logging.getLogger("hermes")
 
 # ------------------------------- CONFIGURACIÓN -------------------------------
 UMBRAL_ALERTA_PORCENTAJE = 5.0  # Alerta si baja más del 5% del precio mínimo histórico
@@ -303,6 +306,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="Forzar salida del reporte")
     args = parser.parse_args()
+    setup_logging()
 
     ahora_dt = datetime.now()
     ahora_str = ahora_dt.strftime("%Y-%m-%d %H:%M")
@@ -381,26 +385,26 @@ def main():
         return
 
     if hay_oferta_nueva:
-        print("🚨 **¡ALERTA DE OFERTA RELÁMPAGO!** 🚨")
+        log.info("🚨 **¡ALERTA DE OFERTA RELÁMPAGO!** 🚨")
         for detalle in detalles_alerta:
-            print(detalle)
-        print("\n" + "─" * 20 + "\n")
+            log.info(detalle)
+        log.info("\n" + "─" * 20 + "\n")
 
     if not comp["recomendado"]:
         if args.force or es_hora_resumen:
-            print(f"🛒 RAM Monitor - {ahora_str}\nStatus: Sin stock/precios detectados.")
+            log.info(f"🛒 RAM Monitor - {ahora_str}\nStatus: Sin stock/precios detectados.")
         return
 
     # Output report
-    print(f"🛒 RAM Monitor - {ahora_str}")
-    print(
+    log.info(f"🛒 RAM Monitor - {ahora_str}")
+    log.info(
         "💰 Mejor: **{}** - **${:,.2f}**".format(
             comp["recomendacion_texto"], comp["precio_final_recomendacion"]
         )
     )
 
-    print("\n| Tienda | Producto | Unit | Total |")
-    print("|---|---|---:|---:|")
+    log.info("\n| Tienda | Producto | Unit | Total |")
+    log.info("|---|---|---:|---:|")
 
     tienda_map = {"Amazon México": "Amazon", "Cyberpuerta": "Cyber"}
 
@@ -410,14 +414,14 @@ def main():
         unit = f"${r['precio_final']:,.0f}" if r["precio_final"] else "N/A"
         total = f"${r['costo_32gb']:,.0f}" if r["costo_32gb"] else "N/A"
         marker = "✅ " if r["costo_32gb"] == comp["precio_final_recomendacion"] else "  "
-        print(f"| {marker}{tienda:<6} | {nombre_simple} | {unit:>6} | {total:>6} |")
+        log.info(f"| {marker}{tienda:<6} | {nombre_simple} | {unit:>6} | {total:>6} |")
 
-    print("\n🔗 **Comprar (haz clic en la tienda):**")
+    log.info("\n🔗 **Comprar (haz clic en la tienda):**")
     for r in resultados:
         if r["precio"]:
             nombre_corto = smart_truncate(r["name"], 15)
             tienda = tienda_map.get(r["tienda"], r["tienda"])
-            print(f"- [🛒 {tienda} - {nombre_corto} (${r['precio']:,.0f})]({r['url']})")
+            log.info(f"- [🛒 {tienda} - {nombre_corto} (${r['precio']:,.0f})]({r['url']})")
 
 
 if __name__ == "__main__":

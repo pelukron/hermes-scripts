@@ -2,10 +2,13 @@
 """Cleanup housekeeping: backups, caches, stores, old news. Keep 3 newest backups, news >4d."""
 
 import json
+import logging
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+from hermes_common import setup_logging
 
 HOME = Path.home()
 BACKUP_DIR = HOME / ".hermes" / "backup" / "daily"
@@ -17,8 +20,8 @@ NEWS_FILES = [
 NEWS_MAX_AGE_DAYS = 4
 
 
-def log(msg: str):
-    print(f"[cleanup] {msg}")
+def log(msg: str, level: int = logging.INFO):
+    logging.getLogger("hermes").log(level, f"[cleanup] {msg}")
 
 
 def clean_backups():
@@ -59,7 +62,7 @@ def clean_old_news():
             with open(nf, "r") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
-            log(f"news file error ({nf.name}): {e}")
+            log(f"news file error ({nf.name}): {e}", logging.WARNING)
             continue
 
         if not isinstance(data, dict):
@@ -77,7 +80,7 @@ def clean_old_news():
                     json.dump(data, f, indent=2)
                 log(f"{nf.name}: purged {purged} old entries ({before}→{len(data)})")
             except OSError as e:
-                log(f"news file write error ({nf.name}): {e}")
+                log(f"news file write error ({nf.name}): {e}", logging.ERROR)
 
     if total_purged == 0:
         log("no old news to purge")
@@ -90,15 +93,16 @@ def run_cmd(cmd: list[str], desc: str):
             log(f"{desc}: ok")
             return True
         else:
-            log(f"{desc}: error (exit {result.returncode})")
-            log(f"  stderr: {result.stderr.strip()[:200]}")
+            log(f"{desc}: error (exit {result.returncode})", logging.WARNING)
+            log(f"  stderr: {result.stderr.strip()[:200]}", logging.WARNING)
             return False
     except Exception as e:
-        log(f"{desc}: exception: {e}")
+        log(f"{desc}: exception: {e}", logging.ERROR)
         return False
 
 
 def main():
+    setup_logging()
     log("=== cleanup start ===")
 
     # 1. Backups
