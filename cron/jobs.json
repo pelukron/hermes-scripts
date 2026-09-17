@@ -110,6 +110,14 @@
       "deliver": "origin"
     },
     {
+      "name": "cron-doctor-check",
+      "description": "Salud semanal de la flota Hermes (hermes cron doctor; sin hallazgos no entrega nada)",
+      "schedule": "0 10 * * 2",
+      "wrapper": "cron-doctor.sh",
+      "command": "uv run python src/install_cron.py --doctor",
+      "deliver": "origin"
+    },
+    {
       "name": "Hermes weekly update + backup",
       "description": "Update semanal de Hermes Agent con backup previo",
       "schedule": "0 4 * * 0",

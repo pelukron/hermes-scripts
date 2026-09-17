@@ -491,20 +491,59 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="reemplaza wrappers existentes que no fueron generados por este instalador",
     )
+    parser.add_argument(
+        "--doctor",
+        action="store_true",
+        help="salud de la flota Hermes (hermes cron doctor); silencio si todo OK",
+    )
     return parser
+
+
+def _fix_windows_stdout():
+    """UTF-8 en consolas Windows (cp1252). Nunca falla."""
+    try:
+        reconfigure = getattr(sys.stdout, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8")
+    except ValueError:
+        pass
+
+
+def _validate_quiet_flag(args) -> str | None:
+    """None si OK, mensaje de error si --quiet sin --check."""
+    if args.quiet and not args.check:
+        return "ERROR: --quiet solo es válido con --check"
+    return None
+
+
+def run_doctor() -> int:
+    """Modo --doctor: salud de la flota. Silencio si todo OK, hallazgos si no."""
+    try:
+        result = subprocess.run(
+            [hermes_cli(), "cron", "doctor"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except (OSError, subprocess.SubprocessError, ManifestError) as exc:
+        print(f"ERROR: hermes no disponible: {exc}", file=sys.stderr)
+        return 2
+    if result.returncode != 0:
+        out = ((result.stdout or "") + (result.stderr or "")).strip()
+        print(out if out else "hermes cron doctor reportó problemas (sin detalle)")
+        return result.returncode or 1
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     """Entrada: valida el manifiesto y ejecuta el modo pedido."""
     args = build_parser().parse_args(argv)
-    try:
-        reconfigure = getattr(sys.stdout, "reconfigure", None)
-        if callable(reconfigure):  # consolas Windows (cp1252)
-            reconfigure(encoding="utf-8")
-    except ValueError:
-        pass
-    if args.quiet and not args.check:
-        print("ERROR: --quiet solo es válido con --check", file=sys.stderr)
+    _fix_windows_stdout()
+    if args.doctor:
+        return run_doctor()
+    err = _validate_quiet_flag(args)
+    if err:
+        print(err, file=sys.stderr)
         return 2
     repo = Path(args.repo).resolve() if args.repo else repo_root()
     hermes_home = (

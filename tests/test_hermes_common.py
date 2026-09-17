@@ -330,6 +330,10 @@ class TestGetRepoVersion:
 
 
 class TestSetupLogging:
+    @pytest.fixture(autouse=True)
+    def _home_aislado(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
+
     def test_default_info_y_stdout(self, capsys):
         import logging
 
@@ -356,4 +360,36 @@ class TestSetupLogging:
 
         setup_logging()
         setup_logging()
+        handlers = logging.getLogger("hermes").handlers
+        assert len(handlers) == 2  # stdout + archivo rotado
+        assert sum(type(h) is logging.StreamHandler for h in handlers) == 1
+
+    def test_archivo_con_timestamp_y_nivel(self, tmp_path, monkeypatch, capsys):
+        home = tmp_path / "hermes"
+        monkeypatch.setenv("HERMES_HOME", str(home))
+        log = setup_logging()
+        log.warning("aviso-x")
+        assert capsys.readouterr().out == "aviso-x\n"  # stdout intacto para entrega
+        contenido = (home / "logs" / "hermes-scripts.log").read_text(encoding="utf-8")
+        assert "WARNING aviso-x" in contenido
+
+    def test_archivo_desactivable(self, tmp_path, monkeypatch):
+        import logging
+
+        home = tmp_path / "hermes"
+        monkeypatch.setenv("HERMES_HOME", str(home))
+        monkeypatch.setenv("HERMES_LOG_FILE", "0")
+        setup_logging()
+        assert len(logging.getLogger("hermes").handlers) == 1
+        assert not (home / "logs").exists()
+
+    def test_disco_falla_no_rompe_stdout(self, tmp_path, monkeypatch, capsys):
+        import logging
+
+        bloqueado = tmp_path / "archivo"
+        bloqueado.write_text("x", encoding="utf-8")
+        monkeypatch.setenv("HERMES_HOME", str(bloqueado))
+        log = setup_logging()
+        log.info("sigue")
+        assert capsys.readouterr().out == "sigue\n"
         assert len(logging.getLogger("hermes").handlers) == 1

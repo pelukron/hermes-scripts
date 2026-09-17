@@ -48,6 +48,7 @@ bin/install-cron.sh
 ```bash
 bin/install-cron.sh --check                      # sin drift = instalado como dice el manifiesto
 uv run python src/install_cron.py --check --quiet  # modo job: vacio si ok, digest si hay drift
+uv run python src/install_cron.py --doctor         # salud de la flota (job semanal cron-doctor-check)
 hermes cron list                                 # jobs activos (los no-agent se ven por jobs.json)
 python3 -c "import json,pathlib; d=json.loads((pathlib.Path.home()/'.hermes/cron/jobs.json').read_text()); [print(j['name'], j.get('script'), j.get('no_agent')) for j in d['jobs']]"
 ```
