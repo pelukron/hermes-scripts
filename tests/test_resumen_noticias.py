@@ -294,3 +294,62 @@ class TestFetchAllRss:
         result = fetch_all_rss(sources, stagger=0)
         assert result[0] == [("ok", "https://ok.example/rss")]
         assert result[1] == []
+
+
+# ═══════════════════════════════════════════
+# Noticiero global (#149): 2-3 items por fuente, tope, dedupe
+# ═══════════════════════════════════════════
+
+
+class TestNoticieroGlobal:
+    def test_constante_items_por_fuente(self):
+        assert mod.ITEMS_POR_FUENTE == 3
+
+    def test_tope_igual_telegram_max(self):
+        from hermes_common import news_utils
+
+        assert mod.MAX_CHARS_POR_SUBSECCION == news_utils.TELEGRAM_MAX_CHARS
+
+    def test_tres_items_por_fuente_top_por_fecha(self):
+        sources = [("Reuters", "https://reuters.example/rss")]
+        fetched = [
+            [
+                ("T1", "https://example.com/1"),
+                ("T2", "https://example.com/2"),
+                ("T3", "https://example.com/3"),
+                ("T4", "https://example.com/4"),
+            ]
+        ]
+        block = mod.build_subsection_block("Subs", sources, fetched, set())
+        assert "T1" in block and "T2" in block and "T3" in block
+        assert "T4" not in block
+
+    def test_tope_por_subseccion(self):
+        sources = [("Reuters", "https://reuters.example/rss")]
+        items = [(f"Título largo {i} " + "x" * 200, f"https://example.com/{i}") for i in range(10)]
+        fetched = [items]
+        with patch.object(mod, "MAX_CHARS_POR_SUBSECCION", 300):
+            block = mod.build_subsection_block("Subs", sources, fetched, set())
+        assert len(block) <= 300
+        assert block.endswith("...")
+
+    def test_dedupe_cross_seccion(self):
+        seen: set = set()
+        sources_a = [("Reuters", "https://reuters.example/rss")]
+        fetched_a = [
+            [("Compartida", "https://example.com/dup"), ("Propia A", "https://example.com/a")]
+        ]
+        block_a = mod.build_subsection_block("Sub A", sources_a, fetched_a, seen)
+        assert "Compartida" in block_a
+
+        sources_b = [("AP", "https://ap.example/rss")]
+        fetched_b = [
+            [("Compartida", "https://example.com/dup"), ("Propia B", "https://example.com/b")]
+        ]
+        block_b = mod.build_subsection_block("Sub B", sources_b, fetched_b, seen)
+        assert "Compartida" not in block_b
+        assert "Propia B" in block_b
+
+    def test_subseccion_sin_contenido_retorna_vacio(self):
+        block = mod.build_subsection_block("Subs", [("X", "https://x.example/rss")], [[]], set())
+        assert block == ""

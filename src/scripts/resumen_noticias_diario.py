@@ -13,15 +13,24 @@ from datetime import datetime
 
 import defusedxml.ElementTree as ET  # noqa: N817
 
-from hermes_common import news_utils, retry_request, setup_logging
+from hermes_common import news_utils, retry_request, setup_logging, smart_truncate
 
 log = logging.getLogger("hermes")
+
+# Noticiero global (#149): 2-3 items por fuente (top por fecha, el orden
+# de fetch_rss ya viene por fecha) con tope por subsección para no
+# reventar el presupuesto Telegram.
+ITEMS_POR_FUENTE = 3
+MAX_CHARS_POR_SUBSECCION = news_utils.TELEGRAM_MAX_CHARS
 
 # Helpers compartidos en src/hermes_common/news_utils.py (issue #70).
 clean_title = news_utils.clean_title
 
 # Re-exports de compatibilidad (tests y otros importadores usan mod.<helper>).
 __all__ = [
+    "ITEMS_POR_FUENTE",
+    "MAX_CHARS_POR_SUBSECCION",
+    "build_subsection_block",
     "clean_title",
     "escape_link",
     "fetch_all_rss",
@@ -194,6 +203,46 @@ def fetch_currencies():
         return []
 
 
+def build_subsection_block(
+    sub_name: str,
+    sources: list,
+    fetched: list,
+    seen_urls: set,
+) -> str:
+    """Arma el bloque Markdown de una subsección.
+
+    Toma hasta ITEMS_POR_FUENTE por fuente (top por fecha), omite URLs
+    ya vistas en el run (dedupe cross-sección) y acota el bloque a
+    MAX_CHARS_POR_SUBSECCION vía smart_truncate.
+
+    Args:
+        sub_name: Nombre de la subsección (cabecera en itálicas).
+        sources: Lista de (nombre, url).
+        fetched: Lista de items por fuente, mismo orden que sources.
+        seen_urls: Set de URLs ya emitidas; se actualiza in-place.
+
+    Returns:
+        str: Bloque Markdown o "" si no hay contenido nuevo.
+    """
+    sub_lines = [f"_{sub_name}_"]
+    has_content = False
+    for (source_name, _url), items in zip(sources, fetched):
+        new_lines = []
+        for title, link in (items or [])[:ITEMS_POR_FUENTE]:
+            clean_link = escape_link(link)
+            if clean_link in seen_urls:
+                continue
+            seen_urls.add(clean_link)
+            new_lines.append(f"  [{clean_title(title)}]({clean_link})")
+        if new_lines:
+            has_content = True
+            sub_lines.append(f"• *{source_name}*")
+            sub_lines.extend(new_lines)
+    if not has_content:
+        return ""
+    return smart_truncate("\n".join(sub_lines), limit=MAX_CHARS_POR_SUBSECCION)
+
+
 def main():
     setup_logging()
     log.info(
@@ -202,33 +251,18 @@ def main():
     time.sleep(0.5)
 
     feeds = load_feeds()
+    seen_urls: set = set()
     for section_name, subsections in feeds:
         section_has_content = False
         section_lines = [f"**{section_name}**"]
 
         for sub_name, sources in subsections:
-            sub_lines = []
-            sub_has_content = False
-
             fetched = fetch_all_rss(sources)
-            for (source_name, url), items in zip(sources, fetched):
-                if not items:
-                    continue
-
-                if not sub_has_content:
-                    sub_lines.append(f"_{sub_name}_")
-                    sub_has_content = True
-                source_lines = [f"• *{source_name}*"]
-                for title, link in items[:1]:  # 1 item por fuente
-                    clean = clean_title(title)
-                    clean_link = escape_link(link)
-                    source_lines.append(f"  [{clean}]({clean_link})")
-                sub_lines.append("\n".join(source_lines))
-                # Sin sleep por fuente: el rate-limit vive en fetch_all_rss (stagger).
-
-            if sub_has_content:
-                section_lines.append("\n".join(sub_lines))
+            block = build_subsection_block(sub_name, sources, fetched, seen_urls)
+            if block:
+                section_lines.append(block)
                 section_has_content = True
+            # Sin sleep por fuente: el rate-limit vive en fetch_all_rss (stagger).
 
         if section_has_content:
             log.info("\n".join(section_lines))
