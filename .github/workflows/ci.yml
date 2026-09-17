@@ -74,18 +74,43 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          STATUS_TEST: ${{ needs.test.result }}
+          STATUS_AUDIT: ${{ needs.audit.result }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REF: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
         run: |
-          STATUS_TEST="${{ needs.test.result }}"
-          STATUS_AUDIT="${{ needs.audit.result }}"
-          if [ "$STATUS_TEST" = "success" ] && [ "$STATUS_AUDIT" = "success" ]; then
-            EMOJI="✅"
-            TEXT="CI pasó: ${{ github.repository }}%0A%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}"
+          NL=$'\n'
+          CHECKS="test=${STATUS_TEST} audit=${STATUS_AUDIT}"
+          # En un PR, "ref" es el ref sintetico (<n>/merge): el numero y el enlace reales
+          # salen del evento. En un push no hay PR y va el mensaje de siempre.
+          if [ "${STATUS_TEST}" = "success" ] && [ "${STATUS_AUDIT}" = "success" ]; then
+            if [ -n "${PR_NUMBER}" ]; then
+              TEXT="✅ PR #${PR_NUMBER} listo para review${NL}${PR_TITLE}${NL}${PR_URL}${NL}CI en verde (${CHECKS})${NL}Commit: ${SHA}"
+            else
+              TEXT="✅ CI paso: ${GITHUB_REPOSITORY}${NL}${NL}Branch: ${REF}${NL}Commit: ${SHA}"
+            fi
+          elif [ -n "${PR_NUMBER}" ]; then
+            TEXT="❌ PR #${PR_NUMBER} fallo el CI (${CHECKS})${NL}${PR_TITLE}${NL}${PR_URL}${NL}Run: ${RUN_URL}${NL}Commit: ${SHA}"
           else
-            EMOJI="❌"
-            TEXT="CI falló: ${{ github.repository }}%0A%0ABranch: ${{ github.ref_name }}%0ACommit: ${{ github.sha }}%0AURL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}%0Atest=${STATUS_TEST} audit=${STATUS_AUDIT}"
+            TEXT="❌ CI fallo: ${GITHUB_REPOSITORY}${NL}${NL}Branch: ${REF}${NL}Commit: ${SHA}${NL}URL: ${RUN_URL}${NL}${CHECKS}"
           fi
-          curl -s -X POST \
+          # Sin parse_mode: el titulo del PR puede traer <, & o comillas y romperia
+          # el parser de HTML de Telegram, justo cuando el aviso importa.
+          RESPONSE=$(curl -s -X POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d "chat_id=${TELEGRAM_CHAT_ID}" \
-            -d "text=${EMOJI} ${TEXT}" \
-            -d "parse_mode=HTML"
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${TEXT}")
+          echo "${RESPONSE}"
+          # curl sale 0 aunque Telegram rechace (401 por token invalido, chat_id mal,
+          # etc.): sin esta comprobacion el aviso se pierde en silencio.
+          case "${RESPONSE}" in
+            *'"ok":true'*) ;;
+            *)
+              echo "::error::Telegram rechazo el aviso: ${RESPONSE}"
+              exit 1
+              ;;
+          esac
