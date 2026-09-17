@@ -10,6 +10,8 @@ Estrategia de validacion (sin dependencias nuevas ni tocar el Hermes real):
 """
 
 import json
+import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -536,6 +538,117 @@ class TestQuiet:
         wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
         result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
+
+
+def no_agent_job(**overrides) -> "ic.Job":
+    """Job no_agent minimo para probar el argv."""
+    base = dict(
+        name="demo",
+        description="demo",
+        schedule="0 9 * * *",
+        mode="no_agent",
+        deliver="origin",
+        enabled=True,
+        wrapper="demo.sh",
+        command="bash bin/demo.sh",
+    )
+    base.update(overrides)
+    return ic.Job(**base)
+
+
+def agent_job(**overrides) -> "ic.Job":
+    """Job de agente con prompt y skills."""
+    return no_agent_job(
+        name="agente",
+        mode="agent",
+        wrapper="",
+        command="",
+        prompt="Haz algo util",
+        skills=["hermes-agent"],
+        model="deepseek-flash",
+        provider="deepseek",
+        **overrides,
+    )
+
+
+class TestArgvContraElCLI:
+    """El argv debe respetar el contrato real de `hermes cron create/edit` (issue #147).
+
+    Verificado contra Hermes v0.21.3:
+    - `create` recibe el schedule (y el prompt) POSICIONALES: no existen --schedule, --prompt ni
+      --agent; el flag de skills es --skill (repetible).
+    - `edit` si acepta --schedule/--prompt/--skill (el manifiesto usa --skill, no --add-skill).
+    """
+
+    def test_create_no_usa_flags_de_schedule_ni_prompt(self):
+        argv = ic.create_args(no_agent_job(), {}, "demo.sh")
+        assert argv[0] == "0 9 * * *"
+        assert "--schedule" not in argv
+        assert "--prompt" not in argv
+        assert "--agent" not in argv
+
+    def test_create_agent_pone_el_prompt_posicional(self):
+        argv = ic.create_args(agent_job(), {}, "demo.sh")
+        assert argv[0] == "0 9 * * *"
+        assert argv[1] == "Haz algo util"
+
+    def test_create_usa_skill_repetible(self):
+        argv = ic.create_args(agent_job(), {}, "demo.sh")
+        assert "--skill" in argv
+        assert "--add-skill" not in argv
+
+    def test_edit_usa_schedule_y_prompt_como_flags(self):
+        argv = ic.edit_args(agent_job(), {}, "demo.sh")
+        assert argv[:2] == ["--schedule", "0 9 * * *"]
+        assert "--prompt" in argv
+        assert "--add-skill" not in argv
+
+    def test_apply_plan_crea_con_schedule_posicional(self, tmp_path, monkeypatch):
+        calls: list[list[str]] = []
+        monkeypatch.setattr(ic, "hermes_cli", lambda: "hermes")
+        monkeypatch.setattr(ic, "run", lambda cmd: calls.append(cmd))
+        monkeypatch.setattr(ic, "read_live_jobs", lambda home: [])
+        ic.apply_plan([no_agent_job()], {}, tmp_path, REPO)
+        assert calls[0][:4] == ["hermes", "cron", "create", "0 9 * * *"]
+
+    def test_apply_plan_edita_con_flags(self, tmp_path, monkeypatch):
+        calls: list[list[str]] = []
+        monkeypatch.setattr(ic, "hermes_cli", lambda: "hermes")
+        monkeypatch.setattr(ic, "run", lambda cmd: calls.append(cmd))
+        monkeypatch.setattr(
+            ic,
+            "read_live_jobs",
+            lambda home: [fake_job(id="keepme", name="demo", script="demo.sh")],
+        )
+        ic.apply_plan([no_agent_job()], {}, tmp_path, REPO)
+        assert calls[0][:5] == ["hermes", "cron", "edit", "keepme", "--schedule"]
+        assert calls[0][5] == "0 9 * * *"
+
+
+@pytest.mark.skipif(shutil.which("hermes") is None, reason="CLI de Hermes no disponible (CI)")
+class TestContratoConElCLI:
+    """Falla si el argv usa un flag que el CLI real no acepta: evita repetir #147."""
+
+    @staticmethod
+    def _aceptados(*args: str) -> set[str]:
+        result = subprocess.run(["hermes", "cron", *args, "--help"], capture_output=True, text=True)
+        return set(re.findall(r"--[a-z][a-z-]+", result.stdout + result.stderr))
+
+    @staticmethod
+    def _flags(argv: list[str]) -> set[str]:
+        return {arg for arg in argv if arg.startswith("--")}
+
+    def test_flags_de_create_existen(self):
+        aceptados = self._aceptados("create")
+        usados = self._flags(ic.create_args(agent_job(), {}, "demo.sh"))
+        faltantes = sorted(usados - aceptados)
+        assert not faltantes, f"`hermes cron create` no acepta: {faltantes}"
+
+    def test_flags_de_edit_existen(self):
+        aceptados = self._aceptados("edit")
+        usados = self._flags(ic.edit_args(agent_job(), {}, "demo.sh"))
+        faltantes = sorted(usados - aceptados)
+        assert not faltantes, f"`hermes cron edit` no acepta: {faltantes}"
 
 
 class TestManifestFueraDeLaVentanaPeak:

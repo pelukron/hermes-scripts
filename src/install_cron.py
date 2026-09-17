@@ -366,24 +366,42 @@ def run(cmd: list[str]) -> None:
         )
 
 
-def job_args(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
-    """Argumentos compartidos de create/edit."""
+def job_flags(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
+    """Flags compartidos por `hermes cron create` y `hermes cron edit`.
+
+    El schedule y el prompt NO van aqui: `create` los recibe posicionales y `edit` como flags
+    (ver create_args/edit_args). Un flag fuera del contrato del CLI aborta el apply con rc=2.
+    """
     args = [
         "--name",
         job.name,
-        "--schedule",
-        job.schedule,
         "--deliver",
         normalize_target(job.deliver, targets),
     ]
     if job.is_no_agent:
         args += ["--script", wrapper_path, "--no-agent"]
     else:
-        args += ["--agent", "--prompt", job.prompt]
         for skill in job.skills:
-            args += ["--add-skill", skill]
-    args += ["--model", job.model, "--provider", job.provider]
+            args += ["--skill", skill]
+    if job.model:
+        args += ["--model", job.model]
+    if job.provider:
+        args += ["--provider", job.provider]
     return args
+
+
+def create_args(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
+    """argv de `hermes cron create`: `<schedule> [prompt]` son POSICIONALES."""
+    head = [job.schedule] if job.is_no_agent else [job.schedule, job.prompt]
+    return [*head, *job_flags(job, targets, wrapper_path)]
+
+
+def edit_args(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
+    """argv de `hermes cron edit`: el schedule (y el prompt) si van como flags."""
+    head = ["--schedule", job.schedule]
+    if not job.is_no_agent:
+        head += ["--prompt", job.prompt]
+    return [*head, *job_flags(job, targets, wrapper_path)]
 
 
 def apply_plan(
@@ -419,10 +437,10 @@ def apply_plan(
     for job in jobs:
         real = live.get(job.name)
         if real is None:
-            run([cli, "cron", "create", *job_args(job, targets, job.wrapper)])
+            run([cli, "cron", "create", *create_args(job, targets, job.wrapper)])
             log.append(f"job {job.name}: creado")
         else:
-            run([cli, "cron", "edit", str(real.get("id")), *job_args(job, targets, job.wrapper)])
+            run([cli, "cron", "edit", str(real.get("id")), *edit_args(job, targets, job.wrapper)])
             log.append(f"job {job.name}: editado")
         refreshed = {str(j.get("name") or ""): j for j in read_live_jobs(hermes_home)}
         actual = refreshed.get(job.name) or {}
