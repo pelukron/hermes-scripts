@@ -1,5 +1,8 @@
 """Tests para hermes_common.retry_request."""
 
+import os
+import shutil
+import subprocess
 from datetime import datetime, timedelta, timezone
 from time import struct_time
 from unittest.mock import MagicMock, patch
@@ -11,6 +14,7 @@ from hermes_common import (
     DEFAULT_NEWS_MAX_AGE_HOURS,
     PayloadTooLargeError,
     filter_by_max_age,
+    get_repo_version,
     is_within_max_age,
     parse_published,
     retry_request,
@@ -289,3 +293,36 @@ class TestFilterByMaxAge:
         items = [{"title": "sin fecha"}]
         got = filter_by_max_age(items, now=NOW, missing="drop")
         assert got == []
+
+
+class TestGetRepoVersion:
+    def test_dev_sin_repo(self, tmp_path):
+        assert get_repo_version(tmp_path) == "dev"
+
+    def test_dev_ruta_inexistente(self, tmp_path):
+        assert get_repo_version(tmp_path / "no-existe") == "dev"
+
+    def test_dev_sin_git_en_path(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("PATH", "")
+        assert get_repo_version(tmp_path) == "dev"
+
+    def test_tag_real(self, tmp_path):
+        git = shutil.which("git")
+        if git is None:
+            pytest.skip("git no disponible")
+        env = {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_AUTHOR_NAME": "t",
+            "GIT_AUTHOR_EMAIL": "t@t",
+            "GIT_COMMITTER_NAME": "t",
+            "GIT_COMMITTER_EMAIL": "t@t",
+        }
+        run = lambda *args: subprocess.run(  # noqa: E731
+            [git, *args], capture_output=True, cwd=tmp_path, env={**os.environ, **env}
+        )
+        assert run("init").returncode == 0
+        (tmp_path / "f.txt").write_text("x", encoding="utf-8")
+        assert run("add", ".").returncode == 0
+        assert run("commit", "-m", "t").returncode == 0
+        assert run("tag", "v9.9.9").returncode == 0
+        assert get_repo_version(tmp_path) == "v9.9.9"

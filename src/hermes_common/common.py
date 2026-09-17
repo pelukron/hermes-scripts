@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import random
+import subprocess
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -389,3 +390,29 @@ def filter_by_max_age(
         if is_within_max_age(raw, max_age_hours, now=now, missing=missing):
             kept.append(item)
     return kept
+
+
+def get_repo_version(repo_root=None):
+    """Devuelve el último tag semántico del repo (para sellar reportes).
+
+    Args:
+        repo_root: Directorio del repo (default: cwd del proceso).
+
+    Returns:
+        str: Último tag vía `git describe --tags --abbrev=0`, o `'dev'`
+        si no hay tag/repo/git. Nunca lanza excepción.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "describe", "--tags", "--abbrev=0"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=repo_root,
+        )
+        tag = result.stdout.strip()
+        if result.returncode == 0 and tag:
+            return tag
+    except Exception:
+        pass
+    return "dev"
