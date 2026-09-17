@@ -340,32 +340,6 @@ def enrich_rayados_items(items: list, max_details: int = 12) -> list:
     return items
 
 
-# def format_item_line(tag: str, item: dict, link: str) -> str:
-#     """Formatea una línea de reporte con fecha y autor cuando existen.
-
-#     Args:
-#         tag: Emoji/prefijo (ej. '🎽' o '✓').
-#         item: Diccionario de noticia.
-#         link: URL ya acortada (puede ser vacía).
-
-#     Returns:
-#         str: Línea Markdown para Telegram.
-#     """
-#     title = clean_title(item["title"])
-#     fecha = ""
-#     published = item.get("published")
-#     if isinstance(published, datetime):
-#         pub = published
-#         if pub.tzinfo is None:
-#             pub = pub.replace(tzinfo=timezone.utc)
-#         fecha = f" ({pub.strftime('%Y-%m-%d')})"
-#     autor = f" — por {item['author']}" if item.get("author") else ""
-#     head = f"- {tag} **{item['source']}**{fecha}: "
-#     if link:
-#         return f"{head}[{title}]({link}){autor}"
-#     return f"{head}{title}{autor}"
-
-
 def fetch_rayados_com() -> list:
     """Extrae noticias recientes de rayados.com/es/noticias/lista.
 
