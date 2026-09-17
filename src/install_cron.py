@@ -32,6 +32,8 @@ from typing import Any
 
 MANIFEST_DEFAULT = "cron/jobs.json"
 TARGETS_LOCAL_DEFAULT = "cron/targets.local.json"
+TARGETS_EXAMPLE_DEFAULT = "cron/targets.example.json"
+VALID_TARGET_RE = re.compile(r"^(origin|local|telegram:-?\d+)$")
 WRAPPER_MARKER = "GENERADO por bin/install-cron.sh"
 QUIET_DIGEST_MAX = 5
 ABSOLUTE_HOME_RE = re.compile(r"/(?:home|Users)/[A-Za-z0-9._-]+")
@@ -106,6 +108,47 @@ def normalize_target(value: str, targets: dict[str, str]) -> str:
             "o usa un literal ('origin', 'local' o 'telegram:<chat_id>')"
         )
     return targets[key]
+
+
+def required_target_keys(jobs: list[Job]) -> list[str]:
+    """Nombres ${...} usados en deliver, en orden de aparicion."""
+    keys: list[str] = []
+    for job in jobs:
+        match = TARGET_REF_RE.match(job.deliver or "")
+        if match and match.group(1) not in keys:
+            keys.append(match.group(1))
+    return keys
+
+
+def run_init_targets(args: argparse.Namespace, repo: Path) -> int:
+    """Crea targets.local.json desde el ejemplo si falta y valida claves/valores."""
+    local = repo / args.targets
+    if not local.is_file():
+        example = repo / TARGETS_EXAMPLE_DEFAULT
+        if not example.is_file():
+            print(f"ERROR: falta {example} y {local}", file=sys.stderr)
+            return 2
+        local.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"creado {local} desde el ejemplo: editalo con tus destinos")
+    try:
+        manifest = load_manifest(repo / args.manifest)
+        jobs = parse_jobs(manifest)
+        targets = load_targets(local)
+    except ManifestError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    missing = [key for key in required_target_keys(jobs) if key not in targets]
+    bad = sorted(
+        key for key, value in targets.items() if key != "_doc" and not VALID_TARGET_RE.match(value)
+    )
+    if missing:
+        print(f"ERROR: faltan destinos en {local}: {', '.join(missing)}", file=sys.stderr)
+        return 1
+    if bad:
+        print(f"ERROR: destinos invalidos en {local}: {', '.join(bad)}", file=sys.stderr)
+        return 1
+    print(f"targets OK: {len(targets)} destino(s) en {local}")
+    return 0
 
 
 def check_cron_expr(expr: str) -> str | None:
@@ -380,6 +423,50 @@ def run(cmd: list[str]) -> None:
         )
 
 
+def run_remove(args: argparse.Namespace, repo: Path, hermes_home: Path) -> int:
+    """Baja un job: `hermes cron remove <id>` + borra su wrapper generado."""
+    name = args.remove
+    try:
+        manifest = load_manifest(repo / args.manifest)
+        jobs = parse_jobs(manifest)
+    except ManifestError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    found = [job for job in jobs if job.name == name]
+    if not found:
+        print(f"ERROR: no hay job llamado {name!r} en el manifiesto", file=sys.stderr)
+        return 2
+    job = found[0]
+    try:
+        cli = hermes_cli()
+    except ManifestError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    live = {str(item.get("name") or ""): item for item in read_live_jobs(hermes_home)}
+    real = live.get(name)
+    job_id = real.get("id") if isinstance(real, dict) else None
+    if job_id is not None:
+        try:
+            run([cli, "cron", "remove", str(job_id)])
+        except ManifestError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
+        print(f"job '{name}' eliminado de Hermes")
+    else:
+        print(f"aviso: job '{name}' no existe en Hermes (solo wrapper)")
+    if job.is_no_agent and job.wrapper:
+        target = hermes_home / "scripts" / job.wrapper
+        if target.is_file():
+            if WRAPPER_MARKER not in target.read_text(encoding="utf-8"):
+                print(f"aviso: {target} sin marca generada, no se toca")
+                return 0
+            target.unlink()
+            print(f"wrapper {job.wrapper} eliminado")
+    else:
+        print("(job agent: sin wrapper que borrar)")
+    return 0
+
+
 def job_flags(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
     """Flags compartidos por `hermes cron create` y `hermes cron edit`.
 
@@ -523,6 +610,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="reemplaza wrappers existentes que no fueron generados por este instalador",
     )
+    parser.add_argument(
+        "--init-targets",
+        action="store_true",
+        help="crea targets.local.json desde el ejemplo si falta y valida claves/valores",
+    )
+    parser.add_argument(
+        "--remove",
+        default="",
+        metavar="NAME",
+        help="baja un job (hermes cron remove + borra su wrapper generado)",
+    )
     return parser
 
 
@@ -643,6 +741,15 @@ def main(argv: list[str] | None = None) -> int:
             reconfigure(encoding="utf-8")
     except ValueError:
         pass
+    if args.init_targets:
+        repo = Path(args.repo).resolve() if args.repo else repo_root()
+        return run_init_targets(args, repo)
+    if args.remove:
+        repo = Path(args.repo).resolve() if args.repo else repo_root()
+        hermes_home = (
+            Path(args.hermes_home).expanduser() if args.hermes_home else Path.home() / ".hermes"
+        )
+        return run_remove(args, repo, hermes_home)
     if args.quiet and not args.check:
         print("ERROR: --quiet solo es válido con --check", file=sys.stderr)
         return 2
