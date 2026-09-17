@@ -1,4 +1,4 @@
-.PHONY: test lint format format-check typecheck security run sync lock clean
+.PHONY: test lint format format-check typecheck security audit run sync lock clean
 
 ## Instalar dependencias del lock file
 sync:
@@ -32,6 +32,10 @@ typecheck:
 security:
 	uv run bandit -c pyproject.toml -r . -x .venv,tests -ll
 
+## Auditoria de dependencias con pip-audit
+audit:
+	uv run pip-audit
+
 ## Ejecutar script principal
 run:
 	uv run resumen-noticias-diario
@@ -42,5 +46,5 @@ clean:
 	find . -type d -name __pycache__ -delete
 
 ## Correr todos los checks (CI local)
-check: lint format-check typecheck security test
+check: lint format-check typecheck security audit test
 	@echo "✅ Todos los checks pasaron"
