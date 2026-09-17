@@ -123,8 +123,14 @@ Cada PR ejecuta:
 | Check | Qué valida |
 |---|---|
 | `gate` | `bash bin/gate.sh`: ruff + format + mypy + bandit + pytest |
+| `test (3.11)` / `test (3.12)` | Matriz de Python con `uv sync --locked` + gate |
+| `audit` | `pip-audit` sin vulnerabilidades conocidas |
+| `closes` | El PR referencia su issue con `Closes #N` |
 | `changelog check` | CHANGELOG.md intacto (PSR lo genera al mergear) |
 | `pr-assign` | PR asignado a @pelukron |
+
+Piso de cobertura: **70 %** (`--cov-fail-under=70` en `Makefile`), cumplido por el árbol actual
+(71.5 %). Subirlo hacia 80 % requiere tests nuevos, no solo cambiar el número.
 
 ## Auto-release (PSR)
 
