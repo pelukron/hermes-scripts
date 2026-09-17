@@ -7,7 +7,7 @@ branch=$(git rev-parse --abbrev-ref HEAD)
 
 # Leer refs del push desde stdin
 blocked=false
-while read -r local_ref local_sha remote_ref remote_sha; do
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
     if [ "$remote_ref" = "refs/heads/main" ] && [ "$branch" = "main" ]; then
         blocked=true
     fi
