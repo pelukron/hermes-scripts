@@ -23,6 +23,12 @@ jobs:
       - name: Install deps
         run: uv sync
 
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+
+      - name: Shellcheck bin/*.sh
+        run: shellcheck bin/*.sh
+
       - name: Changelog check (PSR lo genera al mergear)
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'github-actions/')
         run: |
