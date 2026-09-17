@@ -30,6 +30,7 @@ fetch_rayados_com = mod.fetch_rayados_com
 fetch_rayados_detail = mod.fetch_rayados_detail
 enrich_rayados_items = mod.enrich_rayados_items
 format_item_line = mod.format_item_line
+NewsItem = mod.NewsItem
 
 # ═══════════════════════════════════════════
 # clean_url
@@ -144,19 +145,19 @@ class TestTitleSimilar:
 class TestDedupe:
     def test_elimina_duplicados_por_link(self):
         items = [
-            {"title": "Noticia 1", "link": "https://a.com/1"},
-            {"title": "Noticia 1 dup", "link": "https://a.com/1"},
-            {"title": "Noticia 2", "link": "https://a.com/2"},
+            NewsItem(title="Noticia 1", link="https://a.com/1"),
+            NewsItem(title="Noticia 1 dup", link="https://a.com/1"),
+            NewsItem(title="Noticia 2", link="https://a.com/2"),
         ]
         result = dedupe(items)
         assert len(result) == 2
-        assert result[0]["title"] == "Noticia 1"
-        assert result[1]["title"] == "Noticia 2"
+        assert result[0].title == "Noticia 1"
+        assert result[1].title == "Noticia 2"
 
     def test_sin_duplicados(self):
         items = [
-            {"title": "A", "link": "https://a.com/a"},
-            {"title": "B", "link": "https://a.com/b"},
+            NewsItem(title="A", link="https://a.com/a"),
+            NewsItem(title="B", link="https://a.com/b"),
         ]
         result = dedupe(items)
         assert len(result) == 2
@@ -173,21 +174,21 @@ class TestDedupe:
 class TestDedupeByTitle:
     def test_elimina_titulos_similares(self):
         items = [
-            {"title": "Rayados ficha a crack mundial"},
-            {"title": "Rayados Ficha A Crack Mundial!!"},
-            {"title": "Tigres pierde clásico"},
+            NewsItem(title="Rayados ficha a crack mundial"),
+            NewsItem(title="Rayados Ficha A Crack Mundial!!"),
+            NewsItem(title="Tigres pierde clásico"),
         ]
         result = dedupe_by_title(items)
         assert len(result) == 2
 
     def test_conserva_primero(self):
         items = [
-            {"title": "Noticia original"},
-            {"title": "Noticia original (copia)"},
+            NewsItem(title="Noticia original"),
+            NewsItem(title="Noticia original (copia)"),
         ]
         result = dedupe_by_title(items)
         assert len(result) == 1
-        assert result[0]["title"] == "Noticia original"
+        assert result[0].title == "Noticia original"
 
 
 # ═══════════════════════════════════════════
@@ -206,25 +207,25 @@ class TestCanonicalTitle:
 class TestDedupeLineal:
     def test_exactos_colapsan_por_hash(self):
         items = [
-            {"title": "Rayados gana 2-0"},
-            {"title": "Rayados GANA 2 0!!"},
-            {"title": "Otra noticia"},
+            NewsItem(title="Rayados gana 2-0"),
+            NewsItem(title="Rayados GANA 2 0!!"),
+            NewsItem(title="Otra noticia"),
         ]
         result = dedupe_by_title(items)
-        assert [i["title"] for i in result] == ["Rayados gana 2-0", "Otra noticia"]
+        assert [i.title for i in result] == ["Rayados gana 2-0", "Otra noticia"]
 
     def test_titulos_vacios_nunca_colapsan(self):
-        items = [{"title": ""}, {"title": ""}, {"title": "X"}]
+        items = [NewsItem(title=""), NewsItem(title=""), NewsItem(title="X")]
         assert len(dedupe_by_title(items)) == 3
 
     def test_threshold_1_solo_exactos(self):
         items = [
-            {"title": "Noticia original"},
-            {"title": "Noticia original (copia)"},
-            {"title": "Noticia original"},
+            NewsItem(title="Noticia original"),
+            NewsItem(title="Noticia original (copia)"),
+            NewsItem(title="Noticia original"),
         ]
         result = dedupe_by_title(items, threshold=1.0)
-        assert [i["title"] for i in result] == ["Noticia original", "Noticia original (copia)"]
+        assert [i.title for i in result] == ["Noticia original", "Noticia original (copia)"]
 
     def test_comparaciones_acotadas_no_cuadraticas(self, monkeypatch):
         calls = {"n": 0}
@@ -235,7 +236,7 @@ class TestDedupeLineal:
             return real(t1, t2, threshold)
 
         monkeypatch.setattr(mod, "title_similar", counting)
-        items = [{"title": f"Asunto-{i:04d}-abc relleno dedupe"} for i in range(200)]
+        items = [NewsItem(title=f"Asunto-{i:04d}-abc relleno dedupe") for i in range(200)]
         result = mod.dedupe_by_title(items)
         assert len(result) == 200
         assert calls["n"] < 1000
@@ -300,16 +301,15 @@ class TestSmellsLikeRumor:
 class TestClassify:
     def test_oficial_va_a_confirmadas(self):
         items = [
-            {
-                "title": "Noticia oficial",
-                "link": "https://rayados.com/noticia",
-                "source": "rayados.com",
-                "oficial": True,
-                "confiable": True,
-                "rumor": False,
-                "origin": "rayados.com",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="Noticia oficial",
+                link="https://rayados.com/noticia",
+                source="rayados.com",
+                oficial=True,
+                confiable=True,
+                origin="rayados.com",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 1
@@ -317,16 +317,15 @@ class TestClassify:
 
     def test_rumor_va_a_rumores(self):
         items = [
-            {
-                "title": "Rumor de fichaje",
-                "link": "https://mediotiempo.com/rumor",
-                "source": "mediotiempo.com",
-                "oficial": False,
-                "confiable": True,
-                "rumor": True,
-                "origin": "google-news",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="Rumor de fichaje",
+                link="https://mediotiempo.com/rumor",
+                source="mediotiempo.com",
+                confiable=True,
+                rumor=True,
+                origin="google-news",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 0
@@ -334,16 +333,12 @@ class TestClassify:
 
     def test_error_va_a_confirmadas(self):
         items = [
-            {
-                "title": "[Error rayados.com: timeout]",
-                "link": "",
-                "source": "rayados.com",
-                "oficial": False,
-                "confiable": False,
-                "rumor": False,
-                "origin": "Error",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="[Error rayados.com: timeout]",
+                source="rayados.com",
+                origin="Error",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 1
@@ -351,16 +346,14 @@ class TestClassify:
 
     def test_confiable_sin_rumor_confirmada(self):
         items = [
-            {
-                "title": "Rayados gana",
-                "link": "https://espn.com.mx/nota",
-                "source": "ESPN",
-                "oficial": False,
-                "confiable": True,
-                "rumor": False,
-                "origin": "google-news",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="Rayados gana",
+                link="https://espn.com.mx/nota",
+                source="ESPN",
+                confiable=True,
+                origin="google-news",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 1
@@ -369,16 +362,13 @@ class TestClassify:
     def test_desconocido_sin_rumor_confirmada(self):
         """Fuente desconocida pero título objetivo: confirmada igual."""
         items = [
-            {
-                "title": "Rayados anuncia nuevo patrocinador",
-                "link": "https://blograndom.com/rayados",
-                "source": "Blog Random",
-                "oficial": False,
-                "confiable": False,
-                "rumor": False,
-                "origin": "google-news",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="Rayados anuncia nuevo patrocinador",
+                link="https://blograndom.com/rayados",
+                source="Blog Random",
+                origin="google-news",
+                category="confirmadas",
+            )
         ]
         confirmadas, rumores = classify(items)
         assert len(confirmadas) == 1
@@ -430,9 +420,9 @@ class TestFetchGoogleNews:
             items = fetch_google_news("Rayados", "confirmadas")
             assert len(items) == 1
             item = items[0]
-            assert "Rayados" in item["title"]
-            assert item["origin"] == "google-news"
-            assert item["category"] == "confirmadas"
+            assert "Rayados" in item.title
+            assert item.origin == "google-news"
+            assert item.category == "confirmadas"
 
     def test_detecta_oficial(self):
         mock_feed = Mock()
@@ -449,13 +439,13 @@ class TestFetchGoogleNews:
         with patch.object(mod.feedparser, "parse", return_value=mock_feed):
             items = fetch_google_news("Rayados", "confirmadas")
             assert len(items) == 1
-            assert items[0]["oficial"] is True
+            assert items[0].oficial is True
 
     def test_excepcion_retorna_error_item(self):
         with patch.object(mod.feedparser, "parse", side_effect=Exception("timeout")):
             items = fetch_google_news("Rayados", "confirmadas")
             assert len(items) == 1
-            assert items[0]["title"].startswith("[Error")
+            assert items[0].title.startswith("[Error")
 
 
 # ═══════════════════════════════════════════
@@ -485,10 +475,10 @@ class TestFetchRayadosCom:
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 2
-            assert items[0]["title"] == "Rayados cierra fichaje de lujo para el Apertura"
-            assert items[0]["source"] == "rayados.com"
-            assert items[0]["oficial"] is True
-            assert "rayados.com/es/noticias/12345" in items[0]["link"]
+            assert items[0].title == "Rayados cierra fichaje de lujo para el Apertura"
+            assert items[0].source == "rayados.com"
+            assert items[0].oficial is True
+            assert "rayados.com/es/noticias/12345" in items[0].link
 
     def test_excepcion_retorna_error_item(self):
         with patch.object(
@@ -498,7 +488,7 @@ class TestFetchRayadosCom:
         ):
             items = fetch_rayados_com()
             assert len(items) == 1
-            assert items[0]["title"].startswith("[Error rayados.com")
+            assert items[0].title.startswith("[Error rayados.com")
 
     def test_items_sin_heading_usan_title_attr(self):
         html = """
@@ -513,7 +503,7 @@ class TestFetchRayadosCom:
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 1
-            assert items[0]["title"] == "Título desde atributo title"
+            assert items[0].title == "Título desde atributo title"
 
     def test_titulos_cortos_ignorados(self):
         """Títulos con menos de 10 caracteres se ignoran."""
@@ -548,8 +538,8 @@ class TestRayadosSinFechaVerificada:
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
             items = fetch_rayados_com()
             assert len(items) == 2
-            assert all(i["published"] is None for i in items)
-            assert all(i["author"] is None for i in items)
+            assert all(i.published is None for i in items)
+            assert all(i.author is None for i in items)
 
     def test_sin_fecha_se_descarta_con_drop(self):
         from hermes_common import filter_by_max_age
@@ -567,14 +557,14 @@ class TestRayadosSinFechaVerificada:
 
         now = datetime(2026, 9, 16, 12, 0, 0, tzinfo=timezone.utc)
         items = [
-            {
-                "title": "Nota oficial reciente",
-                "link": "https://www.rayados.com/es/noticias/1/x/",
-                "source": "rayados.com",
-                "oficial": True,
-                "published": now - timedelta(hours=5),
-                "author": "Redacción",
-            }
+            NewsItem(
+                title="Nota oficial reciente",
+                link="https://www.rayados.com/es/noticias/1/x/",
+                source="rayados.com",
+                oficial=True,
+                published=now - timedelta(hours=5),
+                author="Redacción",
+            )
         ]
         kept = filter_by_max_age(items, missing="drop", now=now)
         assert len(kept) == 1
@@ -610,14 +600,12 @@ class TestFetchRayadosDetail:
 
     def test_enrich_respeta_tope(self):
         items = [
-            {
-                "title": f"Nota oficial suficientemente larga {i}",
-                "link": f"https://www.rayados.com/es/noticias/{i}/x/",
-                "source": "rayados.com",
-                "oficial": True,
-                "published": None,
-                "author": None,
-            }
+            NewsItem(
+                title=f"Nota oficial suficientemente larga {i}",
+                link=f"https://www.rayados.com/es/noticias/{i}/x/",
+                source="rayados.com",
+                oficial=True,
+            )
             for i in range(3)
         ]
         mock_resp = Mock()
@@ -625,20 +613,20 @@ class TestFetchRayadosDetail:
         with patch.object(mod, "retry_request", return_value=mock_resp) as mock_req:
             enrich_rayados_items(items, max_details=2)
             assert mock_req.call_count == 2
-            assert items[0]["author"] == "Prensa Rayados"
-            assert items[2]["author"] is None
+            assert items[0].author == "Prensa Rayados"
+            assert items[2].author is None
 
 
 class TestFormatItemLine:
     def test_con_fecha_y_autor(self):
         from datetime import datetime, timezone
 
-        item = {
-            "title": "Ganan las Rayadas en Guadalajara - rayados.com",
-            "source": "rayados.com",
-            "published": datetime(2026, 9, 14, 10, 0, tzinfo=timezone.utc),
-            "author": "Prensa Rayados",
-        }
+        item = NewsItem(
+            title="Ganan las Rayadas en Guadalajara - rayados.com",
+            source="rayados.com",
+            published=datetime(2026, 9, 14, 10, 0, tzinfo=timezone.utc),
+            author="Prensa Rayados",
+        )
         line = format_item_line(
             "🎽",
             item,
@@ -650,7 +638,7 @@ class TestFormatItemLine:
         assert "https://news.google.com/rss/articles/" in line
 
     def test_sin_fecha_no_muestra_parentesis(self):
-        item = {"title": "Nota sin fecha", "source": "rayados.com", "published": None}
+        item = NewsItem(title="Nota sin fecha", source="rayados.com")
         line = format_item_line("🎽", item, "")
         assert "(" not in line
         assert "Nota sin fecha" in line

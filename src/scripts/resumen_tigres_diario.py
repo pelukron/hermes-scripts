@@ -159,6 +159,7 @@ dedupe_by_title = news_utils.dedupe_by_title
 domain_of = news_utils.domain_of
 enrich_from_detail = news_utils.enrich_from_detail
 format_item_line = news_utils.format_item_line
+NewsItem = news_utils.NewsItem
 normalize = news_utils.normalize
 normalize_urls = news_utils.normalize_urls
 now_str = news_utils.now_str
@@ -185,6 +186,7 @@ __all__ = [
     "fetch_tigres_detail",
     "format_item_line",
     "get_repo_version",
+    "NewsItem",
     "is_confiable",
     "is_confiable_by_url",
     "is_oficial",
@@ -336,12 +338,12 @@ def fetch_tigres_com() -> list:
     'published' para que el filtro de 48h aplique al sitio oficial.
 
     Returns:
-        list: Lista de diccionarios con title, link, source='tigres.com.mx',
+        list: Lista de NewsItem con title, link, source='tigres.com.mx',
         oficial=True, confiable=True, rumor=False, published (datetime|None),
         author (siempre None aquí; lo completa enrich_tigres_items).
         En caso de error, retorna un solo item con mensaje de error.
     """
-    items: list[dict] = []
+    items: list[news_utils.NewsItem] = []
     url = "https://www.tigres.com.mx/es/noticias/"
     try:
         resp = retry_request(url, timeout=TIMEOUT, headers=hermes_common.get_headers("default"))
@@ -384,36 +386,31 @@ def fetch_tigres_com() -> list:
             title = re.sub(r"\s*Ver más$", "", title).strip()
 
             # Evitar duplicados por URL
-            if str(full_link).rstrip("/") in {str(i["link"]).rstrip("/") for i in items}:
+            if str(full_link).rstrip("/") in {str(i.link).rstrip("/") for i in items}:
                 continue
 
             items.append(
-                {
-                    "title": title,
-                    "link": full_link,
-                    "source": "tigres.com.mx",
-                    "oficial": True,
-                    "confiable": True,
-                    "rumor": False,
-                    "origin": "tigres.com.mx",
-                    "category": "confirmadas",
-                    "published": listing_time_of(a),
-                    "author": None,
-                }
+                news_utils.NewsItem(
+                    title=title,
+                    link=full_link,
+                    source="tigres.com.mx",
+                    oficial=True,
+                    confiable=True,
+                    rumor=False,
+                    origin="tigres.com.mx",
+                    category="confirmadas",
+                    published=listing_time_of(a),
+                )
             )
         return items
     except Exception as e:
         return [
-            {
-                "title": f"[Error tigres.com.mx: {str(e)[:80]}]",
-                "link": "",
-                "source": "tigres.com.mx",
-                "oficial": False,
-                "confiable": False,
-                "rumor": False,
-                "origin": "tigres.com.mx",
-                "category": "confirmadas",
-            }
+            news_utils.NewsItem(
+                title=f"[Error tigres.com.mx: {str(e)[:80]}]",
+                source="tigres.com.mx",
+                origin="tigres.com.mx",
+                category="confirmadas",
+            )
         ]
 
 
@@ -424,7 +421,7 @@ def classify(all_items: list) -> tuple:
     """Clasifica items en confirmadas y rumores (wrapper ligado a Tigres).
 
     Args:
-        all_items: Lista de diccionarios con noticias sin clasificar.
+        all_items: Lista de NewsItem sin clasificar.
 
     Returns:
         tuple: (confirmadas, rumores) — dos listas deduplicadas por URL.
@@ -484,10 +481,10 @@ def build_report_blocks() -> list:
     # 3. Filtrar por historial (Desduplicación Histórica) con URLs normalizadas
     filtered_items = []
     for item in all_items:
-        link = item.get("link")
+        link = item.link
         if link:
             link = clean_url(link)
-            item["link"] = link
+            item.link = link
         if link and history.exists(link):
             continue
         filtered_items.append(item)
@@ -524,8 +521,8 @@ def build_report_blocks() -> list:
         conf_lines.append("_No se encontraron noticias confirmadas nuevas en las últimas 48h._\n")
     else:
         for item in mostradas:
-            tag = "🎽" if item["oficial"] else "✓"
-            link = item.get("link", "")
+            tag = "🎽" if item.oficial else "✓"
+            link = item.link
             conf_lines.append(format_item_line(tag, item, link))
     blocks.append("\n".join(conf_lines))
 
@@ -540,7 +537,7 @@ def build_report_blocks() -> list:
         rum_lines.append("_No se encontraron rumores o filtraciones nuevos en las últimas 48h._\n")
     else:
         for item in mostradas_r:
-            link = item.get("link", "")
+            link = item.link
             rum_lines.append(format_item_line("📰", item, link))
     blocks.append("\n".join(rum_lines))
 

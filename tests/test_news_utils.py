@@ -7,6 +7,8 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, ".")
 from hermes_common import news_utils
 
+NewsItem = news_utils.NewsItem
+
 
 class TestCleanUrl:
     def test_limpia_tracking(self):
@@ -64,21 +66,21 @@ class TestTitleSimilar:
 class TestDedupeByTitle:
     def test_exactos_colapsan_por_hash(self):
         items = [
-            {"title": "Rayados gana 2-0"},
-            {"title": "Rayados GANA 2 0!!"},
-            {"title": "Otra noticia"},
+            NewsItem(title="Rayados gana 2-0"),
+            NewsItem(title="Rayados GANA 2 0!!"),
+            NewsItem(title="Otra noticia"),
         ]
         result = news_utils.dedupe_by_title(items)
-        assert [i["title"] for i in result] == ["Rayados gana 2-0", "Otra noticia"]
+        assert [i.title for i in result] == ["Rayados gana 2-0", "Otra noticia"]
 
     def test_threshold_1_solo_exactos(self):
         items = [
-            {"title": "Noticia original"},
-            {"title": "Noticia original (copia)"},
-            {"title": "Noticia original"},
+            NewsItem(title="Noticia original"),
+            NewsItem(title="Noticia original (copia)"),
+            NewsItem(title="Noticia original"),
         ]
         result = news_utils.dedupe_by_title(items, threshold=1.0)
-        assert [i["title"] for i in result] == ["Noticia original", "Noticia original (copia)"]
+        assert [i.title for i in result] == ["Noticia original", "Noticia original (copia)"]
 
     def test_comparaciones_acotadas(self, monkeypatch):
         calls = {"n": 0}
@@ -89,7 +91,7 @@ class TestDedupeByTitle:
             return real(t1, t2, threshold)
 
         monkeypatch.setattr(news_utils, "title_similar", counting)
-        items = [{"title": f"Asunto-{i:04d}-abc relleno dedupe"} for i in range(200)]
+        items = [NewsItem(title=f"Asunto-{i:04d}-abc relleno dedupe") for i in range(200)]
         result = news_utils.dedupe_by_title(items)
         assert len(result) == 200
         assert calls["n"] < 1000
@@ -98,9 +100,9 @@ class TestDedupeByTitle:
 class TestDedupe:
     def test_por_link(self):
         items = [
-            {"title": "Noticia 1", "link": "https://a.com/1"},
-            {"title": "Noticia 1 dup", "link": "https://a.com/1"},
-            {"title": "Noticia 2", "link": "https://a.com/2"},
+            NewsItem(title="Noticia 1", link="https://a.com/1"),
+            NewsItem(title="Noticia 1 dup", link="https://a.com/1"),
+            NewsItem(title="Noticia 2", link="https://a.com/2"),
         ]
         assert len(news_utils.dedupe(items)) == 2
 
@@ -162,29 +164,26 @@ class TestParseDetailPage:
 
 class TestEnrichFromDetail:
     def test_completa_y_respeta_tope(self):
-        items = [
-            {"title": f"Nota {i}", "link": f"https://club.mx/{i}/", "author": None}
-            for i in range(3)
-        ]
+        items = [NewsItem(title=f"Nota {i}", link=f"https://club.mx/{i}/") for i in range(3)]
 
         def fake_detail(link):
             return datetime(2026, 9, 12, tzinfo=timezone.utc), "Redacción"
 
         news_utils.enrich_from_detail(items, fake_detail, max_details=2)
-        assert items[0]["author"] == "Redacción"
-        assert items[0]["published"].day == 12
-        assert items[2]["author"] is None
-        assert "published" not in items[2]
+        assert items[0].author == "Redacción"
+        assert items[0].published.day == 12
+        assert items[2].author is None
+        assert items[2].published is None
 
 
 class TestFormatItemLine:
     def test_con_fecha_y_autor(self):
-        item = {
-            "title": "La Previa - tigres.com.mx",
-            "source": "tigres.com.mx",
-            "published": datetime(2026, 9, 12, 15, 22, tzinfo=timezone.utc),
-            "author": "Ernesto Ramos",
-        }
+        item = NewsItem(
+            title="La Previa - tigres.com.mx",
+            source="tigres.com.mx",
+            published=datetime(2026, 9, 12, 15, 22, tzinfo=timezone.utc),
+            author="Ernesto Ramos",
+        )
         line = news_utils.format_item_line(
             "🎽",
             item,
@@ -195,7 +194,7 @@ class TestFormatItemLine:
         assert "https://news.google.com/rss/articles/" in line
 
     def test_sin_fecha(self):
-        item = {"title": "Nota sin fecha", "source": "Medio", "published": None}
+        item = NewsItem(title="Nota sin fecha", source="Medio")
         line = news_utils.format_item_line("✓", item, "")
         assert "(" not in line
 
@@ -207,7 +206,7 @@ class TestFetchGoogleNews:
                 "q", "confirmadas", ["a.com"], ["b.com"], ["rumor"]
             )
             assert len(items) == 1
-            assert items[0]["title"].startswith("[Error Google News")
+            assert items[0].title.startswith("[Error Google News")
 
     def test_parse_rss(self):
         entry = Mock()
@@ -223,23 +222,22 @@ class TestFetchGoogleNews:
                 "q", "confirmadas", ["tigres.com.mx"], ["espn.com.mx"], ["rumor"]
             )
             assert len(items) == 1
-            assert items[0]["source"] == "ESPN"
-            assert items[0]["confiable"] is True
+            assert items[0].source == "ESPN"
+            assert items[0].confiable is True
 
 
 class TestClassify:
     def test_oficial_a_confirmadas(self):
         items = [
-            {
-                "title": "Oficial",
-                "link": "https://tigres.com.mx/x/",
-                "source": "tigres.com.mx",
-                "oficial": True,
-                "confiable": True,
-                "rumor": False,
-                "origin": "tigres.com.mx",
-                "category": "confirmadas",
-            }
+            NewsItem(
+                title="Oficial",
+                link="https://tigres.com.mx/x/",
+                source="tigres.com.mx",
+                oficial=True,
+                confiable=True,
+                origin="tigres.com.mx",
+                category="confirmadas",
+            )
         ]
         conf, rum = news_utils.classify(items, ["tigres.com.mx"], ["espn.com.mx"])
         assert len(conf) == 1
