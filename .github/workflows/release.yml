@@ -78,3 +78,14 @@ jobs:
           if [ -n "$ISSUE" ]; then
             gh issue comment "$ISSUE" --body "✅ Released in [$TAG](https://github.com/${{ github.repository }}/releases/tag/$TAG)"
           fi
+
+      - name: Notificar Telegram
+        if: steps.psr.outputs.tag_after != steps.psr.outputs.tag_before
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          NL=$'\n'
+          TAG="${{ steps.psr.outputs.tag_after }}"
+          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
+          bash bin/notify-telegram.sh "🚀 ${GITHUB_REPOSITORY} ${TAG} publicado${NL}${RELEASE_URL}"
