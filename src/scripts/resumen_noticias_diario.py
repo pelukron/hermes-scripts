@@ -13,7 +13,6 @@ from datetime import datetime
 
 import defusedxml.ElementTree as ET  # noqa: N817
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hermes_common import news_utils, retry_request
 
 # Helpers compartidos en src/hermes_common/news_utils.py (issue #70).
@@ -245,18 +244,14 @@ def main():
         print(footer_line)
         time.sleep(1)
 
-    # Polymarket predictions
+    # Polymarket predictions (entrypoint instalado por #71)
     try:
-        polymarket_script = os.path.join(os.path.dirname(__file__), "polymarket-diario.py")
-        if not os.path.isfile(polymarket_script):
-            logging.warning("Polymarket script not found: %s", polymarket_script)
-        else:
-            subprocess.run(
-                [sys.executable, polymarket_script],
-                timeout=25,
-                capture_output=True,
-                text=True,
-            )
+        subprocess.run(
+            [sys.executable, "-m", "scripts.polymarket_diario"],
+            timeout=25,
+            capture_output=True,
+            text=True,
+        )
     except Exception as e:
         logging.warning("Polymarket subprocess failed: %s", e)
 

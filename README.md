@@ -6,12 +6,12 @@ Scripts Python para automatización diaria de Hermes Agent. Monorepo con tests, 
 
 | Script | Descripción | Cron |
 |---|---|---|
-| `resumen-noticias-diario.py` | Noticias multi-región 12 secciones 39 fuentes | 8:30 AM |
-| `resumen-rayados-diario.py` | Noticias Rayados de Monterrey | 9:00 AM |
-| `monitor-ram-mexico.py` | Monitoreo precios RAM en Amazon/Cyberpuerta | Cada 30 min |
-| `polymarket-diario.py` | Mercados de predicción (geopolítica, elecciones, deportes) | Subprocess de noticias |
-| `reporte-uso-hermes.py` | Reporte diario de uso de Hermes | 8:00 AM |
-| `backup-diario.py` | Backup de state.db + config | 2:00 AM |
+| `resumen-noticias-diario` | Noticias multi-región 12 secciones 39 fuentes | 8:30 AM |
+| `resumen-rayados-diario` | Noticias Rayados de Monterrey | 9:00 AM |
+| `monitor-ram-mexico` | Monitoreo precios RAM en Amazon/Cyberpuerta | Cada 30 min |
+| `polymarket-diario` | Mercados de predicción (geopolítica, elecciones, deportes) | Subprocess de noticias |
+| `reporte-uso-hermes` | Reporte diario de uso de Hermes | 8:00 AM |
+| `backup-diario` | Backup de state.db + config | 2:00 AM |
 | `bin/sistema-alertas-y-resumen.sh` | Alertas disco/CPU/memoria | Cada 30 min |
 
 ## Stack
@@ -64,6 +64,9 @@ make test       # pytest -v
 .
 ├── src/
 │   ├── hermes_common/         # Utilidades compartidas (retry_request, get_headers, HistoryManager)
+│   ├── scripts/               # Entrypoints de cron: resumen_*_diario, monitor_ram_mexico,
+│   │   │                       # polymarket_diario, reporte_uso_hermes, backup_diario,
+│   │   │                       # cleanup_housekeeping (issue #71)
 │   └── generate_issue_body.py # Generador de bodies enriquecidos para issues
 ├── config/
 │   └── feeds.json              # Configuración de feeds RSS
@@ -72,12 +75,6 @@ make test       # pytest -v
 │   ├── post-merge.sh           # Tag + release + issue comment post-merge
 │   ├── sistema-alertas-y-resumen.sh   # Alertas del sistema
 │   └── update-external-skills.sh     # Sync de skills externos
-├── resumen-noticias-diario.py
-├── resumen-rayados-diario.py
-├── monitor-ram-mexico.py
-├── polymarket-diario.py
-├── reporte-uso-hermes.py
-├── backup-diario.py
 ├── hermes_common.py            # Legacy compat (moved to src/)
 ├── pyproject.toml
 ├── uv.lock

@@ -11,9 +11,9 @@ import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 
-# Load module from file path (script has hyphen in name)
+# Load module from src/scripts (entrypoints, issue #71)
 spec = importlib.util.spec_from_file_location(
-    "reporte_uso_hermes", SCRIPTS_DIR / "reporte-uso-hermes.py"
+    "reporte_uso_hermes", SCRIPTS_DIR / "src" / "scripts" / "reporte_uso_hermes.py"
 )
 _mod = importlib.util.module_from_spec(spec)
 sys.modules["reporte_uso_hermes"] = _mod
