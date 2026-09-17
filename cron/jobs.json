@@ -16,6 +16,14 @@
       "deliver": "${notify}"
     },
     {
+      "name": "runtime-sync",
+      "description": "Pone al dia los clones de runtime declarados (ff-only) y avisa si un symlink desplegado apunta a otro clon. Sin cambios: sin aviso.",
+      "schedule": "25 4 * * *",
+      "wrapper": "runtime-sync.sh",
+      "command": "uv run sync-runtime",
+      "deliver": "${notify}"
+    },
+    {
       "name": "cleanup-housekeeping",
       "description": "Limpieza semanal: backups viejos, noticias >4d, caches npm/pnpm/pip",
       "schedule": "0 3 * * 0",
