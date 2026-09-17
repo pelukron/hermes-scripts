@@ -5,6 +5,9 @@
 - No tocar `CHANGELOG.md` ni `version` en el PR: los genera `python-semantic-release` al mergear.
 - Gate único: `bash bin/gate.sh` en local y CI. Debe estar verde antes del PR.
 - Ramas `{tipo}/{N}-slug`. Push normal; nunca `--force` ni `--amend` tras push.
+- Regla de oro: **un issue = un worktree** (`git worktree add ../w<N>-<slug> -b {tipo}/{N}-slug`); si no
+  existe, lo crea el agente. Dos issues en el mismo árbol mezclan cambios, pisan ramas y meten scope
+  colado en el PR. Se borra tras el merge: `git worktree remove ../w<N>-<slug>`.
 - El agente no mergea: PRs y commits; `@pelukron` revisa y mergea.
 - Todo PR pide review a `@pelukron` (auto: workflow `pr-review` + `bump-and-pr.sh`; GitHub omite el request si el autor es `@pelukron`).
 - Proceso completo: `PROJECT_MANAGEMENT.md` y `CONTRIBUTING.md`.
