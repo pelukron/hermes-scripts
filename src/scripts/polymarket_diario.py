@@ -5,8 +5,11 @@ Output: Markdown. $0 tokens. API pública sin auth.
 """
 
 import json
+import logging
 
-from hermes_common import retry_request
+from hermes_common import retry_request, setup_logging
+
+log = logging.getLogger("hermes")
 
 API = "https://gamma-api.polymarket.com"
 
@@ -165,14 +168,15 @@ def main():
     Filtra mercados con probabilidad entre 5% y 95%.
 
     """
-    print()
-    print("█ 🔮 MERCADOS DE PREDICCIÓN █")
-    print()
+    setup_logging()
+    log.info("")
+    log.info("█ 🔮 MERCADOS DE PREDICCIÓN █")
+    log.info("")
 
     try:
         events = fetch(f"{API}/events?closed=false&order=volume&ascending=false&limit=25")
     except Exception as e:
-        print(f"  ⚠️ Sin datos: {e}")
+        log.warning(f"  ⚠️ Sin datos: {e}")
         return
 
     cats = {"geopolitica": [], "elecciones": [], "deportes": []}
@@ -195,33 +199,33 @@ def main():
 
     # Geopolítica
     if cats["geopolitica"]:
-        print("🌍 GEOPOLÍTICA")
+        log.info("🌍 GEOPOLÍTICA")
         for item in cats["geopolitica"]:
-            print(f"- **{item['title']}**")
-            print(f"  🔮 {item['question']} → **{item['prob']}%**")
-            print(f"  📊 Vol: {item['vol']}")
-        print()
+            log.info(f"- **{item['title']}**")
+            log.info(f"  🔮 {item['question']} → **{item['prob']}%**")
+            log.info(f"  📊 Vol: {item['vol']}")
+        log.info("")
 
     # Elecciones
     if cats["elecciones"]:
-        print("🇺🇸 ELECCIONES 2028")
-        print("| Candidato | Prob | Vol |")
-        print("|-----------|------|-----|")
+        log.info("🇺🇸 ELECCIONES 2028")
+        log.info("| Candidato | Prob | Vol |")
+        log.info("|-----------|------|-----|")
         for item in cats["elecciones"]:
-            print(f"| {item['question']} | {item['prob']}% | {item['vol']} |")
-        print()
+            log.info(f"| {item['question']} | {item['prob']}% | {item['vol']} |")
+        log.info("")
 
     # Deportes
     if cats["deportes"]:
-        print("⚽ DEPORTES")
-        print("| Evento | Top | Prob | Vol |")
-        print("|--------|-----|------|-----|")
+        log.info("⚽ DEPORTES")
+        log.info("| Evento | Top | Prob | Vol |")
+        log.info("|--------|-----|------|-----|")
         for item in cats["deportes"]:
-            print(f"| {item['title']} | {item['question']} | {item['prob']}% | {item['vol']} |")
-        print()
+            log.info(f"| {item['title']} | {item['question']} | {item['prob']}% | {item['vol']} |")
+        log.info("")
 
     total = sum(float(ev.get("volume", 0) or 0) for ev in events[:10])
-    print(f"_Volumen top 10: {fmt_vol(total)} • Fuente: Polymarket_")
+    log.info(f"_Volumen top 10: {fmt_vol(total)} • Fuente: Polymarket_")
 
 
 if __name__ == "__main__":

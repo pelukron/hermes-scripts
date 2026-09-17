@@ -4,10 +4,15 @@ Reporte de uso de Hermes con tablas, porcentajes y gráficas ASCII.
 Sin imágenes. Enviado como texto plano al canal de alertas.
 """
 
+import logging
 import os
 import sqlite3
 import sys
 from datetime import datetime
+
+from hermes_common import setup_logging
+
+log = logging.getLogger("hermes")
 
 HERMES_HOME = os.path.expanduser("~/.hermes")
 DB_PATH = os.path.join(HERMES_HOME, "state.db")
@@ -167,8 +172,9 @@ def main():
     a Markdown-formatted report with summary table, per-model breakdown,
     and ASCII charts for tokens and sessions per day.
     """
+    setup_logging()
     if not os.path.exists(DB_PATH):
-        print("No se encontró state.db.")
+        log.warning("No se encontró state.db.")
         sys.exit(1)
 
     rows = fetch_daily_stats(days=7)
@@ -176,7 +182,7 @@ def main():
     total = fetch_total_stats(days=7)
 
     if not rows:
-        print("Aún no hay suficientes datos históricos.")
+        log.warning("Aún no hay suficientes datos históricos.")
         sys.exit(0)
 
     total_sessions = total[0]
@@ -241,7 +247,7 @@ def main():
 
     output.append("_Actualizado automáticamente cada mañana._")
 
-    print("\n".join(output))
+    log.info("\n".join(output))
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import subprocess
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -103,6 +104,41 @@ def retry_request(url, timeout=15, max_attempts=3, headers=None, session=None):
 def premium_link(text: str, url: str) -> str:
     """Returns a markdown formatted link."""
     return f"[{text}]({url})"
+
+
+LOG_FORMAT = "%(message)s"
+LOG_ENV_VAR = "HERMES_LOG_LEVEL"
+
+
+def setup_logging(level=None):
+    """Configura el logger `hermes` hacia stdout (canal de entrega).
+
+    Formato plano: a nivel INFO el output es byte-idéntico al print()
+    histórico (el gateway de Telegram consume stdout). Nivel vía
+    HERMES_LOG_LEVEL (default INFO). Re-enlaza el handler en cada llamada
+    para no retener un sys.stdout viejo (tests con capsys).
+
+    Args:
+        level: Nivel explícito (ej. "DEBUG"); si es None usa el env var.
+
+    Returns:
+        logging.Logger: El logger `hermes` configurado.
+    """
+    try:
+        resolved = (level or os.environ.get(LOG_ENV_VAR, "INFO")).upper()
+        numeric = getattr(logging, resolved, logging.INFO)
+        if not isinstance(numeric, int):
+            numeric = logging.INFO
+    except Exception:
+        numeric = logging.INFO
+    logger = logging.getLogger("hermes")
+    for handler in logger.handlers:
+        logger.removeHandler(handler)
+    stream = logging.StreamHandler(sys.stdout)
+    stream.setFormatter(logging.Formatter(LOG_FORMAT))
+    logger.addHandler(stream)
+    logger.setLevel(numeric)
+    return logger
 
 
 def smart_truncate(text: str, limit: int = 3000) -> str:

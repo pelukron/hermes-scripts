@@ -13,7 +13,9 @@ from datetime import datetime
 
 import defusedxml.ElementTree as ET  # noqa: N817
 
-from hermes_common import news_utils, retry_request
+from hermes_common import news_utils, retry_request, setup_logging
+
+log = logging.getLogger("hermes")
 
 # Helpers compartidos en src/hermes_common/news_utils.py (issue #70).
 clean_title = news_utils.clean_title
@@ -193,7 +195,10 @@ def fetch_currencies():
 
 
 def main():
-    print(f"🪨 **DIARIO GLOBAL HERMES** 🪨\n_Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}_\n")
+    setup_logging()
+    log.info(
+        f"🪨 **DIARIO GLOBAL HERMES** 🪨\n_Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}_\n"
+    )
     time.sleep(0.5)
 
     feeds = load_feeds()
@@ -226,8 +231,8 @@ def main():
                 section_has_content = True
 
         if section_has_content:
-            print("\n".join(section_lines))
-            print("")
+            log.info("\n".join(section_lines))
+            log.info("")
             time.sleep(1)
 
     # Footer stats
@@ -241,7 +246,7 @@ def main():
                 failed_list += f" +{_stats.fail - 5} más"
             footer_line += f" ({_stats.fail} fallos: {failed_list})"
         footer_line += "_\n"
-        print(footer_line)
+        log.info(footer_line)
         time.sleep(1)
 
     # Polymarket predictions (entrypoint instalado por #71)
@@ -253,17 +258,17 @@ def main():
             text=True,
         )
     except Exception as e:
-        logging.warning("Polymarket subprocess failed: %s", e)
+        log.warning("Polymarket subprocess failed: %s", e)
 
     # Markets
     crypto = fetch_crypto()
     curr = fetch_currencies()
     if crypto or curr:
-        print("**💰 MERCADOS**\n")
+        log.info("**💰 MERCADOS**\n")
         for sym, price, change, emoji in crypto:
-            print(f"• {emoji} {sym}: ${price:,.2f} ({change:+.2f}%)")
+            log.info(f"• {emoji} {sym}: ${price:,.2f} ({change:+.2f}%)")
         for label, rate, note in curr:
-            print(f"• {label}: ${rate:,.2f} ({note})")
+            log.info(f"• {label}: ${rate:,.2f} ({note})")
 
 
 if __name__ == "__main__":

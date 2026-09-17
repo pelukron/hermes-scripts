@@ -11,12 +11,14 @@ from .common import (
     parse_published,
     premium_link,
     retry_request,
+    setup_logging,
     smart_truncate,
 )
 
 __all__ = [
     "retry_request",
     "premium_link",
+    "setup_logging",
     "smart_truncate",
     "get_headers",
     "get_repo_version",

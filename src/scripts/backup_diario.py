@@ -2,11 +2,16 @@
 """Hermes backup diario — local, rotación 7 días. 0 dependencias externas."""
 
 import gzip
+import logging
 import sqlite3
 import tarfile
 import time
 from datetime import datetime
 from pathlib import Path
+
+from hermes_common import setup_logging
+
+log = logging.getLogger("hermes")
 
 HOME = Path.home()
 HERMES = HOME / ".hermes"
@@ -29,7 +34,7 @@ def dump_sqlite(state_db, backup_dir, date_str):
         Path or None: Path to the created dump file, or None on failure.
     """
     if not state_db.exists():
-        print("state.db no encontrado, omitiendo dump SQL.")
+        log.warning("state.db no encontrado, omitiendo dump SQL.")
         return None
 
     dump_path = backup_dir / f"state_{date_str}.sql.gz"
@@ -39,10 +44,10 @@ def dump_sqlite(state_db, backup_dir, date_str):
         conn.close()
         with gzip.open(dump_path, "wt", encoding="utf-8") as f:
             f.write(dump)
-        print(f"✓ state.db dump → {dump_path} ({dump_path.stat().st_size} bytes)")
+        log.info(f"✓ state.db dump → {dump_path} ({dump_path.stat().st_size} bytes)")
         return dump_path
     except Exception as e:
-        print(f"✗ state.db dump ERROR: {e}")
+        log.error(f"✗ state.db dump ERROR: {e}")
         return None
 
 
@@ -73,7 +78,7 @@ def backup_config(hermes_dir, backup_dir, date_str):
             if item.name in excluded:
                 continue
             tar.add(item, arcname=f".hermes/{item.name}")
-    print(f"✓ hermes config → {tar_path} ({tar_path.stat().st_size} bytes)")
+    log.info(f"✓ hermes config → {tar_path} ({tar_path.stat().st_size} bytes)")
     return tar_path
 
 
@@ -93,7 +98,7 @@ def cleanup_bak_files(hermes_dir, retention_days=3):
         if f.stat().st_mtime < cutoff:
             f.unlink()
             deleted += 1
-    print(f"✓ .bak cleanup: {deleted} borrados (> {retention_days}d)")
+    log.info(f"✓ .bak cleanup: {deleted} borrados (> {retention_days}d)")
     return deleted
 
 
@@ -114,7 +119,7 @@ def rotate_backups(backup_dir, retention_days=7):
             f.unlink()
             deleted += 1
     remaining = len(list(backup_dir.glob("*.gz")))
-    print(f"✓ rotación: {deleted} borrados, {remaining} retenidos")
+    log.info(f"✓ rotación: {deleted} borrados, {remaining} retenidos")
     return deleted, remaining
 
 
@@ -150,6 +155,7 @@ def release_note_unreleased(changelog_path):
 
 def main():
     """Run daily backup: SQL dump, config tarball, bak cleanup, rotation."""
+    setup_logging()
     date_str = datetime.now().strftime("%Y-%m-%d")
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -172,7 +178,7 @@ def main():
         output.append(release_note)
         output.append("```")
 
-    print("\n".join(output))
+    log.info("\n".join(output))
 
 
 if __name__ == "__main__":

@@ -29,7 +29,10 @@ from hermes_common import (
     news_utils,
     parse_published,
     retry_request,
+    setup_logging,
 )
+
+log = logging.getLogger("hermes")
 
 # Cron job uses the Hermes venv by default; ensure deps are installed if missing.
 try:
@@ -57,7 +60,7 @@ except ModuleNotFoundError:
             ]
         )
     except subprocess.CalledProcessError as e:
-        logging.warning("Failed to install runtime deps: %s", e)
+        log.warning("Failed to install runtime deps: %s", e)
         raise
     import feedparser  # noqa: F401 — re-exportado en __all__ (target de mocks en tests)
     from bs4 import BeautifulSoup
@@ -309,7 +312,7 @@ def fetch_rayados_detail(link: str, timeout: int = 10) -> tuple:
                 author = str(meta_author.get("content")).strip() or None
         return published, author
     except Exception as e:
-        logging.warning("Detalle rayados.com falló (%s): %s", link, e)
+        log.warning("Detalle rayados.com falló (%s): %s", link, e)
         return None, None
 
 
@@ -572,12 +575,13 @@ def main():
     '---' entre bloques para que el gateway de Telegram los envíe como
     mensajes independientes.
     """
+    setup_logging()
     blocks = build_report_blocks()
     for block in blocks:
         # Imprimir cada bloque con una separación clara
         # El gateway de Telegram enviará cada print como un mensaje si están separados por tiempo.
-        print(hermes_common.smart_truncate(block, limit=TELEGRAM_MAX_CHARS))
-        print("\n---\n")  # Separador para el gateway
+        log.info(hermes_common.smart_truncate(block, limit=TELEGRAM_MAX_CHARS))
+        log.info("\n---\n")  # Separador para el gateway
         time.sleep(1.5)
 
 
