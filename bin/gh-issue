@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # GitHub Issue + Branch CLI helper for hermes-scripts
 # Crea issue, branch y guía para PR siguiendo convenciones del repo.
+#
+# DEPRECADO: prefiere bin/bump-and-pr.sh "<tipo>: <descripción>" [--worktree],
+# que hace el flujo completo (issue + rama + commit + push + PR). Este script
+# se mantiene para crear solo issue + rama sin commitear.
 
 set -euo pipefail
 
@@ -50,28 +54,31 @@ if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
   exit 0
 fi
 
-# Map type to label and emoji
+# Map type to label (sin emoji en títulos: lo exige el job commitlint de CI)
 LABEL=""
-EMOJI=""
 case "$TYPE" in
-  feature) LABEL="✨ enhancement" EMOJI="✨" ;;
-  bugfix) LABEL="🐛 bug" EMOJI="🐛" ;;
-  hotfix) LABEL="🚨 hotfix" EMOJI="🚨" ;;
-  docs) LABEL="📚 documentation" EMOJI="📚" ;;
-  chore|ci|refactor|test) LABEL="🔧 chore" EMOJI="🔧" ;;
-  *) LABEL="" EMOJI="📝" ;;
+  feature) LABEL="✨ enhancement" ;;
+  bugfix) LABEL="🐛 bug" ;;
+  hotfix) LABEL="🚨 hotfix" ;;
+  docs) LABEL="📚 documentation" ;;
+  chore|ci|refactor|test) LABEL="🔧 chore" ;;
+  *) LABEL="" ;;
 esac
 
-LABEL_ARGS=""
+LABEL_ARGS=()
 if [ -n "$LABEL" ]; then
-  LABEL_ARGS="--label '$LABEL'"
+  LABEL_ARGS=(--label "$LABEL")
 fi
 
-ISSUE_URL=$(gh issue create --repo "$OWNER/$REPO" --title "${EMOJI} ${TYPE}: ${TITLE}" --body "$BODY" $LABEL_ARGS)
+ISSUE_URL=$(gh issue create --repo "$OWNER/$REPO" --title "${TYPE}: ${TITLE}" --body "$BODY" "${LABEL_ARGS[@]}")
 ISSUE_NUM=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
 
-echo "🎉 Created issue #$ISSUE_NUM: $ISSUE_URL"
+echo "Created issue #$ISSUE_NUM: $ISSUE_URL"
 echo "Labels: $LABEL"
+echo "AVISO: gh-issue está deprecado: prefiere bin/bump-and-pr.sh para el flujo completo."
+
+# Rama con N (contrato {tipo}/{N}-slug)
+BRANCH="${TYPE}/${ISSUE_NUM}-${SLUG}"
 
 # Ensure main is up to date
 git checkout main
