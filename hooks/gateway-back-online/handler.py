@@ -24,7 +24,7 @@ def _send_telegram(text):
     try:
         data = urllib.parse.urlencode({"chat_id": chat, "text": text}).encode("utf-8")
         req = urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=data)
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310: URL fija https
             ok = resp.status == 200
     except Exception as exc:
         logger.warning("back-online: fallo el envio: %s", exc)
