@@ -10,6 +10,7 @@ from .common import (
     is_within_max_age,
     parse_published,
     premium_link,
+    report_failure,
     retry_request,
     setup_logging,
     smart_truncate,
@@ -18,6 +19,7 @@ from .common import (
 __all__ = [
     "retry_request",
     "premium_link",
+    "report_failure",
     "setup_logging",
     "smart_truncate",
     "get_headers",

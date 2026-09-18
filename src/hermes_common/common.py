@@ -5,8 +5,10 @@ import random
 import subprocess
 import sys
 import time
+import traceback
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 from time import struct_time
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -139,6 +141,29 @@ def setup_logging(level=None):
     logger.addHandler(stream)
     logger.setLevel(numeric)
     return logger
+
+
+def report_failure(exc: BaseException) -> int:
+    """Digest de fallo inesperado (port del patron empleo#158).
+
+    Traceback completo al archivo rotado de auditoria; causa compacta a
+    stdout (canal de entrega: Hermes la reparte). Nunca lanza: si el disco
+    falla igual se imprime la causa. Retorna 1 para `raise SystemExit(...)`.
+    Converge al mismo archivo que el handler de #189 cuando mergee.
+    """
+    try:
+        base = os.environ.get("HERMES_HOME", "")
+        home = Path(base).expanduser() if base else Path.home()
+        logdir = home / "logs"
+        logdir.mkdir(parents=True, exist_ok=True)
+        stamped = datetime.now(timezone.utc).isoformat()
+        with open(logdir / "hermes-scripts.log", "a", encoding="utf-8") as f:
+            f.write(f"\n{stamped} ERROR {type(exc).__name__}: {exc}\n")
+            f.write("".join(traceback.format_exception(exc)))
+    except Exception:
+        pass
+    print(f"ERROR: {type(exc).__name__}: {exc}")
+    return 1
 
 
 def smart_truncate(text: str, limit: int = 3000) -> str:
