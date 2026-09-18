@@ -98,20 +98,7 @@ jobs:
           REF: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
         run: |
-          NL=$'\n'
-          CHECKS="test=${STATUS_TEST} audit=${STATUS_AUDIT}"
-          SHORT="${SHA:0:7}"
-          # En un PR, "ref" es el ref sintetico (<n>/merge): el numero y el enlace reales
-          # salen del evento. En un push a main no hay PR y el aviso enlaza al commit.
-          if [ "${STATUS_TEST}" = "success" ] && [ "${STATUS_AUDIT}" = "success" ]; then
-            if [ -n "${PR_NUMBER}" ]; then
-              TEXT="✅ PR #${PR_NUMBER} listo para review${NL}${PR_TITLE}${NL}${PR_URL}${NL}CI en verde (${CHECKS})${NL}Commit: ${SHORT}"
-            else
-              TEXT="✅ CI paso: ${GITHUB_REPOSITORY}${NL}main: ${SHORT}${NL}${COMMIT_URL}${NL}${CHECKS}"
-            fi
-          elif [ -n "${PR_NUMBER}" ]; then
-            TEXT="❌ PR #${PR_NUMBER} fallo el CI (${CHECKS})${NL}${PR_TITLE}${NL}${PR_URL}${NL}Run: ${RUN_URL}${NL}Commit: ${SHORT}"
-          else
-            TEXT="❌ CI fallo: ${GITHUB_REPOSITORY}${NL}main: ${SHORT}${NL}${COMMIT_URL}${NL}Run: ${RUN_URL}${NL}${CHECKS}"
-          fi
+          # Texto desde src/notify_render.py (plantillas en config/notify-messages.json,
+          # patron hermes-empleo); el envio sigue en bin/notify-telegram.sh.
+          TEXT="$(python3 src/notify_render.py --ci)"
           bash bin/notify-telegram.sh "${TEXT}"
