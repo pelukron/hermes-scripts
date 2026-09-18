@@ -11,6 +11,7 @@ from .common import (
     parse_published,
     premium_link,
     repo_root,
+    report_failure,
     retry_request,
     setup_logging,
     smart_truncate,
@@ -19,6 +20,8 @@ from .common import (
 __all__ = [
     "retry_request",
     "premium_link",
+    "report_failure",
+    "repo_root",
     "setup_logging",
     "smart_truncate",
     "get_headers",

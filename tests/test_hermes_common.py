@@ -393,3 +393,55 @@ class TestSetupLogging:
         log.info("sigue")
         assert capsys.readouterr().out == "sigue\n"
         assert len(logging.getLogger("hermes").handlers) == 1
+
+
+class TestReportFailure:
+    def test_digest_a_stdout_y_archivo(self, tmp_path, monkeypatch, capsys):
+        from hermes_common import report_failure
+
+        home = tmp_path / "hermes"
+        monkeypatch.setenv("HERMES_HOME", str(home))
+        try:
+            raise ValueError("boom-test")
+        except ValueError as exc:
+            rc = report_failure(exc)
+        assert rc == 1
+        assert capsys.readouterr().out == "ERROR: ValueError: boom-test\n"
+        contenido = (home / "logs" / "hermes-scripts.log").read_text(encoding="utf-8")
+        assert "ValueError: boom-test" in contenido
+        assert "Traceback" in contenido
+
+    def test_disco_falla_igual_imprime(self, tmp_path, monkeypatch, capsys):
+        from hermes_common import report_failure
+
+        bloqueado = tmp_path / "archivo"
+        bloqueado.write_text("x", encoding="utf-8")
+        monkeypatch.setenv("HERMES_HOME", str(bloqueado))
+        try:
+            raise RuntimeError("falla-disco")
+        except RuntimeError as exc:
+            rc = report_failure(exc)
+        assert rc == 1
+        assert capsys.readouterr().out == "ERROR: RuntimeError: falla-disco\n"
+
+    def test_entrypoints_envuelven_main(self):
+        import re
+
+        scripts = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "scripts"
+        )
+        esperados = [
+            "backup_diario",
+            "cleanup_housekeeping",
+            "monitor_ram_mexico",
+            "polymarket_diario",
+            "reporte_uso_hermes",
+            "resumen_noticias_diario",
+            "resumen_rayados_diario",
+            "resumen_tigres_diario",
+        ]
+        for name in esperados:
+            with open(os.path.join(scripts, f"{name}.py"), encoding="utf-8") as f:
+                texto = f.read()
+            assert "report_failure" in texto, name
+            assert re.search(r"except Exception as exc", texto), name
