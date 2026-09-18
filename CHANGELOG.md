@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.10.0 (2026-09-18)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`e07b3a6`](https://github.com/pelukron/hermes-scripts/commit/e07b3a6d48bca0824a7ba6ddf4ec8f67c613fed1))
+
+### ✨ Features
+
+- Doctor diario con expectativas por job (cron-doctor-daily, modo --expectations)
+  ([#217](https://github.com/pelukron/hermes-scripts/pull/217),
+  [`f1c65f0`](https://github.com/pelukron/hermes-scripts/commit/f1c65f03029bdc4851966027b76e4f450385f6c9))
+
+
 ## v0.9.4 (2026-09-18)
 
 ### 📦 Chores

@@ -142,6 +142,14 @@
       "deliver": "origin"
     },
     {
+      "name": "cron-doctor-daily",
+      "description": "Qué debía correr hoy y no corrió (corridas perdidas, fallidas y entregas fallidas; sin hallazgos no entrega nada)",
+      "schedule": "0 11 * * *",
+      "wrapper": "cron-doctor-daily.sh",
+      "command": "uv run python src/install_cron.py --expectations",
+      "deliver": "${notify}"
+    },
+    {
       "name": "Hermes weekly update + backup",
       "description": "Update semanal de Hermes Agent con backup previo",
       "schedule": "0 4 * * 0",
