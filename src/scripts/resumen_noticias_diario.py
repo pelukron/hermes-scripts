@@ -22,17 +22,20 @@ log = logging.getLogger("hermes")
 ITEMS_POR_FUENTE = 3
 MAX_CHARS_POR_SUBSECCION = news_utils.TELEGRAM_MAX_CHARS
 
-# Presupuesto global de entrega (#212, medido 2026-09-18): el sender de Telegram
-# corta a 4096 unidades UTF-16 por mensaje y con 8 chunks (30 KB) la entrega
-# FALLA con `Timed out`. Dos chunks (8192) se entregan en <2 s. Lo que no son
-# secciones (encabezado, pie de fuentes, mercados, nota de recorte) va en la
-# reserva, así que el reporte completo nunca supera 2 mensajes.
-MAX_CHARS_REPORTE = 7000
-RESERVA_FUERA_DE_SECCIONES = 900
+# Presupuesto de entrega (#212, medido 2026-09-18): el sender de Telegram corta a
+# 4096 unidades UTF-16 por mensaje. Con 2 chunks el corte parte un enlace por la
+# mitad y Telegram RECHAZA el markdown de ese chunk: se entrega como texto plano y
+# quedan a la vista las URLs de Google News (~200 chars). Con 1 chunk el render es
+# limpio, así que el techo es un solo mensaje. Títulos y paréntesis van acotados.
+MAX_CHARS_REPORTE = 3200
+RESERVA_FUERA_DE_SECCIONES = 600
 # Una sección por debajo de esto no vale el viaje: encabezado + nombre de fuente
 # + un item con su link. Si lo que queda del presupuesto no llega, la sección se
 # omite SIN pedir sus fuentes (ahorra red en la cola del reporte).
 MIN_CHARS_SECCION = 250
+# Titular máximo por item (#212): los feeds sirven titulares de 100-150 chars y
+# el reporte muestra la URL al lado, así que el mensaje se vuelve ilegible.
+MAX_CHARS_TITULO = 80
 
 # Helpers compartidos en src/hermes_common/news_utils.py (issue #70).
 clean_title = news_utils.clean_title
@@ -42,6 +45,7 @@ __all__ = [
     "ITEMS_POR_FUENTE",
     "MAX_CHARS_POR_SUBSECCION",
     "MAX_CHARS_REPORTE",
+    "MAX_CHARS_TITULO",
     "RESERVA_FUERA_DE_SECCIONES",
     "build_subsection_block",
     "clean_title",
@@ -218,6 +222,16 @@ def fetch_currencies():
         return []
 
 
+def sin_parentesis(texto):
+    """Quita paréntesis de un texto del feed (#212).
+
+    MarkdownV2 los exige escapados y el sender de Hermes no los escapa en el
+    texto del link: el mensaje entero cae a texto plano y las URLs de Google
+    News (~200 chars) quedan a la vista al lado de cada titular.
+    """
+    return texto.replace("(", "").replace(")", "")
+
+
 def build_subsection_block(
     sub_name: str,
     sources: list,
@@ -248,10 +262,11 @@ def build_subsection_block(
             if clean_link in seen_urls:
                 continue
             seen_urls.add(clean_link)
-            new_lines.append(f"  [{clean_title(title)}]({clean_link})")
+            titulo = smart_truncate(sin_parentesis(clean_title(title)), limit=MAX_CHARS_TITULO)
+            new_lines.append(f"  [{titulo}]({clean_link})")
         if new_lines:
             has_content = True
-            sub_lines.append(f"• *{source_name}*")
+            sub_lines.append(f"• *{sin_parentesis(source_name)}*")
             sub_lines.extend(new_lines)
     if not has_content:
         return ""
@@ -313,15 +328,21 @@ def nota_de_recorte(omitidas):
 
 def main():
     setup_logging()
-    log.info(
+
+    def emitir(texto):
+        """Todo lo que sale al canal pasa por aquí: sin paréntesis que tiren el
+        MarkdownV2 a texto plano, con las URLs gigantes a la vista (#212)."""
+        log.info(sin_parentesis(texto))
+
+    emitir(
         f"🪨 **DIARIO GLOBAL HERMES** 🪨\n_Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}_\n"
     )
     time.sleep(0.5)
 
     feeds = load_feeds()
-    omitidas = emitir_secciones(feeds, fetch_all_rss, log.info)
+    omitidas = emitir_secciones(feeds, fetch_all_rss, emitir)
     if omitidas:
-        log.info(nota_de_recorte(omitidas))
+        emitir(nota_de_recorte(omitidas))
         time.sleep(1)
 
     # Footer stats
@@ -333,9 +354,9 @@ def main():
             failed_list = ", ".join(_stats.failed[:5])
             if _stats.fail > 5:
                 failed_list += f" +{_stats.fail - 5} más"
-            footer_line += f" ({_stats.fail} fallos: {failed_list})"
+            footer_line += f" {_stats.fail} fallos: {failed_list}"
         footer_line += "_\n"
-        log.info(footer_line)
+        emitir(footer_line)
         time.sleep(1)
 
     # Polymarket predictions (entrypoint instalado por #71)
@@ -353,11 +374,11 @@ def main():
     crypto = fetch_crypto()
     curr = fetch_currencies()
     if crypto or curr:
-        log.info("**💰 MERCADOS**\n")
+        emitir("**💰 MERCADOS**\n")
         for sym, price, change, emoji in crypto:
-            log.info(f"• {emoji} {sym}: ${price:,.2f} ({change:+.2f}%)")
+            emitir(f"• {emoji} {sym}: ${price:,.2f} {change:+.2f}%")
         for label, rate, note in curr:
-            log.info(f"• {label}: ${rate:,.2f} ({note})")
+            emitir(f"• {label}: ${rate:,.2f} {note}")
 
 
 if __name__ == "__main__":
