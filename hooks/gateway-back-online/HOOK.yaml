@@ -1,0 +1,4 @@
+name: back-online
+description: Avisa al canal personal cuando el gateway arranca tras estar apagado
+events:
+  - gateway:startup

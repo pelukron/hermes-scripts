@@ -69,6 +69,19 @@ hermes cron remove <job_id>            # por job (id en hermes cron list / jobs.
 rm ~/.hermes/scripts/<wrapper>.sh      # opcional: los wrappers generados
 ```
 
+## Hooks del gateway (back-online)
+
+`hooks/gateway-back-online/` avisa al canal personal cuando el gateway
+arranca tras estar apagado (evento `gateway:startup`, envío directo sin
+agente). Requiere en el entorno del gateway `TELEGRAM_BOT_TOKEN` y
+`TELEGRAM_HOME_CHANNEL` (mismo chat de los avisos peak).
+
+```bash
+./setup.sh                               # instala hooks/ en ~/.hermes/hooks/
+hermes gateway restart                   # probar: reinicia el gateway
+hermes logs --follow | grep back-online  # verificado si sale el aviso
+```
+
 ## Validación del repo (lo que corre CI)
 
 ```bash

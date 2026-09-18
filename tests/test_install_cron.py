@@ -525,7 +525,7 @@ class TestQuiet:
     def test_manifiesto_real_trae_cron_drift_check(self, tmp_path):
         manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
         jobs = ic.parse_jobs(manifest)
-        assert len(jobs) == 14
+        assert len(jobs) == 17
         found = [job for job in jobs if job.name == "cron-drift-check"]
         assert len(found) == 1
         job = found[0]
@@ -533,7 +533,7 @@ class TestQuiet:
         assert job.is_no_agent
         assert job.wrapper == "cron-check.sh"
         assert "--check --quiet" in job.command
-        assert job.deliver == "origin"
+        assert job.deliver == "${notify}"
         wrapper = tmp_path / "cron-check.sh"
         wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
         result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
@@ -599,6 +599,24 @@ class TestDoctor:
         self._fake_run(monkeypatch, rc=0, out="")
         assert ic.main(["--doctor"]) == 0
         assert capsys.readouterr().out == ""
+
+    def test_manifiesto_real_trae_aviso_offpeak(self, tmp_path):
+        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
+        jobs = {job.name: job for job in ic.parse_jobs(manifest)}
+        for name, schedule in (
+            ("aviso-offpeak-22h", "0 22 * * 0-4"),
+            ("aviso-offpeak-04h", "0 4 * * 1-5"),
+        ):
+            job = jobs[name]
+            assert job.schedule == schedule
+            assert job.is_no_agent
+            assert job.wrapper == "aviso-offpeak.sh"
+            assert "aviso-offpeak.sh" in job.command
+            assert job.deliver == "${personal}"
+            wrapper = tmp_path / "aviso-offpeak.sh"
+            wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
+            result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
+            assert result.returncode == 0, result.stderr
 
 
 def no_agent_job(**overrides) -> "ic.Job":
