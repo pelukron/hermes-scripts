@@ -4,5 +4,6 @@
   "reports": "telegram:-1000000000000",
   "empleo": "origin",
   "rayados": "origin",
-  "tigres": "origin"
+  "tigres": "origin",
+  "notify": "telegram:-1000000000000"
 }
