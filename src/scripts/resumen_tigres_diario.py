@@ -432,6 +432,11 @@ def classify(all_items: list) -> tuple:
 # ---------------------------------------------------------------------------
 # Salida
 # ---------------------------------------------------------------------------
+def historial_path() -> str:
+    """Ruta del historial de deduplicación (estado sustituible, #215)."""
+    return str(hermes_common.state_dir() / "tigres-history.json")
+
+
 def build_report_blocks() -> list:
     """Construye bloques de texto formateados con noticias para envío a Telegram.
 
@@ -453,7 +458,7 @@ def build_report_blocks() -> list:
         list: Lista de strings, cada uno es un bloque para enviar a Telegram.
         Bloque 0: encabezado, Bloque 1: confirmadas, Bloque 2: rumores.
     """
-    history = hermes_common.HistoryManager("~/.hermes/tigres-history.json", ttl_hours=72)
+    history = hermes_common.HistoryManager(historial_path(), ttl_hours=72)
 
     # 2. Recolectar (con validación)
     google_confirmadas = fetch_google_news(QUERIES["confirmadas"], "confirmadas")

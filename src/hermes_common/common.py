@@ -516,6 +516,19 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def state_dir() -> Path:
+    """Directorio de estado del runtime: `$HERMES_HOME` o `~/.hermes` (#215).
+
+    Es el seam que permite correr un entrypoint con un estado sustituible (un
+    canario en sandbox) sin tocar el estado real: deduplicación de noticias,
+    historial de precios, `state.db`.
+
+    Returns:
+        Path: directorio de estado.
+    """
+    return Path(os.environ.get("HERMES_HOME") or (Path.home() / ".hermes"))
+
+
 def get_repo_version(repo_root=None):
     """Devuelve el último tag semántico del repo (para sellar reportes).
 
