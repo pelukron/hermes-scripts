@@ -523,7 +523,31 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="reemplaza wrappers existentes que no fueron generados por este instalador",
     )
+    parser.add_argument(
+        "--doctor",
+        action="store_true",
+        help="salud de la flota Hermes (hermes cron doctor); silencio si todo OK",
+    )
     return parser
+
+
+def run_doctor() -> int:
+    """Modo --doctor: salud de la flota. Silencio si todo OK, hallazgos si no."""
+    try:
+        result = subprocess.run(
+            [hermes_cli(), "cron", "doctor"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except (OSError, subprocess.SubprocessError, ManifestError) as exc:
+        print(f"ERROR: hermes no disponible: {exc}", file=sys.stderr)
+        return 2
+    if result.returncode != 0:
+        out = ((result.stdout or "") + (result.stderr or "")).strip()
+        print(out if out else "hermes cron doctor reportó problemas (sin detalle)")
+        return result.returncode or 1
+    return 0
 
 
 class _AbortError(Exception):
@@ -643,6 +667,8 @@ def main(argv: list[str] | None = None) -> int:
             reconfigure(encoding="utf-8")
     except ValueError:
         pass
+    if args.doctor:
+        return run_doctor()
     if args.quiet and not args.check:
         print("ERROR: --quiet solo es válido con --check", file=sys.stderr)
         return 2

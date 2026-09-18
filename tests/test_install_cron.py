@@ -525,7 +525,7 @@ class TestQuiet:
     def test_manifiesto_real_trae_cron_drift_check(self, tmp_path):
         manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
         jobs = ic.parse_jobs(manifest)
-        assert len(jobs) == 16
+        assert len(jobs) == 17
         found = [job for job in jobs if job.name == "cron-drift-check"]
         assert len(found) == 1
         job = found[0]
@@ -538,6 +538,67 @@ class TestQuiet:
         wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
         result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
+
+    def test_manifiesto_real_trae_cron_doctor_check(self, tmp_path):
+        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
+        jobs = ic.parse_jobs(manifest)
+        found = [job for job in jobs if job.name == "cron-doctor-check"]
+        assert len(found) == 1
+        job = found[0]
+        assert job.schedule == "0 10 * * 2"
+        assert job.is_no_agent
+        assert job.wrapper == "cron-doctor.sh"
+        assert "--doctor" in job.command
+        assert job.deliver == "origin"
+        assert ic.validate_manifest(manifest, jobs) == []
+        wrapper = tmp_path / "cron-doctor.sh"
+        wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
+        result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+
+
+class TestDoctor:
+    def _fake_run(self, monkeypatch, rc=0, out="", err="", exc=None):
+        import types
+
+        def fake(cmd, **kwargs):
+            if exc is not None:
+                raise exc
+            return types.SimpleNamespace(returncode=rc, stdout=out, stderr=err)
+
+        monkeypatch.setattr(ic, "hermes_cli", lambda: "hermes")
+        monkeypatch.setattr(ic.subprocess, "run", fake)
+
+    def test_sano_silencioso(self, monkeypatch, capsys):
+        self._fake_run(monkeypatch, rc=0, out="todo bien\n")
+        assert ic.run_doctor() == 0
+        assert capsys.readouterr().out == ""
+
+    def test_hallazgos_se_entregan(self, monkeypatch, capsys):
+        self._fake_run(monkeypatch, rc=1, out="FALLA: job x\n")
+        assert ic.run_doctor() == 1
+        assert "FALLA: job x" in capsys.readouterr().out
+
+    def test_sin_detalle_avisa(self, monkeypatch, capsys):
+        self._fake_run(monkeypatch, rc=1, out="", err="")
+        assert ic.run_doctor() == 1
+        assert "sin detalle" in capsys.readouterr().out
+
+    def test_hermes_ausente(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            ic, "hermes_cli", lambda: (_ for _ in ()).throw(ic.ManifestError("sin binario"))
+        )
+        assert ic.run_doctor() == 2
+        assert "ERROR" in capsys.readouterr().err
+
+    def test_subprocess_falla(self, monkeypatch, capsys):
+        self._fake_run(monkeypatch, exc=OSError("no exec"))
+        assert ic.run_doctor() == 2
+
+    def test_main_doctor(self, monkeypatch, capsys):
+        self._fake_run(monkeypatch, rc=0, out="")
+        assert ic.main(["--doctor"]) == 0
+        assert capsys.readouterr().out == ""
 
     def test_manifiesto_real_trae_aviso_offpeak(self, tmp_path):
         manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)

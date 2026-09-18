@@ -562,4 +562,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception as exc:
+        from hermes_common import report_failure
+
+        raise SystemExit(report_failure(exc))
