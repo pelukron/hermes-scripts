@@ -31,7 +31,7 @@
 
 - `src/scripts/` (entrypoints de cron: `resumen_*_diario`, `monitor_ram_mexico`, `polymarket_diario`, `reporte_uso_hermes`, `backup_diario`, `cleanup_housekeeping`; comandos con guiones vía `[project.scripts]`), `hermes_common.py` en raíz solo como compat (fuente viva en `src/`).
 - `src/hermes_common/` (utilidades compartidas), `src/install_cron.py`, `src/generate_issue_body.py`.
-- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (12 helpers + `shellcheck` en CI), `tests/` (340 tests, 2026-09-17).
+- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (14 entradas + `shellcheck` en CI), `tests/` (359 tests, 2026-09-17).
 - Deuda restante (epic #60): solo #73 dataclasses (PR #142); cerrados #70/#71/#72/#74 + epic #59 + #67/#69.
 
 ## 5. Auditoría 2026-09-15 (snapshot)
