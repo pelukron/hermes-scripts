@@ -4,6 +4,9 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.8.0 (2026-09-18)
+
+
 ## v0.7.1 (2026-09-18)
 
 
