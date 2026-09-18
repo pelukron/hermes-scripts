@@ -18,6 +18,8 @@ uv sync
 # 1. Destinos de entrega (IDs de chat fuera del repo)
 cp cron/targets.example.json cron/targets.local.json
 $EDITOR cron/targets.local.json      # pon tus chat_id reales
+# o en una sola: crea desde el ejemplo si falta + valida contra el manifiesto
+uv run python src/install_cron.py --init-targets
 
 # 2. Revisa el plan y el estado actual
 bin/install-cron.sh --dry-run        # qué va a hacer
@@ -65,6 +67,8 @@ en el `--check` manual, sin contar como drift.
 ## Quitar
 
 ```bash
+uv run python src/install_cron.py --remove <nombre>  # hermes cron remove + borra wrapper generado
+# manual equivalente:
 hermes cron remove <job_id>            # por job (id en hermes cron list / jobs.json)
 rm ~/.hermes/scripts/<wrapper>.sh      # opcional: los wrappers generados
 ```
