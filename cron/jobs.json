@@ -13,7 +13,7 @@
       "schedule": "10 4 * * *",
       "wrapper": "backup-diario.sh",
       "command": "uv run backup-diario",
-      "deliver": "${reports}"
+      "deliver": "${notify}"
     },
     {
       "name": "cleanup-housekeeping",
@@ -29,7 +29,7 @@
       "schedule": "5 8 * * *",
       "wrapper": "reporte-uso.sh",
       "command": "uv run reporte-uso-hermes",
-      "deliver": "${reports}"
+      "deliver": "${notify}"
     },
     {
       "name": "resumen-noticias-diario",
@@ -61,7 +61,7 @@
       "schedule": "*/30 * * * *",
       "wrapper": "monitor-ram.sh",
       "command": "uv run monitor-ram-mexico",
-      "deliver": "origin",
+      "deliver": "${notify}",
       "enabled": false
     },
     {
@@ -70,7 +70,7 @@
       "schedule": "*/30 * * * *",
       "wrapper": "sistema-alertas.sh",
       "command": "bash bin/sistema-alertas-y-resumen.sh",
-      "deliver": "${reports}"
+      "deliver": "${notify}"
     },
     {
       "name": "aviso-peak-19h",
@@ -123,7 +123,7 @@
       "schedule": "0 10 * * 1",
       "wrapper": "cron-check.sh",
       "command": "uv run python src/install_cron.py --check --quiet",
-      "deliver": "origin"
+      "deliver": "${notify}"
     },
     {
       "name": "Hermes weekly update + backup",
