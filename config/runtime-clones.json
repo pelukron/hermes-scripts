@@ -1,0 +1,17 @@
+{
+  "_doc": "Clones de runtime que deben seguir main. Solo los toca el job runtime-sync (ff-only, nunca force).",
+  "clones": [
+    {
+      "name": "empleo-prod",
+      "path": "~/src/hermes-empleo-prod",
+      "branch": "main",
+      "smoke": "$HOME/empleo/.venv/bin/python bin/job-scout.py --version",
+      "links": [
+        {
+          "path": "~/.hermes/skills/custom/job-scout",
+          "expect": "skills/job-scout"
+        }
+      ]
+    }
+  ]
+}

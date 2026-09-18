@@ -3,7 +3,6 @@
 
 import json
 import logging
-import os
 import subprocess
 import sys
 import time
@@ -13,7 +12,7 @@ from datetime import datetime
 
 import defusedxml.ElementTree as ET  # noqa: N817
 
-from hermes_common import news_utils, retry_request, setup_logging, smart_truncate
+from hermes_common import news_utils, repo_root, retry_request, setup_logging, smart_truncate
 
 log = logging.getLogger("hermes")
 
@@ -74,9 +73,9 @@ _stats = FeedStats()
 
 
 def load_feeds(path="config/feeds.json"):
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    full_path = os.path.join(script_dir, path)
-    with open(full_path) as f:
+    """Carga las fuentes desde la raíz del repo (no desde src/scripts/, #207)."""
+    full_path = repo_root() / path
+    with open(full_path, encoding="utf-8") as f:
         data = json.load(f)
     return [
         (

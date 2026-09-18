@@ -294,3 +294,14 @@ class TestMainIntegridad:
         self._preparar(tmp_path, monkeypatch)
         assert _mod.main() == 0
         assert "Backup OK" in capsys.readouterr().out
+
+
+class TestChangelogPath:
+    """Regresión #207: CHANGELOG apuntaba a src/scripts/CHANGELOG.md (inexistente),
+    así que release_note_unreleased() devolvía None en silencio y el reporte de
+    backup nunca mostraba la nota de release."""
+
+    def test_changelog_es_el_del_repo(self):
+        assert _mod.CHANGELOG.is_file(), _mod.CHANGELOG
+        assert _mod.CHANGELOG.parent == _mod.repo_root()
+        assert "## [Unreleased]" in _mod.CHANGELOG.read_text(encoding="utf-8")
