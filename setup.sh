@@ -41,6 +41,16 @@ else
     echo "  ⚠️  GITHUB_TOKEN no configurado en $ENV_FILE"
 fi
 
+# 5. Gateway hooks (avisos del propio Hermes: back-online al arrancar)
+if [ -d "hooks" ]; then
+    HOOKS_DIR="${HERMES_HOME:-$HOME/.hermes}/hooks"
+    mkdir -p "$HOOKS_DIR"
+    cp -r hooks/. "$HOOKS_DIR/"
+    echo "  ✅ Gateway hooks instalados ($HOOKS_DIR)"
+else
+    echo "  ⚠️  Directorio hooks no encontrado"
+fi
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  ✅ Setup completo"
