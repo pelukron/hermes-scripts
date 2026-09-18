@@ -377,3 +377,64 @@ class TestLoadFeeds:
         assert subseccion
         assert fuentes[0][0]  # nombre de la fuente
         assert fuentes[0][1].startswith("http")  # url
+
+
+# ═══════════════════════════════════════════
+# Presupuesto global de entrega (#212)
+# ═══════════════════════════════════════════
+
+FEEDS_DE_PRUEBA = [
+    ("SECCIÓN A", [("sub", [("S", "https://s.example/rss")])]),
+    ("SECCIÓN B", [("sub", [("S", "https://s.example/rss")])]),
+    ("SECCIÓN C", [("sub", [("S", "https://s.example/rss")])]),
+]
+
+
+class TestPresupuestoDeEntrega:
+    """Con 8 chunks (30 KB) el envío real falla con `Timed out` (#212, medido).
+
+    El reporte debe caber en 2 chunks: el presupuesto es global, no por subsección.
+    """
+
+    @staticmethod
+    def _fetch_unico(titulo="T" * 200):
+        """URL distinta por llamada: el dedupe cross-sección si no, vacía las siguientes."""
+        contador = iter(f"https://example.com/{n}" for n in range(1, 500))
+        return lambda sources: [[(titulo, next(contador))]]
+
+    def test_emite_solo_lo_que_cabe(self):
+        emitidos: list = []
+        omitidas = mod.emitir_secciones(
+            FEEDS_DE_PRUEBA, self._fetch_unico(), emitidos.append, presupuesto=600
+        )
+        assert omitidas == ["SECCIÓN C"]
+        assert sum(len(e) for e in emitidos) <= 600
+
+    def test_no_pide_fuentes_cuando_el_presupuesto_esta_agotado(self):
+        llamadas: list = []
+
+        def fetch(sources):
+            llamadas.append(sources)
+            return [[("T" * 200, f"https://example.com/{len(llamadas)}")]]
+
+        mod.emitir_secciones(FEEDS_DE_PRUEBA, fetch, lambda _t: None, presupuesto=600)
+        assert len(llamadas) == 2  # la tercera sección se omite sin gastar red
+
+    def test_reparte_el_presupuesto_entre_secciones(self):
+        """Ninguna sección se come el presupuesto de las demás (#212)."""
+        emitidos: list = []
+        omitidas = mod.emitir_secciones(
+            FEEDS_DE_PRUEBA, self._fetch_unico("T" * 2000), emitidos.append, presupuesto=900
+        )
+        assert omitidas == []
+        assert sum(len(e) for e in emitidos) <= 900
+
+    def test_nota_de_recorte(self):
+        nota = mod.nota_de_recorte(["SECCIÓN C", "SECCIÓN D"])
+        assert "SECCIÓN C" in nota and "SECCIÓN D" in nota
+        assert "mañana" in nota
+
+    def test_el_presupuesto_cabe_en_dos_chunks_de_telegram(self):
+        # 2 chunks = 8192 unidades UTF-16 (4096 por mensaje); lo que no son
+        # secciones (encabezado, pie, mercados, nota) va en la reserva.
+        assert mod.MAX_CHARS_REPORTE + mod.RESERVA_FUERA_DE_SECCIONES <= 8192
