@@ -619,6 +619,125 @@ class TestDoctor:
             assert result.returncode == 0, result.stderr
 
 
+def _write_manifest_targets(repo, jobs, local=None, example=None):
+    """Manifiesto + example (+local opcional) en repo temporal."""
+    import json
+    from pathlib import Path
+
+    cron = Path(repo) / "cron"
+    cron.mkdir(parents=True, exist_ok=True)
+    (cron / "jobs.json").write_text(json.dumps({"version": 1, "jobs": jobs}), encoding="utf-8")
+    (cron / "targets.example.json").write_text(
+        json.dumps({"_doc": "ejemplo", "a": "origin", **(example or {})}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    if local is not None:
+        (cron / "targets.local.json").write_text(json.dumps(local), encoding="utf-8")
+
+
+def _job_t(name="demo", deliver="origin"):
+    return demo_manifest_job(name=name, deliver=deliver)
+
+
+class TestInitTargets:
+    def test_crea_desde_ejemplo(self, tmp_path, capsys):
+        repo, home = tmp_path / "repo", tmp_path / "home"
+        _write_manifest_targets(repo, [_job_t(deliver="${a}")])
+        code = ic.main(base_args(repo, home, "--init-targets"))
+        out = capsys.readouterr().out
+        assert code == 0
+        assert (repo / "cron" / "targets.local.json").is_file()
+        assert "creado" in out
+
+    def test_valida_ok(self, tmp_path, capsys):
+        repo, home = tmp_path / "repo", tmp_path / "home"
+        _write_manifest_targets(repo, [_job_t(deliver="${a}")], local={"a": "origin"})
+        code = ic.main(base_args(repo, home, "--init-targets"))
+        assert code == 0
+        assert "targets OK" in capsys.readouterr().out
+
+    def test_falta_clave(self, tmp_path, capsys):
+        repo, home = tmp_path / "repo", tmp_path / "home"
+        _write_manifest_targets(repo, [_job_t(deliver="${b}")], local={"a": "origin"})
+        code = ic.main(base_args(repo, home, "--init-targets"))
+        assert code == 1
+        assert "b" in capsys.readouterr().err
+
+    def test_valor_invalido(self, tmp_path, capsys):
+        repo, home = tmp_path / "repo", tmp_path / "home"
+        _write_manifest_targets(repo, [_job_t(deliver="${a}")], local={"a": "telegram:xxx"})
+        code = ic.main(base_args(repo, home, "--init-targets"))
+        assert code == 1
+
+    def test_sin_ejemplo_ni_local(self, tmp_path, capsys):
+        repo, home = tmp_path / "repo", tmp_path / "home"
+        (repo / "cron").mkdir(parents=True)
+        code = ic.main(base_args(repo, home, "--init-targets"))
+        assert code == 2
+
+
+class TestRemove:
+    def _setup(self, tmp_path, monkeypatch, live):
+        repo, home = tmp_path / "repo", tmp_path / "home"
+        write_manifest(repo, [_job_t()])
+        monkeypatch.setattr(ic, "hermes_cli", lambda: "hermes")
+        monkeypatch.setattr(ic, "read_live_jobs", lambda h: live)
+        return repo, home
+
+    def test_baja_job_y_wrapper(self, tmp_path, monkeypatch, capsys):
+        repo, home = self._setup(tmp_path, monkeypatch, [{"name": "demo", "id": "job-1"}])
+        llamadas = []
+        monkeypatch.setattr(ic, "run", lambda cmd: llamadas.append(cmd))
+        scripts = home / "scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "demo.sh").write_text("# GENERADO por bin/install-cron.sh\n", encoding="utf-8")
+        code = ic.main(base_args(repo, home, "--remove", "demo"))
+        out = capsys.readouterr().out
+        assert code == 0
+        assert llamadas == [["hermes", "cron", "remove", "job-1"]]
+        assert not (scripts / "demo.sh").exists()
+        assert "eliminado de Hermes" in out
+
+    def test_sin_live_solo_wrapper(self, tmp_path, monkeypatch, capsys):
+        repo, home = self._setup(tmp_path, monkeypatch, [])
+        llamadas = []
+        monkeypatch.setattr(ic, "run", lambda cmd: llamadas.append(cmd))
+        scripts = home / "scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "demo.sh").write_text("# GENERADO por bin/install-cron.sh\n", encoding="utf-8")
+        code = ic.main(base_args(repo, home, "--remove", "demo"))
+        assert code == 0
+        assert llamadas == []
+        assert not (scripts / "demo.sh").exists()
+        assert "no existe en Hermes" in capsys.readouterr().out
+
+    def test_wrapper_sin_marca_no_se_toca(self, tmp_path, monkeypatch, capsys):
+        repo, home = self._setup(tmp_path, monkeypatch, [])
+        monkeypatch.setattr(ic, "run", lambda cmd: None)
+        scripts = home / "scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "demo.sh").write_text("#!/bin/bash\necho manual\n", encoding="utf-8")
+        code = ic.main(base_args(repo, home, "--remove", "demo"))
+        assert code == 0
+        assert (scripts / "demo.sh").exists()
+        assert "sin marca" in capsys.readouterr().out
+
+    def test_job_desconocido(self, tmp_path, monkeypatch, capsys):
+        repo, home = self._setup(tmp_path, monkeypatch, [])
+        code = ic.main(base_args(repo, home, "--remove", "otro"))
+        assert code == 2
+        assert "no hay job" in capsys.readouterr().err
+
+    def test_sin_hermes(self, tmp_path, monkeypatch, capsys):
+        repo, home = tmp_path / "repo", tmp_path / "home"
+        write_manifest(repo, [_job_t()])
+        monkeypatch.setattr(
+            ic, "hermes_cli", lambda: (_ for _ in ()).throw(ic.ManifestError("sin binario"))
+        )
+        code = ic.main(base_args(repo, home, "--remove", "demo"))
+        assert code == 2
+
+
 def no_agent_job(**overrides) -> "ic.Job":
     """Job no_agent minimo para probar el argv."""
     base = dict(
