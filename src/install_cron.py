@@ -128,39 +128,79 @@ def check_cron_expr(expr: str) -> str | None:
     return None
 
 
+def parse_job_entry(raw: Any, defaults: dict[str, Any]) -> Job:
+    """Normaliza una entrada del manifiesto aplicando ``defaults``."""
+    if not isinstance(raw, dict):
+        raise ManifestError(f"job invalido (no es objeto): {raw!r}")
+    merged = {**defaults, **raw}
+    mode = str(merged.get("mode") or "no_agent")
+    if mode not in ("no_agent", "agent"):
+        raise ManifestError(f"{merged.get('name')!r}: mode invalido {mode!r}")
+    name = str(merged.get("name") or "")
+    return Job(
+        name=name,
+        description=str(merged.get("description") or ""),
+        schedule=str(merged.get("schedule") or ""),
+        mode=mode,
+        deliver=str(merged.get("deliver") or "origin"),
+        enabled=bool(merged.get("enabled", True)),
+        wrapper=str(merged.get("wrapper") or (f"{name}.sh" if name else "")),
+        command=str(merged.get("command") or ""),
+        prompt=str(merged.get("prompt") or ""),
+        skills=[str(s) for s in (merged.get("skills") or [])],
+        model=str(merged.get("model") or ""),
+        provider=str(merged.get("provider") or ""),
+        requires=[str(r) for r in (merged.get("requires") or [])],
+    )
+
+
 def parse_jobs(manifest: dict[str, Any]) -> list[Job]:
     """Normaliza las entradas del manifiesto aplicando ``defaults``."""
     defaults = manifest.get("defaults") or {}
     raw_jobs = manifest.get("jobs")
     if not isinstance(raw_jobs, list) or not raw_jobs:
         raise ManifestError("el manifiesto no tiene 'jobs'")
-    jobs: list[Job] = []
-    for raw in raw_jobs:
-        if not isinstance(raw, dict):
-            raise ManifestError(f"job invalido (no es objeto): {raw!r}")
-        merged = {**defaults, **raw}
-        mode = str(merged.get("mode") or "no_agent")
-        if mode not in ("no_agent", "agent"):
-            raise ManifestError(f"{merged.get('name')!r}: mode invalido {mode!r}")
-        name = str(merged.get("name") or "")
-        jobs.append(
-            Job(
-                name=name,
-                description=str(merged.get("description") or ""),
-                schedule=str(merged.get("schedule") or ""),
-                mode=mode,
-                deliver=str(merged.get("deliver") or "origin"),
-                enabled=bool(merged.get("enabled", True)),
-                wrapper=str(merged.get("wrapper") or (f"{name}.sh" if name else "")),
-                command=str(merged.get("command") or ""),
-                prompt=str(merged.get("prompt") or ""),
-                skills=[str(s) for s in (merged.get("skills") or [])],
-                model=str(merged.get("model") or ""),
-                provider=str(merged.get("provider") or ""),
-                requires=[str(r) for r in (merged.get("requires") or [])],
-            )
-        )
-    return jobs
+    return [parse_job_entry(raw, defaults) for raw in raw_jobs]
+
+
+def validate_no_agent(job: Job, label: str, wrappers: dict[str, str]) -> list[str]:
+    """Reglas del modo no_agent (command/wrapper unicos, sin prompt)."""
+    errors: list[str] = []
+    if not job.command:
+        errors.append(f"{label}: mode no_agent requiere 'command'")
+    if not job.wrapper:
+        errors.append(f"{label}: mode no_agent requiere 'wrapper'")
+    if job.wrapper:
+        previous = wrappers.get(job.wrapper)
+        if previous is not None and previous != job.command:
+            errors.append(f"{label}: wrapper {job.wrapper} ya declarado con otro command")
+        wrappers[job.wrapper] = job.command
+    if job.prompt:
+        errors.append(f"{label}: mode no_agent no usa 'prompt'")
+    return errors
+
+
+def validate_job(job: Job, wrappers: dict[str, str]) -> list[str]:
+    """Reglas de un job. Devuelve errores (vacio = OK)."""
+    errors: list[str] = []
+    label = job.name or "<sin nombre>"
+    if not job.name:
+        errors.append("hay un job sin 'name'")
+    if job.schedule:
+        problem = check_cron_expr(job.schedule)
+        if problem:
+            errors.append(f"{label}: cron '{job.schedule}' -> {problem}")
+    else:
+        errors.append(f"{label}: sin 'schedule'")
+    if not job.deliver:
+        errors.append(f"{label}: sin 'deliver'")
+    if job.is_no_agent:
+        errors += validate_no_agent(job, label, wrappers)
+    elif not job.prompt:
+        errors.append(f"{label}: mode agent requiere 'prompt'")
+    if ABSOLUTE_HOME_RE.search(job.command) or ABSOLUTE_HOME_RE.search(job.prompt):
+        errors.append(f"{label}: ruta absoluta de home prohibida (usa $HOME)")
+    return errors
 
 
 def validate_manifest(manifest: dict[str, Any], jobs: list[Job]) -> list[str]:
@@ -174,33 +214,7 @@ def validate_manifest(manifest: dict[str, Any], jobs: list[Job]) -> list[str]:
         errors.append(f"nombres duplicados: {', '.join(duplicates)}")
     wrappers: dict[str, str] = {}
     for job in jobs:
-        label = job.name or "<sin nombre>"
-        if not job.name:
-            errors.append("hay un job sin 'name'")
-        if job.schedule:
-            problem = check_cron_expr(job.schedule)
-            if problem:
-                errors.append(f"{label}: cron '{job.schedule}' -> {problem}")
-        else:
-            errors.append(f"{label}: sin 'schedule'")
-        if not job.deliver:
-            errors.append(f"{label}: sin 'deliver'")
-        if job.is_no_agent:
-            if not job.command:
-                errors.append(f"{label}: mode no_agent requiere 'command'")
-            if not job.wrapper:
-                errors.append(f"{label}: mode no_agent requiere 'wrapper'")
-            if job.wrapper:
-                previous = wrappers.get(job.wrapper)
-                if previous is not None and previous != job.command:
-                    errors.append(f"{label}: wrapper {job.wrapper} ya declarado con otro command")
-                wrappers[job.wrapper] = job.command
-            if job.prompt:
-                errors.append(f"{label}: mode no_agent no usa 'prompt'")
-        elif not job.prompt:
-            errors.append(f"{label}: mode agent requiere 'prompt'")
-        if ABSOLUTE_HOME_RE.search(job.command) or ABSOLUTE_HOME_RE.search(job.prompt):
-            errors.append(f"{label}: ruta absoluta de home prohibida (usa $HOME)")
+        errors += validate_job(job, wrappers)
     return errors
 
 
@@ -404,15 +418,9 @@ def edit_args(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]
     return [*head, *job_flags(job, targets, wrapper_path)]
 
 
-def apply_plan(
-    jobs: list[Job], targets: dict[str, str], hermes_home: Path, repo: Path, force: bool = False
-) -> list[str]:
-    """Aplica wrappers + jobs. Devuelve las lineas de registro."""
+def sync_wrappers(jobs: list[Job], repo: Path, scripts_dir: Path, force: bool = False) -> list[str]:
+    """Escribe wrappers generados (crea/actualiza, respeta existentes sin marca)."""
     log: list[str] = []
-    scripts_dir = hermes_home / "scripts"
-    scripts_dir.mkdir(parents=True, exist_ok=True)
-    cli = hermes_cli()
-
     rendered: dict[str, str] = {}
     for job in jobs:
         if job.is_no_agent:
@@ -432,7 +440,23 @@ def apply_plan(
         target.write_text(content, encoding="utf-8")
         target.chmod(0o755)
         log.append(f"wrapper {name}: {'actualizado' if current else 'creado'}")
+    return log
 
+
+def sync_job_state(job: Job, actual: dict[str, Any], cli: str) -> str | None:
+    """Pausa/reanuda el job si su estado real difiere del manifiesto."""
+    if not job.enabled and actual.get("enabled", True):
+        run([cli, "cron", "pause", str(actual.get("id"))])
+        return f"job {job.name}: pausado"
+    if job.enabled and not actual.get("enabled", True):
+        run([cli, "cron", "resume", str(actual.get("id"))])
+        return f"job {job.name}: reanudado"
+    return None
+
+
+def sync_jobs(jobs: list[Job], targets: dict[str, str], hermes_home: Path, cli: str) -> list[str]:
+    """Crea/edita jobs en Hermes y concilia su estado. Devuelve el registro."""
+    log: list[str] = []
     live = {str(job.get("name") or ""): job for job in read_live_jobs(hermes_home)}
     for job in jobs:
         real = live.get(job.name)
@@ -444,12 +468,20 @@ def apply_plan(
             log.append(f"job {job.name}: editado")
         refreshed = {str(j.get("name") or ""): j for j in read_live_jobs(hermes_home)}
         actual = refreshed.get(job.name) or {}
-        if not job.enabled and actual.get("enabled", True):
-            run([cli, "cron", "pause", str(actual.get("id"))])
-            log.append(f"job {job.name}: pausado")
-        elif job.enabled and not actual.get("enabled", True):
-            run([cli, "cron", "resume", str(actual.get("id"))])
-            log.append(f"job {job.name}: reanudado")
+        line = sync_job_state(job, actual, cli)
+        if line is not None:
+            log.append(line)
+    return log
+
+
+def apply_plan(
+    jobs: list[Job], targets: dict[str, str], hermes_home: Path, repo: Path, force: bool = False
+) -> list[str]:
+    """Aplica wrappers + jobs. Devuelve las lineas de registro."""
+    scripts_dir = hermes_home / "scripts"
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    log = sync_wrappers(jobs, repo, scripts_dir, force)
+    log += sync_jobs(jobs, targets, hermes_home, hermes_cli())
     return log
 
 
@@ -499,23 +531,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _fix_windows_stdout():
-    """UTF-8 en consolas Windows (cp1252). Nunca falla."""
-    try:
-        reconfigure = getattr(sys.stdout, "reconfigure", None)
-        if callable(reconfigure):
-            reconfigure(encoding="utf-8")
-    except ValueError:
-        pass
-
-
-def _validate_quiet_flag(args) -> str | None:
-    """None si OK, mensaje de error si --quiet sin --check."""
-    if args.quiet and not args.check:
-        return "ERROR: --quiet solo es válido con --check"
-    return None
-
-
 def run_doctor() -> int:
     """Modo --doctor: salud de la flota. Silencio si todo OK, hallazgos si no."""
     try:
@@ -535,62 +550,87 @@ def run_doctor() -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Entrada: valida el manifiesto y ejecuta el modo pedido."""
-    args = build_parser().parse_args(argv)
-    _fix_windows_stdout()
-    if args.doctor:
-        return run_doctor()
-    err = _validate_quiet_flag(args)
-    if err:
-        print(err, file=sys.stderr)
-        return 2
+class _AbortError(Exception):
+    """Salida temprana de prepare_run con su código de retorno."""
+
+    def __init__(self, rc: int):
+        super().__init__(rc)
+        self.rc = rc
+
+
+@dataclass
+class RunContext:
+    """Todo lo que los modos necesitan tras validar el manifiesto."""
+
+    args: argparse.Namespace
+    repo: Path
+    hermes_home: Path
+    manifest: dict[str, Any]
+    targets: dict[str, str]
+    jobs: list[Job]
+
+
+def resolve_paths(args: argparse.Namespace) -> tuple[Path, Path]:
+    """Repo y home efectivos desde flags o defaults."""
     repo = Path(args.repo).resolve() if args.repo else repo_root()
     hermes_home = (
         Path(args.hermes_home).expanduser() if args.hermes_home else Path.home() / ".hermes"
     )
+    return repo, hermes_home
+
+
+def prepare_run(args: argparse.Namespace) -> RunContext:
+    """Carga y valida manifiesto + targets + jobs. Falla con _AbortError(rc)."""
+    repo, hermes_home = resolve_paths(args)
     try:
         manifest = load_manifest(repo / args.manifest)
         targets = load_targets(repo / args.targets)
         jobs = parse_jobs(manifest)
     except ManifestError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
-        return 2
+        raise _AbortError(2) from exc
     if args.only:
         jobs = [job for job in jobs if job.name == args.only]
         if not jobs:
             print(f"ERROR: no hay job llamado {args.only!r}", file=sys.stderr)
-            return 2
-
+            raise _AbortError(2)
     errors = validate_manifest(manifest, jobs) + validate_repo_texts(repo)
     errors = [error for error in errors if error]
     if errors:
         print("Manifiesto invalido:", file=sys.stderr)
         for error in errors:
             print(f"  - {error}", file=sys.stderr)
-        return 2
-    if not args.quiet:
-        print(f"Manifiesto OK: {len(jobs)} job(s) ({repo})")
+        raise _AbortError(2)
+    return RunContext(args, repo, hermes_home, manifest, targets, jobs)
 
-    if args.check:
-        drift = check_all(jobs, targets, hermes_home, repo)
-        extra = live_extra_names(jobs, hermes_home)
-        if args.quiet:
-            if drift:
-                print(render_drift_digest(drift, date.today().isoformat()))
-            return 0
+
+def run_check(ctx: RunContext) -> int:
+    """Modo --check: compara real vs manifiesto. 0 OK, 1 con drift."""
+    args, jobs = ctx.args, ctx.jobs
+    targets, hermes_home, repo = ctx.targets, ctx.hermes_home, ctx.repo
+    drift = check_all(jobs, targets, hermes_home, repo)
+    extra = live_extra_names(jobs, hermes_home)
+    if args.quiet:
         if drift:
-            print("Drift detectado:")
-            for line in drift:
-                print(f"  - {line}")
-            for name in extra:
-                print(f"info: job '{name}' existe en Hermes pero no en el manifiesto")
-            return 1
-        print("Sin drift: wrappers y jobs coinciden con el manifiesto")
+            print(render_drift_digest(drift, date.today().isoformat()))
+        return 0
+    if drift:
+        print("Drift detectado:")
+        for line in drift:
+            print(f"  - {line}")
         for name in extra:
             print(f"info: job '{name}' existe en Hermes pero no en el manifiesto")
-        return 0
+        return 1
+    print("Sin drift: wrappers y jobs coinciden con el manifiesto")
+    for name in extra:
+        print(f"info: job '{name}' existe en Hermes pero no en el manifiesto")
+    return 0
 
+
+def run_apply(ctx: RunContext) -> int:
+    """Modo por defecto (+ --dry-run): avisa requires, planea o aplica."""
+    args, jobs = ctx.args, ctx.jobs
+    targets, hermes_home, repo = ctx.targets, ctx.hermes_home, ctx.repo
     for job in jobs:
         for path in job.requires:
             expanded = Path(path.replace("$HOME", str(Path.home())))
@@ -602,7 +642,6 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {job.name}: {job.schedule} -> {destino}")
         print("Dry-run: no se escribio nada")
         return 0
-
     try:
         for line in apply_plan(jobs, targets, hermes_home, repo, force=args.force):
             print(f"  {line}")
@@ -617,6 +656,31 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print("Verificado: estado real == manifiesto")
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Entrada: valida el manifiesto y ejecuta el modo pedido."""
+    args = build_parser().parse_args(argv)
+    try:
+        reconfigure = getattr(sys.stdout, "reconfigure", None)
+        if callable(reconfigure):  # consolas Windows (cp1252)
+            reconfigure(encoding="utf-8")
+    except ValueError:
+        pass
+    if args.doctor:
+        return run_doctor()
+    if args.quiet and not args.check:
+        print("ERROR: --quiet solo es válido con --check", file=sys.stderr)
+        return 2
+    try:
+        ctx = prepare_run(args)
+    except _AbortError as exc:
+        return exc.rc
+    if not args.quiet:
+        print(f"Manifiesto OK: {len(ctx.jobs)} job(s) ({ctx.repo})")
+    if args.check:
+        return run_check(ctx)
+    return run_apply(ctx)
 
 
 if __name__ == "__main__":
