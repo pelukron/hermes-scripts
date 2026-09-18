@@ -48,6 +48,7 @@ bin/install-cron.sh
 ```bash
 bin/install-cron.sh --check                      # sin drift = instalado como dice el manifiesto
 uv run python src/install_cron.py --check --quiet  # modo job: vacio si ok, digest si hay drift
+uv run python src/install_cron.py --doctor         # salud de la flota (job semanal cron-doctor-check)
 hermes cron list                                 # jobs activos (los no-agent se ven por jobs.json)
 python3 -c "import json,pathlib; d=json.loads((pathlib.Path.home()/'.hermes/cron/jobs.json').read_text()); [print(j['name'], j.get('script'), j.get('no_agent')) for j in d['jobs']]"
 ```
@@ -66,6 +67,19 @@ en el `--check` manual, sin contar como drift.
 ```bash
 hermes cron remove <job_id>            # por job (id en hermes cron list / jobs.json)
 rm ~/.hermes/scripts/<wrapper>.sh      # opcional: los wrappers generados
+```
+
+## Hooks del gateway (back-online)
+
+`hooks/gateway-back-online/` avisa al canal personal cuando el gateway
+arranca tras estar apagado (evento `gateway:startup`, envío directo sin
+agente). Requiere en el entorno del gateway `TELEGRAM_BOT_TOKEN` y
+`TELEGRAM_HOME_CHANNEL` (mismo chat de los avisos peak).
+
+```bash
+./setup.sh                               # instala hooks/ en ~/.hermes/hooks/
+hermes gateway restart                   # probar: reinicia el gateway
+hermes logs --follow | grep back-online  # verificado si sale el aviso
 ```
 
 ## Validación del repo (lo que corre CI)
