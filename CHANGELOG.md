@@ -4,6 +4,39 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.7.1 (2026-09-18)
+
+
+## v0.7.0 (2026-09-18)
+
+
+## v0.6.1 (2026-09-18)
+
+
+## v0.6.0 (2026-09-18)
+
+### 🔧 Infra
+
+- Asignar issues a @pelukron (regla + script)
+  ([`53377df`](https://github.com/pelukron/hermes-scripts/commit/53377df38532488e4c39a05e6e280d606dfae802))
+
+- El push del release salia como github-actions[bot]
+  ([##204](https://github.com/pelukron/hermes-scripts/pull/204),
+  [`906bac7`](https://github.com/pelukron/hermes-scripts/commit/906bac7f553aa48da4d8d3f4274118693041ee0e))
+
+- Ignorar artefactos de coverage
+  ([`7ced0f9`](https://github.com/pelukron/hermes-scripts/commit/7ced0f9ab9e71c795e97cabf24bc0c74d69fb469))
+
+- Los avisos de infra declaran el target notify (canal de repos)
+  ([`b325d7b`](https://github.com/pelukron/hermes-scripts/commit/b325d7b951992d4ceb0181dd70fca8c274d42ba5))
+
+- Mover el backup diario a las 04:10, fuera de la ventana peak
+  ([`5f37ac8`](https://github.com/pelukron/hermes-scripts/commit/5f37ac83a5c001c4855de31b9c28bc99876600f8))
+
+- Release en cada merge + seccion Releases en README
+  ([`f6d2b41`](https://github.com/pelukron/hermes-scripts/commit/f6d2b4149cd08acdbcd05f167488d942ebeda89e))
+
+
 ### 🤖 Automation
 - PRs piden review a `@pelukron` (workflow `pr-review` + `bump-and-pr.sh`); regla en `AGENTS.md`
   [#108](https://github.com/pelukron/hermes-scripts/issues/108)

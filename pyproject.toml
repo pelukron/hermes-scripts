@@ -1,6 +1,6 @@
 [project]
 name = "resumen-noticias-diario"
-version = "0.5.5"
+version = "0.7.1"
 description = "Script de resumen diario de noticias multi-región"
 requires-python = ">=3.11"
 # Versiones exactas a proposito: el lock queda reproducible y una dependencia
@@ -22,6 +22,7 @@ reporte-uso-hermes = "scripts.reporte_uso_hermes:main"
 resumen-noticias-diario = "scripts.resumen_noticias_diario:main"
 resumen-rayados-diario = "scripts.resumen_rayados_diario:main"
 resumen-tigres-diario = "scripts.resumen_tigres_diario:main"
+sync-runtime = "scripts.sync_runtime:main"
 
 [dependency-groups]
 dev = [
