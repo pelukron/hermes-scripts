@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from hermes_common import retry_request, setup_logging
+from hermes_common import retry_request, setup_logging, version_footer
 
 log = logging.getLogger("hermes")
 
@@ -184,6 +184,7 @@ def main():
     setup_logging()
     log.info("")
     log.info("█ 🔮 MERCADOS DE PREDICCIÓN █")
+    log.info(version_footer())
     log.info("")
 
     try:

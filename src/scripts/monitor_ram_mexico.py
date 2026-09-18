@@ -11,7 +11,14 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from hermes_common import get_headers, retry_request, setup_logging, smart_truncate, state_dir
+from hermes_common import (
+    get_headers,
+    retry_request,
+    setup_logging,
+    smart_truncate,
+    state_dir,
+    version_footer,
+)
 
 log = logging.getLogger("hermes")
 
@@ -460,6 +467,7 @@ def main():
 
     # Output report
     log.info(f"🛒 RAM Monitor - {ahora_str}")
+    log.info(version_footer())
     log.info(
         "💰 Mejor: **{}** - **${:,.2f}**".format(
             comp.recomendacion_texto, comp.precio_final_recomendacion

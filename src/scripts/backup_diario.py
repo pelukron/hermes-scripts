@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from hermes_common import repo_root, setup_logging
+from hermes_common import repo_root, setup_logging, version_footer
 
 log = logging.getLogger("hermes")
 
@@ -251,6 +251,8 @@ def main():
     output.append(f"**📦 Backup OK — {date_str}**")
     output.append("")
     output.append(f"**Ubicación del respaldo:** `{BACKUP_DIR}`")
+    output.append("")
+    output.append(version_footer())
     output.append("")
 
     release_note = release_note_unreleased(CHANGELOG)

@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-from hermes_common import setup_logging
+from hermes_common import setup_logging, version_footer
 
 HOME = Path.home()
 BACKUP_DIR = HOME / ".hermes" / "backup" / "daily"
@@ -121,6 +121,7 @@ def main():
     run_cmd([sys.executable, "-m", "pip", "cache", "purge"], "pip cache")
 
     log("=== cleanup done ===")
+    log(version_footer())
 
 
 if __name__ == "__main__":
