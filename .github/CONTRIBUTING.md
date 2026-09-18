@@ -37,8 +37,8 @@ git push -u origin feat/v0.4.0-mi-feature
 ### Automatizado
 
 ```bash
-# Alternativa automatizada con bump automático
-./bin/bump-and-pr.sh patch "fix: mensaje" "- cambio 1" "- cambio 2"
+# Alternativa automatizada
+./bin/bump-and-pr.sh "fix: mensaje" [--worktree]
 ```
 
 ### Reglas
@@ -46,5 +46,5 @@ git push -u origin feat/v0.4.0-mi-feature
 - ❌ No push directo a main
 - ✅ PR obligatorio para merge
 - ✅ CI debe pasar antes de merge
-- ✅ CHANGELOG actualizado en cada PR
+- ✅ CHANGELOG intacto (lo genera PSR al mergear)
 - ✅ Conventional commits (`feat:`, `fix:`, `docs:`, etc.)

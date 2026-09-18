@@ -224,7 +224,7 @@ def precio_cyberpuerta(url: str) -> Optional[float]:
     """
     try:
         r = retry_request(url, timeout=15)
-        m = re.search(r"<h2[^>]*>.*?\$([\d,]+\\.\d{2}).*?</h2>", r.text, re.S)
+        m = re.search(r"<h2[^>]*>.*?\$([\d,]+\.\d{2}).*?</h2>", r.text, re.S)
         if m:
             return limpiar_precio(m.group(1))
         return None
@@ -328,6 +328,89 @@ def calcular_comparativa(resultados: List[RamResult]) -> RamSummary:
     )
 
 
+def chequear_oferta(prod, precio_actual, stats, ahora):
+    """Alertas de mínimo histórico y bajada repentina. Actualiza ultimo_alerta."""
+    detalles = []
+    precio_min_previo = stats.get("min")
+    precio_last_previo = stats.get("last")
+    # 1. Alerta por mínimo histórico (5%)
+    if precio_min_previo and precio_actual < (
+        precio_min_previo * (1 - UMBRAL_ALERTA_PORCENTAJE / 100)
+    ):
+        # Solo alertar si pasaron >2h (7200s) desde última alerta
+        if ahora - stats.get("ultimo_alerta", 0) > 7200:
+            ahorro_vs_hist = precio_min_previo - precio_actual
+            detalles.append(
+                f"🔥 **NUEVO MÍNIMO HISTÓRICO** en {prod.tienda}\\n"
+                f"📦 {prod.name}\\n"
+                "💰 Precio: **${:,.2f}** (Bajó ${:,.2f} del mínimo)".format(
+                    precio_actual, ahorro_vs_hist
+                )
+            )
+            stats["ultimo_alerta"] = ahora
+    # 2. Alerta por bajada repentina (>15% vs último precio)
+    if precio_last_previo and precio_actual < (
+        precio_last_previo * (1 - UMBRAL_BAJADA_REPENTINA / 100)
+    ):
+        # Solo alertar si pasaron >2h desde última alerta
+        if ahora - stats.get("ultimo_alerta", 0) > 7200:
+            ahorro_vs_last = precio_last_previo - precio_actual
+            porcentaje_caida = (ahorro_vs_last / precio_last_previo) * 100
+            detalles.append(
+                f"⚡ **BAJADA REPENTINA ({porcentaje_caida:.1f}%)** en {prod.tienda}\n"
+                f"📦 {prod.name}\n"
+                f"💰 Precio: **${precio_actual:,.2f}** (Antes: ${precio_last_previo:,.2f})"
+            )
+            stats["ultimo_alerta"] = ahora
+    return detalles
+
+
+def procesar_producto(prod, historial, ahora):
+    """Precio + alertas + historial de un producto.
+
+    Returns:
+        tuple: (RamResult, hay_oferta bool, detalles list).
+    """
+    precio_actual = obtener_precio(prod)
+    if not precio_actual:
+        return RamResult(**asdict(prod), precio=precio_actual), False, []
+    prod_id = prod.id
+    stats = historial.get(prod_id, {})
+    # Migración/Inicialización: si stats es float (formato viejo)
+    if isinstance(stats, (int, float)):
+        stats = {"min": float(stats), "last": float(stats), "ultimo_alerta": 0}
+    detalles = chequear_oferta(prod, precio_actual, stats, ahora)
+    # Actualizar historial
+    precio_min_previo = stats.get("min")
+    if not precio_min_previo or precio_actual < precio_min_previo:
+        stats["min"] = precio_actual
+    stats["last"] = precio_actual
+    historial[prod_id] = stats
+    return RamResult(**asdict(prod), precio=precio_actual), bool(detalles), detalles
+
+
+def render_tabla(resultados, comp):
+    """Tabla comparativa del reporte."""
+    tienda_map = {"Amazon México": "Amazon", "Cyberpuerta": "Cyber"}
+    for r in resultados:
+        tienda = tienda_map.get(r.tienda, r.tienda)
+        nombre_simple = smart_truncate(r.name, 30)
+        unit = f"${r.precio_final:,.0f}" if r.precio_final else "N/A"
+        total = f"${r.costo_32gb:,.0f}" if r.costo_32gb else "N/A"
+        marker = "✅ " if r.costo_32gb == comp.precio_final_recomendacion else "  "
+        log.info(f"| {marker}{tienda:<6} | {nombre_simple} | {unit:>6} | {total:>6} |")
+
+
+def render_enlaces(resultados):
+    """Enlaces de compra del reporte."""
+    tienda_map = {"Amazon México": "Amazon", "Cyberpuerta": "Cyber"}
+    for r in resultados:
+        if r.precio:
+            nombre_corto = smart_truncate(r.name, 15)
+            tienda = tienda_map.get(r.tienda, r.tienda)
+            log.info(f"- [🛒 {tienda} - {nombre_corto} (${r.precio:,.0f})]({r.url})")
+
+
 def main():
     """Punto de entrada: monitorea precios RAM, detecta ofertas y genera reporte.
 
@@ -351,63 +434,12 @@ def main():
     detalles_alerta = []
 
     for prod in PRODUCTOS:
-        precio_actual = obtener_precio(prod)
-        if precio_actual:
-            prod_id = prod.id
-            stats = historial.get(prod_id, {})
-
-            # Migración/Inicialización: si stats es float (formato viejo)
-            if isinstance(stats, (int, float)):
-                stats = {"min": float(stats), "last": float(stats), "ultimo_alerta": 0}
-
-            precio_min_previo = stats.get("min")
-            precio_last_previo = stats.get("last")
-            ahora = time.time()
-
-            # 1. Alerta por mínimo histórico (5%)
-            if precio_min_previo and precio_actual < (
-                precio_min_previo * (1 - UMBRAL_ALERTA_PORCENTAJE / 100)
-            ):
-                tiempo_desde_alerta = ahora - stats.get("ultimo_alerta", 0)
-                # Solo alertar si pasaron >2h (7200s) desde última alerta
-                if tiempo_desde_alerta > 7200:
-                    hay_oferta_nueva = True
-                    ahorro_vs_hist = precio_min_previo - precio_actual
-                    detalles_alerta.append(
-                        f"🔥 **NUEVO MÍNIMO HISTÓRICO** en {prod.tienda}\\n"
-                        f"📦 {prod.name}\\n"
-                        "💰 Precio: **${:,.2f}** (Bajó ${:,.2f} del mínimo)".format(
-                            precio_actual, ahorro_vs_hist
-                        )
-                    )
-                    stats["ultimo_alerta"] = ahora
-
-            # 2. Alerta por bajada repentina (>15% vs último precio)
-            if precio_last_previo and precio_actual < (
-                precio_last_previo * (1 - UMBRAL_BAJADA_REPENTINA / 100)
-            ):
-                tiempo_desde_alerta = ahora - stats.get("ultimo_alerta", 0)
-                # Solo alertar si pasaron >2h desde última alerta
-                if tiempo_desde_alerta > 7200:
-                    hay_oferta_nueva = True
-                    ahorro_vs_last = precio_last_previo - precio_actual
-                    porcentaje_caida = (ahorro_vs_last / precio_last_previo) * 100
-                    detalles_alerta.append(
-                        f"⚡ **BAJADA REPENTINA ({porcentaje_caida:.1f}%)** en {prod.tienda}\n"
-                        f"📦 {prod.name}\n"
-                        f"💰 Precio: **${precio_actual:,.2f}** (Antes: ${precio_last_previo:,.2f})"
-                    )
-                    stats["ultimo_alerta"] = ahora
-
-            # Actualizar historial
-            if not precio_min_previo or precio_actual < precio_min_previo:
-                stats["min"] = precio_actual
-
-            stats["last"] = precio_actual
-            historial[prod_id] = stats
-
-        resultados.append(RamResult(**asdict(prod), precio=precio_actual))
+        ahora = time.time()
+        resultado, hay_oferta, detalles = procesar_producto(prod, historial, ahora)
+        resultados.append(resultado)
         time.sleep(1)
+        hay_oferta_nueva = hay_oferta_nueva or hay_oferta
+        detalles_alerta += detalles
 
     guardar_historial(historial)
     comp = calcular_comparativa(resultados)
@@ -436,23 +468,10 @@ def main():
 
     log.info("\n| Tienda | Producto | Unit | Total |")
     log.info("|---|---|---:|---:|")
-
-    tienda_map = {"Amazon México": "Amazon", "Cyberpuerta": "Cyber"}
-
-    for r in resultados:
-        tienda = tienda_map.get(r.tienda, r.tienda)
-        nombre_simple = smart_truncate(r.name, 30)
-        unit = f"${r.precio_final:,.0f}" if r.precio_final else "N/A"
-        total = f"${r.costo_32gb:,.0f}" if r.costo_32gb else "N/A"
-        marker = "✅ " if r.costo_32gb == comp.precio_final_recomendacion else "  "
-        log.info(f"| {marker}{tienda:<6} | {nombre_simple} | {unit:>6} | {total:>6} |")
+    render_tabla(resultados, comp)
 
     log.info("\n🔗 **Comprar (haz clic en la tienda):**")
-    for r in resultados:
-        if r.precio:
-            nombre_corto = smart_truncate(r.name, 15)
-            tienda = tienda_map.get(r.tienda, r.tienda)
-            log.info(f"- [🛒 {tienda} - {nombre_corto} (${r.precio:,.0f})]({r.url})")
+    render_enlaces(resultados)
 
 
 if __name__ == "__main__":

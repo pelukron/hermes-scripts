@@ -33,13 +33,23 @@ jobs:
         run: uv python install 3.11
 
       - name: Install deps
-        run: uv sync
+        run: uv sync --locked
 
       - name: Release (bump + tag + push + publish)
         id: psr
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT de @pelukron (bypass always en el ruleset). GITHUB_TOKEN no puede
+          # pushear a main protegida (GH013) ni eximirse en repos personales (422).
+          GH_TOKEN: ${{ secrets.PSR_TOKEN }}
         run: |
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::Falta el secret PSR_TOKEN (PAT classic con scope repo). Sin el, PSR no puede pushear el bump a main protegida."
+            exit 1
+          fi
+          # Re-autentica git: el credential-helper del checkout trae GITHUB_TOKEN
+          # (bloqueado por el ruleset, GH013) y tiene precedencia sobre la URL.
+          git config --unset-all http.https://github.com/.extraheader || true
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           TAG_BEFORE=$(git tag --sort=-creatordate | head -1)
           echo "tag_before=$TAG_BEFORE" >> $GITHUB_OUTPUT
           uv run semantic-release version
@@ -49,8 +59,12 @@ jobs:
       - name: Sync uv.lock tras el bump
         if: steps.psr.outputs.tag_after != steps.psr.outputs.tag_before
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PSR_TOKEN }}
         run: |
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::Falta el secret PSR_TOKEN para pushear el sync de uv.lock."
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull --ff-only origin main
@@ -60,6 +74,11 @@ jobs:
           else
             git add uv.lock
             git commit -m "chore: sync uv.lock tras release [skip ci]"
+            # El credential-helper del checkout trae GITHUB_TOKEN (bloqueado por
+            # el ruleset): re-autentica el push con PSR_TOKEN (repo publico, el
+            # pull de arriba no necesita auth).
+            git config --unset-all http.https://github.com/.extraheader || true
+            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
             git push origin HEAD:main
           fi
 

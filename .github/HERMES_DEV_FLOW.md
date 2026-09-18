@@ -33,11 +33,11 @@ Un pipeline deterministico para cambios en repos Hermes. Cinco puertas. Cada pue
 
 ```bash
 cd ~/.hermes/scripts
-./bin/bump-and-pr.sh <patch|minor|major> "tipo: descripcion" "- cambio"
+./bin/bump-and-pr.sh "tipo: descripcion" [--body-file <path>] [--worktree]
 ```
 
-El script crea: Issue, rama semantica, bump version, CHANGELOG, commit con Closes #N, push, PR.
-Commit message usa conventional commits.
+El script crea: Issue, rama `{tipo}/{N}-slug` (o worktree con `--worktree`), commit con Closes #N, push, PR.
+Commit message usa conventional commits (versión + CHANGELOG los genera PSR al mergear).
 
 ### Puerta 4: Revisar
 **Skill:** `/mattpocock-code-review`
@@ -53,12 +53,12 @@ Commit message usa conventional commits.
 
 - Merge via GitHub UI.
 - Issue se cierra automaticamente (Closes #N).
-- Tag manual: `git tag -a vX.Y.Z && git push --tags`.
+- Tag + Release: los corta PSR al mergear (conventional commits).
 
 ## Reglas
 
 - No push directo a main.
-- CHANGELOG actualizado en cada cambio.
+- CHANGELOG intacto (lo genera PSR al mergear).
 - Conventional commits.
 - Tests pasan antes de merge.
 

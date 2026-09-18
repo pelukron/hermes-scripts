@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Create PR from current branch, linking to the issue.
+#
+# DEPRECADO: prefiere bin/bump-and-pr.sh "<tipo>: <descripción>", que hace el
+# flujo completo. Este script se mantiene para abrir el PR de una rama existente.
 
 set -euo pipefail
 
@@ -25,32 +28,22 @@ if ! git rev-parse --abbrev-ref --symbolic-full-name "@{u}" &> /dev/null 2>&1; t
   git push -u origin "$BRANCH"
 fi
 
+# Titulo convencional sin prefijo emoji (lo exige el job commitlint de CI).
 TITLE=$(gh issue view "$ISSUE_NUM" --repo "$OWNER/$REPO" --json title --jq '.title')
 LABELS=$(gh issue view "$ISSUE_NUM" --repo "$OWNER/$REPO" --json labels --jq '.labels[].name' | paste -sd "," -)
-
-# Prefix PR title with emoji based on branch type
-EMOJI=""
-case "$BRANCH" in
-  feature/*) EMOJI="✨" ;;
-  bugfix/*) EMOJI="🐛" ;;
-  hotfix/*) EMOJI="🚨" ;;
-  docs/*) EMOJI="📚" ;;
-  chore/*|ci/*|refactor/*|test/*) EMOJI="🔧" ;;
-  *) EMOJI="📝" ;;
-esac
 
 BODY="Closes #${ISSUE_NUM}
 
 This PR addresses #${ISSUE_NUM}.
 
 ## Checklist
-- [ ] I ran \`make check\`
-- [ ] CHANGELOG.md updated"
+- [ ] Corrí \`bash bin/gate.sh\` en local
+- [ ] CHANGELOG.md intacto (lo genera PSR al mergear)"
 
 echo "Creating PR for branch '$BRANCH' linked to issue #$ISSUE_NUM..."
 gh pr create \
   --repo "$OWNER/$REPO" \
-  --title "${EMOJI} ${TITLE} (#${ISSUE_NUM})" \
+  --title "${TITLE} (#${ISSUE_NUM})" \
   --body "$BODY" \
   --label "$LABELS" \
   --base main \

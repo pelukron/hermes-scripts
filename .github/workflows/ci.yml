@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+# Mínimo privilegio: los jobs solo leen el repo.
+permissions:
+  contents: read
+
+# En PRs cancela runs obsoletos; en main nunca cancela.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     strategy:
@@ -13,13 +22,14 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12"]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
 
       - name: Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
@@ -31,7 +41,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
 
       - name: Shellcheck bin/*.sh
-        run: shellcheck bin/*.sh
+        run: shellcheck bin/*.sh .githooks/pre-push
 
       - name: Changelog check (PSR lo genera al mergear)
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'github-actions/')
@@ -50,11 +60,12 @@ jobs:
 
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
 
       - name: Python
         run: uv python install 3.11
@@ -69,8 +80,9 @@ jobs:
     needs: [test, audit]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Notificar Telegram
         env:

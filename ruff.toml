@@ -6,10 +6,9 @@ target-version = "py311"
 select = ["E", "F", "I", "N", "W", "C901"]
 ignore = []
 
-# Ratchet de complejidad ciclomática (issue #136): el tope es el máximo
-# medido en main (install_cron.main = 26). No subirlo; bajarlo al refactorizar.
+# Ratchet de complejidad ciclomática (issues #136, #172): bajarlo al refactorizar.
 [lint.mccabe]
-max-complexity = 26
+max-complexity = 15
 
 [format]
 quote-style = "double"
