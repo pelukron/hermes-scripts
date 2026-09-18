@@ -353,3 +353,27 @@ class TestNoticieroGlobal:
     def test_subseccion_sin_contenido_retorna_vacio(self):
         block = mod.build_subsection_block("Subs", [("X", "https://x.example/rss")], [[]], set())
         assert block == ""
+
+
+# ═══════════════════════════════════════════
+# load_feeds: el config vive en la raíz del repo (#207)
+# ═══════════════════════════════════════════
+
+
+class TestLoadFeeds:
+    """Regresión #207: tras mover los scripts a src/scripts/ (18ef447) la ruta
+    se resolvía contra el módulo (src/scripts/config/feeds.json) en vez de
+    contra la raíz del repo, y el cron de las 08:30 fallaba a diario."""
+
+    def test_lee_config_desde_la_raiz_del_repo(self):
+        feeds = mod.load_feeds()
+        nombres = [nombre for nombre, _ in feeds]
+        assert "💻 TECNOLOGÍA" in nombres, nombres
+        assert len(feeds) >= 5
+
+    def test_estructura_y_urls(self):
+        feeds = mod.load_feeds()
+        subseccion, fuentes = feeds[0][1][0]
+        assert subseccion
+        assert fuentes[0][0]  # nombre de la fuente
+        assert fuentes[0][1].startswith("http")  # url

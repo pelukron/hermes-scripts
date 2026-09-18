@@ -25,6 +25,14 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          # CAUSA RAÍZ del GH013 (#204): con persist-credentials (default true) el
+          # checkout escribe el GITHUB_TOKEN en un config APARTE y lo engancha vía
+          # includeIf.gitdir. Ese `http.https://github.com/.extraheader` tiene
+          # precedencia sobre las credenciales de la URL, así que el push de PSR
+          # salía autenticado como github-actions[bot] (sin rol admin -> GH013)
+          # aunque la URL llevara PSR_TOKEN. Desactivarlo es el fix: sin config
+          # incluido no hay header que gane, y el push se autentica con PSR_TOKEN.
+          persist-credentials: false
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -33,7 +41,7 @@ jobs:
         run: uv python install 3.11
 
       - name: Install deps
-        run: uv sync
+        run: uv sync --locked
 
       - name: Release (bump + tag + push + publish)
         id: psr
@@ -46,13 +54,20 @@ jobs:
             echo "::error::Falta el secret PSR_TOKEN (PAT classic con scope repo). Sin el, PSR no puede pushear el bump a main protegida."
             exit 1
           fi
-          # Re-autentica git: el credential-helper del checkout trae GITHUB_TOKEN
-          # (bloqueado por el ruleset, GH013) y tiene precedencia sobre la URL.
+          # Re-autentica git por si el checkout volviera a persistir credenciales
+          # (ver persist-credentials: false arriba): el header del credential-helper
+          # tiene precedencia sobre la URL y el push saldria como github-actions[bot].
           git config --unset-all http.https://github.com/.extraheader || true
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Diagnóstico #204: el error de ruleset no nombra al actor, así que la
+          # única prueba de quién empuja es imprimir la identidad de GH_TOKEN y el
+          # estado real de las credenciales de git justo antes del push de PSR.
+          echo "actor=$(gh api user --jq .login 2>/dev/null || echo 'gh-fallo') id=$(gh api user --jq .id 2>/dev/null || echo '?')"
+          echo "extraheader_entries=$(git config --get-all http.https://github.com/.extraheader 2>/dev/null | wc -l | tr -d ' ')"
+          echo "origin_url=$(git remote get-url origin | sed -E 's#//[^@]*@#//***@#')"
           TAG_BEFORE=$(git tag --sort=-creatordate | head -1)
           echo "tag_before=$TAG_BEFORE" >> $GITHUB_OUTPUT
-          uv run semantic-release version
+          uv run semantic-release -v version
           TAG_AFTER=$(git tag --sort=-creatordate | head -1)
           echo "tag_after=$TAG_AFTER" >> $GITHUB_OUTPUT
 
@@ -74,9 +89,8 @@ jobs:
           else
             git add uv.lock
             git commit -m "chore: sync uv.lock tras release [skip ci]"
-            # El credential-helper del checkout trae GITHUB_TOKEN (bloqueado por
-            # el ruleset): re-autentica el push con PSR_TOKEN (repo publico, el
-            # pull de arriba no necesita auth).
+            # Igual que en el paso Release: el push sale con PSR_TOKEN
+            # (repo publico, el pull de arriba no necesita auth).
             git config --unset-all http.https://github.com/.extraheader || true
             git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
             git push origin HEAD:main
@@ -105,8 +119,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TAG: ${{ steps.psr.outputs.tag_after }}
         run: |
-          NL=$'\n'
-          TAG="${{ steps.psr.outputs.tag_after }}"
-          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
-          bash bin/notify-telegram.sh "🚀 ${GITHUB_REPOSITORY} ${TAG} publicado${NL}${RELEASE_URL}"
+          TEXT="$(python3 src/notify_render.py --release)"
+          bash bin/notify-telegram.sh "${TEXT}"

@@ -5,8 +5,10 @@ import random
 import subprocess
 import sys
 import time
+import traceback
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 from time import struct_time
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -107,15 +109,50 @@ def premium_link(text: str, url: str) -> str:
 
 
 LOG_FORMAT = "%(message)s"
+LOG_FILE_FORMAT = "%(asctime)s %(levelname)s %(message)s"
 LOG_ENV_VAR = "HERMES_LOG_LEVEL"
+LOG_FILE_ENV_VAR = "HERMES_LOG_FILE"
+LOG_FILE_NAME = "hermes-scripts.log"
+LOG_FILE_MAX_BYTES = 1_000_000
+LOG_FILE_BACKUPS = 3
+
+
+def _log_file_path():
+    """Ruta del log auditable: $HERMES_HOME/logs/hermes-scripts.log."""
+    base = os.environ.get("HERMES_HOME", "")
+    home = Path(base).expanduser() if base else Path.home()
+    return home / "logs" / LOG_FILE_NAME
+
+
+def _add_file_handler(logger):
+    """Handler rotado a disco. Nunca rompe la entrega por stdout."""
+    if os.environ.get(LOG_FILE_ENV_VAR) == "0":
+        return
+    try:
+        from logging.handlers import RotatingFileHandler
+
+        path = _log_file_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            path,
+            maxBytes=LOG_FILE_MAX_BYTES,
+            backupCount=LOG_FILE_BACKUPS,
+            encoding="utf-8",
+        )
+        handler.setFormatter(logging.Formatter(LOG_FILE_FORMAT))
+        logger.addHandler(handler)
+    except Exception:
+        pass
 
 
 def setup_logging(level=None):
-    """Configura el logger `hermes` hacia stdout (canal de entrega).
+    """Configura el logger `hermes`: stdout (canal de entrega) + archivo rotado.
 
-    Formato plano: a nivel INFO el output es byte-idéntico al print()
+    Formato plano en stdout: a nivel INFO el output es byte-idéntico al print()
     histórico (el gateway de Telegram consume stdout). Nivel vía
-    HERMES_LOG_LEVEL (default INFO). Re-enlaza el handler en cada llamada
+    HERMES_LOG_LEVEL (default INFO). El archivo suma timestamp + nivel para
+    auditoría (`hermes logs` los lista junto a los de la plataforma).
+    HERMES_LOG_FILE=0 desactiva el archivo. Re-enlaza handlers en cada llamada
     para no retener un sys.stdout viejo (tests con capsys).
 
     Args:
@@ -132,13 +169,37 @@ def setup_logging(level=None):
     except Exception:
         numeric = logging.INFO
     logger = logging.getLogger("hermes")
-    for handler in logger.handlers:
+    for handler in list(logger.handlers):
         logger.removeHandler(handler)
     stream = logging.StreamHandler(sys.stdout)
     stream.setFormatter(logging.Formatter(LOG_FORMAT))
     logger.addHandler(stream)
+    _add_file_handler(logger)
     logger.setLevel(numeric)
     return logger
+
+
+def report_failure(exc: BaseException) -> int:
+    """Digest de fallo inesperado (port del patron empleo#158).
+
+    Traceback completo al archivo rotado de auditoria; causa compacta a
+    stdout (canal de entrega: Hermes la reparte). Nunca lanza: si el disco
+    falla igual se imprime la causa. Retorna 1 para `raise SystemExit(...)`.
+    Converge al mismo archivo que el handler de #189 cuando mergee.
+    """
+    try:
+        base = os.environ.get("HERMES_HOME", "")
+        home = Path(base).expanduser() if base else Path.home()
+        logdir = home / "logs"
+        logdir.mkdir(parents=True, exist_ok=True)
+        stamped = datetime.now(timezone.utc).isoformat()
+        with open(logdir / "hermes-scripts.log", "a", encoding="utf-8") as f:
+            f.write(f"\n{stamped} ERROR {type(exc).__name__}: {exc}\n")
+            f.write("".join(traceback.format_exception(exc)))
+    except Exception:
+        pass
+    print(f"ERROR: {type(exc).__name__}: {exc}")
+    return 1
 
 
 def smart_truncate(text: str, limit: int = 3000) -> str:
@@ -440,6 +501,19 @@ def filter_by_max_age(
         if is_within_max_age(raw, max_age_hours, now=now, missing=missing):
             kept.append(item)
     return kept
+
+
+def repo_root() -> Path:
+    """Raíz del repo hermes-scripts (donde viven config/ y CHANGELOG.md).
+
+    El paquete se instala en modo editable, así que ``__file__`` apunta al
+    árbol de fuentes: ``src/hermes_common/common.py`` -> ``parents[2]``.
+    Mismo criterio que ``src/install_cron.py``.
+
+    Returns:
+        Path: directorio del repo.
+    """
+    return Path(__file__).resolve().parents[2]
 
 
 def get_repo_version(repo_root=None):

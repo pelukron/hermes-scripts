@@ -216,18 +216,54 @@
 
 
 {#
+  MACRO: first Closes/Fixes/Resolves trailer line of a commit ("" if none).
+
+  PSR 10.6.1 parks body trailers in descriptions and leaves linked_issues
+  empty, so grouping/linking reads them back from here.
+#}{%  macro issue_trailer(commit)
+%}{%    set ns = namespace(t="")
+%}{%    for d in commit.descriptions
+%}{%      set t = (d | trim)
+%}{%      set tl = (t | lower)
+%}{%      if ns.t == "" and (
+            tl.startswith("closes #")
+            or tl.startswith("fix #")
+            or tl.startswith("fixes #")
+            or tl.startswith("resolve #")
+            or tl.startswith("resolves #")
+          )
+%}{%        set ns.t = t
+%}{%      endif
+%}{%    endfor
+%}{{    ns.t
+}}{%  endmacro
+%}
+
+
+{#
+  MACRO: numeric issue from a trailer line (0 when unparseable)
+#}{%  macro trailer_issue_number(trailer)
+%}{{    ((trailer.split("#") | last) | int)
+}}{%  endmacro
+%}
+
+
+{#
   MACRO: reference links for a group of commits sharing an issue
-  (first issue link, unique PR links, unique sha links)
+  (issue link from trailer, unique PR links, unique sha links).
+
+  NOTE: linked_merge_request already carries its "#" prefix.
 #}{%  macro format_group_links(commits)
 %}{%    set refs = []
 %}{%    set seen_prs = []
 %}{%    set seen_shas = []
 %}{%    for commit in commits
 %}{%      if commit.error is undefined
-%}{%        if (commit.linked_issues | length > 0) and (refs | length == 0)
-%}{%          set issue = commit.linked_issues[0]
-%}{%          if (issue | issue_url) != ""
-%}{%            set _ = refs.append(format_link(issue | issue_url, issue))
+%}{%        set trailer = (issue_trailer(commit) | trim)
+%}{%        if trailer != "" and (refs | length == 0)
+%}{%          set num = (trailer_issue_number(trailer) | int)
+%}{%          if num > 0
+%}{%            set _ = refs.append(format_link(num | issue_url, "#" ~ num))
 %}{%          endif
 %}{%        endif
 %}{%        if commit.linked_merge_request != "" and commit.linked_merge_request not in seen_prs
@@ -235,7 +271,7 @@
 %}{%          set _ = refs.append(
                 format_link(
                   commit.linked_merge_request | pull_request_url,
-                  "#" ~ commit.linked_merge_request
+                  commit.linked_merge_request
                 )
               )
 %}{%        endif

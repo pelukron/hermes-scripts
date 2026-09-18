@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+# Mínimo privilegio: los jobs solo leen el repo.
+permissions:
+  contents: read
+
+# En PRs cancela runs obsoletos; en main nunca cancela.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     strategy:
@@ -13,13 +22,14 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12"]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
 
       - name: Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
@@ -50,11 +60,12 @@ jobs:
 
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
 
       - name: Python
         run: uv python install 3.11
@@ -69,8 +80,9 @@ jobs:
     needs: [test, audit]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Notificar Telegram
         env:
@@ -86,20 +98,7 @@ jobs:
           REF: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
         run: |
-          NL=$'\n'
-          CHECKS="test=${STATUS_TEST} audit=${STATUS_AUDIT}"
-          SHORT="${SHA:0:7}"
-          # En un PR, "ref" es el ref sintetico (<n>/merge): el numero y el enlace reales
-          # salen del evento. En un push a main no hay PR y el aviso enlaza al commit.
-          if [ "${STATUS_TEST}" = "success" ] && [ "${STATUS_AUDIT}" = "success" ]; then
-            if [ -n "${PR_NUMBER}" ]; then
-              TEXT="✅ PR #${PR_NUMBER} listo para review${NL}${PR_TITLE}${NL}${PR_URL}${NL}CI en verde (${CHECKS})${NL}Commit: ${SHORT}"
-            else
-              TEXT="✅ CI paso: ${GITHUB_REPOSITORY}${NL}main: ${SHORT}${NL}${COMMIT_URL}${NL}${CHECKS}"
-            fi
-          elif [ -n "${PR_NUMBER}" ]; then
-            TEXT="❌ PR #${PR_NUMBER} fallo el CI (${CHECKS})${NL}${PR_TITLE}${NL}${PR_URL}${NL}Run: ${RUN_URL}${NL}Commit: ${SHORT}"
-          else
-            TEXT="❌ CI fallo: ${GITHUB_REPOSITORY}${NL}main: ${SHORT}${NL}${COMMIT_URL}${NL}Run: ${RUN_URL}${NL}${CHECKS}"
-          fi
+          # Texto desde src/notify_render.py (plantillas en config/notify-messages.json,
+          # patron hermes-empleo); el envio sigue en bin/notify-telegram.sh.
+          TEXT="$(python3 src/notify_render.py --ci)"
           bash bin/notify-telegram.sh "${TEXT}"

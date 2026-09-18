@@ -224,7 +224,7 @@ def precio_cyberpuerta(url: str) -> Optional[float]:
     """
     try:
         r = retry_request(url, timeout=15)
-        m = re.search(r"<h2[^>]*>.*?\$([\d,]+\\.\d{2}).*?</h2>", r.text, re.S)
+        m = re.search(r"<h2[^>]*>.*?\$([\d,]+\.\d{2}).*?</h2>", r.text, re.S)
         if m:
             return limpiar_precio(m.group(1))
         return None
@@ -475,4 +475,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception as exc:
+        from hermes_common import report_failure
+
+        raise SystemExit(report_failure(exc))
