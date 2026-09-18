@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from hermes_common import setup_logging
+from hermes_common import repo_root, setup_logging
 
 log = logging.getLogger("hermes")
 
@@ -18,8 +18,8 @@ HERMES = HOME / ".hermes"
 BACKUP_DIR = HERMES / "backup" / "daily"
 STATE_DB = HERMES / "state.db"
 RETENTION_DAYS = 7
-SCRIPT_DIR = Path(__file__).resolve().parent
-CHANGELOG = SCRIPT_DIR / "CHANGELOG.md"
+# Raíz del repo, no src/scripts/ (#207): el CHANGELOG vive en la raíz.
+CHANGELOG = repo_root() / "CHANGELOG.md"
 
 # Elementos de ~/.hermes que no son configuracion y dominan el tamano del
 # tarball. Medido el 2026-09-16 en el host: node 320 MB, backups 302 MB,

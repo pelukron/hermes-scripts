@@ -7,6 +7,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 from time import struct_time
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -260,6 +261,55 @@ DEFAULT_NEWS_MAX_AGE_HOURS = 48
 _FUTURE_SLACK = timedelta(hours=1)
 
 
+def _published_from_sequence(value: Any) -> Optional[datetime]:
+    """Tupla/lista tipo struct_time desempacado (año..segundo) a UTC."""
+    try:
+        return datetime(
+            int(value[0]),
+            int(value[1]),
+            int(value[2]),
+            int(value[3]),
+            int(value[4]),
+            int(value[5]),
+            tzinfo=timezone.utc,
+        )
+    except (TypeError, ValueError):
+        return None
+
+
+def _published_from_number(value: Any) -> Optional[datetime]:
+    """Epoch (s o ms) a UTC."""
+    try:
+        ts = float(value)
+        if ts > 1e12:
+            ts = ts / 1000.0
+        return datetime.fromtimestamp(ts, tz=timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return None
+
+
+def _published_from_string(text: str) -> Optional[datetime]:
+    """RFC822 o ISO-8601 a UTC. None si no parsea."""
+    if not text:
+        return None
+    try:
+        parsed = parsedate_to_datetime(text)
+        if parsed is not None:
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError, OverflowError):
+        pass
+    iso = text.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(iso)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
 def parse_published(value: Any) -> Optional[datetime]:
     """Normaliza una fecha de publicación a datetime aware UTC.
 
@@ -294,48 +344,13 @@ def parse_published(value: Any) -> Optional[datetime]:
             return None
 
     if isinstance(value, (tuple, list)) and len(value) >= 6:
-        try:
-            return datetime(
-                int(value[0]),
-                int(value[1]),
-                int(value[2]),
-                int(value[3]),
-                int(value[4]),
-                int(value[5]),
-                tzinfo=timezone.utc,
-            )
-        except (TypeError, ValueError):
-            return None
+        return _published_from_sequence(value)
 
     if isinstance(value, (int, float)):
-        try:
-            ts = float(value)
-            if ts > 1e12:
-                ts = ts / 1000.0
-            return datetime.fromtimestamp(ts, tz=timezone.utc)
-        except (OSError, OverflowError, ValueError):
-            return None
+        return _published_from_number(value)
 
     if isinstance(value, str):
-        text = value.strip()
-        if not text:
-            return None
-        try:
-            parsed = parsedate_to_datetime(text)
-            if parsed is not None:
-                if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=timezone.utc)
-                return parsed.astimezone(timezone.utc)
-        except (TypeError, ValueError, OverflowError):
-            pass
-        iso = text.replace("Z", "+00:00")
-        try:
-            parsed = datetime.fromisoformat(iso)
-            if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
-            return parsed.astimezone(timezone.utc)
-        except ValueError:
-            return None
+        return _published_from_string(value.strip())
 
     return None
 
@@ -426,6 +441,19 @@ def filter_by_max_age(
         if is_within_max_age(raw, max_age_hours, now=now, missing=missing):
             kept.append(item)
     return kept
+
+
+def repo_root() -> Path:
+    """Raíz del repo hermes-scripts (donde viven config/ y CHANGELOG.md).
+
+    El paquete se instala en modo editable, así que ``__file__`` apunta al
+    árbol de fuentes: ``src/hermes_common/common.py`` -> ``parents[2]``.
+    Mismo criterio que ``src/install_cron.py``.
+
+    Returns:
+        Path: directorio del repo.
+    """
+    return Path(__file__).resolve().parents[2]
 
 
 def get_repo_version(repo_root=None):

@@ -14,7 +14,6 @@ Uso:
   resumen-rayados-diario
 """
 
-import json
 import logging
 import os
 import re
@@ -27,7 +26,6 @@ from hermes_common import (
     filter_by_max_age,
     get_repo_version,
     news_utils,
-    parse_published,
     retry_request,
     setup_logging,
 )
@@ -263,9 +261,8 @@ def fetch_google_news(query: str, category: str) -> list:
 def fetch_rayados_detail(link: str, timeout: int = 10) -> tuple:
     """Extrae fecha real y autor de la página del artículo.
 
-    Orden: meta article:published_time → JSON-LD datePublished →
-    meta name author / JSON-LD author.name. Hoy rayados.com no expone
-    ninguna (verificado 2026-09-16); queda a prueba de futuro.
+    Lógica en news_utils.parse_detail_page; aquí solo el fetch HTTP
+    (mismo patrón que Tigres).
 
     Args:
         link: URL del artículo.
@@ -276,43 +273,7 @@ def fetch_rayados_detail(link: str, timeout: int = 10) -> tuple:
     """
     try:
         resp = retry_request(link, timeout=timeout, headers=hermes_common.get_headers("default"))
-        soup = BeautifulSoup(resp.text, "lxml")
-        published = None
-        author = None
-        meta_pub = soup.find("meta", attrs={"property": "article:published_time"})
-        if meta_pub and meta_pub.get("content"):
-            published = parse_published(str(meta_pub.get("content")))
-        if published is None:
-            for script in soup.find_all("script", type="application/ld+json"):
-                try:
-                    data = json.loads(script.get_text() or "")
-                except (ValueError, TypeError):
-                    continue
-                nodes = data if isinstance(data, list) else [data]
-                for node in nodes:
-                    if not isinstance(node, dict):
-                        continue
-                    graph = node.get("@graph", [node])
-                    if not isinstance(graph, list):
-                        graph = [graph]
-                    for entry in graph:
-                        if not isinstance(entry, dict):
-                            continue
-                        if published is None and entry.get("datePublished"):
-                            published = parse_published(entry.get("datePublished"))
-                        if author is None:
-                            auth = entry.get("author")
-                            if isinstance(auth, dict) and auth.get("name"):
-                                author = str(auth["name"]).strip()
-                            elif isinstance(auth, str) and auth.strip():
-                                author = auth.strip()
-                    if published is not None and author is not None:
-                        break
-        if author is None:
-            meta_author = soup.find("meta", attrs={"name": "author"})
-            if meta_author and meta_author.get("content"):
-                author = str(meta_author.get("content")).strip() or None
-        return published, author
+        return news_utils.parse_detail_page(resp.text)
     except Exception as e:
         log.warning("Detalle rayados.com falló (%s): %s", link, e)
         return None, None
@@ -328,16 +289,7 @@ def enrich_rayados_items(items: list, max_details: int = 12) -> list:
     Returns:
         list: Los mismos items con 'author' y 'published' confirmados in-place.
     """
-    for item in items[:max_details]:
-        link = item.link
-        if not link:
-            continue
-        published, author = fetch_rayados_detail(link)
-        if published is not None:
-            item.published = published
-        if author and not item.author:
-            item.author = author
-    return items
+    return news_utils.enrich_from_detail(items, fetch_rayados_detail, max_details)
 
 
 def fetch_rayados_com() -> list:

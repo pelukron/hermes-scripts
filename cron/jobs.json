@@ -13,7 +13,15 @@
       "schedule": "10 4 * * *",
       "wrapper": "backup-diario.sh",
       "command": "uv run backup-diario",
-      "deliver": "${reports}"
+      "deliver": "${notify}"
+    },
+    {
+      "name": "runtime-sync",
+      "description": "Pone al dia los clones de runtime declarados (ff-only) y avisa si un symlink desplegado apunta a otro clon. Sin cambios: sin aviso.",
+      "schedule": "25 4 * * *",
+      "wrapper": "runtime-sync.sh",
+      "command": "uv run sync-runtime",
+      "deliver": "${notify}"
     },
     {
       "name": "cleanup-housekeeping",
@@ -29,7 +37,7 @@
       "schedule": "5 8 * * *",
       "wrapper": "reporte-uso.sh",
       "command": "uv run reporte-uso-hermes",
-      "deliver": "${reports}"
+      "deliver": "${notify}"
     },
     {
       "name": "resumen-noticias-diario",
@@ -61,7 +69,7 @@
       "schedule": "*/30 * * * *",
       "wrapper": "monitor-ram.sh",
       "command": "uv run monitor-ram-mexico",
-      "deliver": "origin",
+      "deliver": "${notify}",
       "enabled": false
     },
     {
@@ -70,7 +78,7 @@
       "schedule": "*/30 * * * *",
       "wrapper": "sistema-alertas.sh",
       "command": "bash bin/sistema-alertas-y-resumen.sh",
-      "deliver": "${reports}"
+      "deliver": "${notify}"
     },
     {
       "name": "aviso-peak-19h",
@@ -86,6 +94,22 @@
       "schedule": "55 23 * * 0-4",
       "wrapper": "aviso-peak.sh",
       "command": "bash bin/aviso-peak.sh",
+      "deliver": "${personal}"
+    },
+    {
+      "name": "aviso-offpeak-22h",
+      "description": "Avisa la salida de la ventana peak de la API DeepSeek (22:00 hora Monterrey)",
+      "schedule": "0 22 * * 0-4",
+      "wrapper": "aviso-offpeak.sh",
+      "command": "bash bin/aviso-offpeak.sh",
+      "deliver": "${personal}"
+    },
+    {
+      "name": "aviso-offpeak-04h",
+      "description": "Avisa la salida de la ventana peak de la API DeepSeek (04:00 hora Monterrey)",
+      "schedule": "0 4 * * 1-5",
+      "wrapper": "aviso-offpeak.sh",
+      "command": "bash bin/aviso-offpeak.sh",
       "deliver": "${personal}"
     },
     {
@@ -107,7 +131,7 @@
       "schedule": "0 10 * * 1",
       "wrapper": "cron-check.sh",
       "command": "uv run python src/install_cron.py --check --quiet",
-      "deliver": "origin"
+      "deliver": "${notify}"
     },
     {
       "name": "Hermes weekly update + backup",
