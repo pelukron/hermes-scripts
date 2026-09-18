@@ -41,7 +41,7 @@ jobs:
         run: uv python install 3.11
 
       - name: Install deps
-        run: uv sync
+        run: uv sync --locked
 
       - name: Release (bump + tag + push + publish)
         id: psr
