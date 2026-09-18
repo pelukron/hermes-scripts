@@ -3,6 +3,7 @@
 %}{%  from 'macros.md.j2' import apply_alphabetical_ordering_by_release_notices
 %}{%  from 'macros.md.j2' import format_breaking_changes_description, format_commit_summary_line
 %}{%  from 'macros.md.j2' import format_entry_subject, format_group_links
+%}{%  from 'macros.md.j2' import issue_trailer
 %}{%  from 'macros.md.j2' import format_release_notice
 %}{#
 EXAMPLE:
@@ -38,17 +39,17 @@ EXAMPLE:
 %}{%  set hanging_indent = hanging_indent | default(2)
 %}{#
 #}{%  set section_names = {
-    "feat": "✨ Features",
-    "fix": "🐛 Fixes",
-    "perf": "⚡ Performance",
+    "features": "✨ Features",
+    "bug fixes": "🐛 Fixes",
+    "performance improvements": "⚡ Performance",
     "infra": "🔧 Infra",
-    "ci": "🤖 CI",
-    "docs": "📝 Docs",
-    "refactor": "♻️ Refactor",
-    "test": "✅ Tests",
-    "chore": "📦 Chores",
-    "build": "📦 Chores",
-    "style": "📦 Chores",
+    "continuous integration": "🤖 CI",
+    "documentation": "📝 Docs",
+    "refactoring": "♻️ Refactor",
+    "testing": "✅ Tests",
+    "chores": "📦 Chores",
+    "build system": "📦 Chores",
+    "code style": "📦 Chores",
   }
 %}{#
 #}{%  for type_, commits in commit_objects if type_ != "unknown" and type_ in section_names
@@ -57,9 +58,16 @@ EXAMPLE:
 %}{%    set _ = apply_alphabetical_ordering_by_descriptions(ns)
 %}{#
 #}{%    set groups = namespace(keys=[], entries={})
-%}{#    GROUP COMMITS BY FIRST LINKED ISSUE (one line per issue; no issue = one line per commit)
+%}{#    GROUP COMMITS BY ISSUE TRAILER (one line per issue; no trailer = MR/sha fallback)
 #}{%    for commit in ns.commits
-%}{%      set key = commit.linked_issues[0] if (commit.linked_issues | length > 0) else ("sha:" ~ commit.hexsha)
+%}{%      set trailer = (issue_trailer(commit) | trim)
+%}{%      if trailer != ""
+%}{%        set key = "issue:" ~ trailer
+%}{%      elif commit.linked_merge_request != ""
+%}{%        set key = "mr:" ~ commit.linked_merge_request
+%}{%      else
+%}{%        set key = "sha:" ~ commit.hexsha
+%}{%      endif
 %}{%      if key not in groups.entries
 %}{%        set _ = groups.keys.append(key)
 %}{%        set _ = groups.entries.update({key: []})
