@@ -108,15 +108,50 @@ def premium_link(text: str, url: str) -> str:
 
 
 LOG_FORMAT = "%(message)s"
+LOG_FILE_FORMAT = "%(asctime)s %(levelname)s %(message)s"
 LOG_ENV_VAR = "HERMES_LOG_LEVEL"
+LOG_FILE_ENV_VAR = "HERMES_LOG_FILE"
+LOG_FILE_NAME = "hermes-scripts.log"
+LOG_FILE_MAX_BYTES = 1_000_000
+LOG_FILE_BACKUPS = 3
+
+
+def _log_file_path():
+    """Ruta del log auditable: $HERMES_HOME/logs/hermes-scripts.log."""
+    base = os.environ.get("HERMES_HOME", "")
+    home = Path(base).expanduser() if base else Path.home()
+    return home / "logs" / LOG_FILE_NAME
+
+
+def _add_file_handler(logger):
+    """Handler rotado a disco. Nunca rompe la entrega por stdout."""
+    if os.environ.get(LOG_FILE_ENV_VAR) == "0":
+        return
+    try:
+        from logging.handlers import RotatingFileHandler
+
+        path = _log_file_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            path,
+            maxBytes=LOG_FILE_MAX_BYTES,
+            backupCount=LOG_FILE_BACKUPS,
+            encoding="utf-8",
+        )
+        handler.setFormatter(logging.Formatter(LOG_FILE_FORMAT))
+        logger.addHandler(handler)
+    except Exception:
+        pass
 
 
 def setup_logging(level=None):
-    """Configura el logger `hermes` hacia stdout (canal de entrega).
+    """Configura el logger `hermes`: stdout (canal de entrega) + archivo rotado.
 
-    Formato plano: a nivel INFO el output es byte-idéntico al print()
+    Formato plano en stdout: a nivel INFO el output es byte-idéntico al print()
     histórico (el gateway de Telegram consume stdout). Nivel vía
-    HERMES_LOG_LEVEL (default INFO). Re-enlaza el handler en cada llamada
+    HERMES_LOG_LEVEL (default INFO). El archivo suma timestamp + nivel para
+    auditoría (`hermes logs` los lista junto a los de la plataforma).
+    HERMES_LOG_FILE=0 desactiva el archivo. Re-enlaza handlers en cada llamada
     para no retener un sys.stdout viejo (tests con capsys).
 
     Args:
@@ -133,11 +168,12 @@ def setup_logging(level=None):
     except Exception:
         numeric = logging.INFO
     logger = logging.getLogger("hermes")
-    for handler in logger.handlers:
+    for handler in list(logger.handlers):
         logger.removeHandler(handler)
     stream = logging.StreamHandler(sys.stdout)
     stream.setFormatter(logging.Formatter(LOG_FORMAT))
     logger.addHandler(stream)
+    _add_file_handler(logger)
     logger.setLevel(numeric)
     return logger
 
