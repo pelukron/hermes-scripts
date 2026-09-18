@@ -533,7 +533,7 @@ class TestQuiet:
         assert job.is_no_agent
         assert job.wrapper == "cron-check.sh"
         assert "--check --quiet" in job.command
-        assert job.deliver == "origin"
+        assert job.deliver == "${notify}"
         wrapper = tmp_path / "cron-check.sh"
         wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
         result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
