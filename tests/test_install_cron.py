@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -525,7 +526,7 @@ class TestQuiet:
     def test_manifiesto_real_trae_cron_drift_check(self, tmp_path):
         manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
         jobs = ic.parse_jobs(manifest)
-        assert len(jobs) == 17
+        assert len(jobs) == 18
         found = [job for job in jobs if job.name == "cron-drift-check"]
         assert len(found) == 1
         job = found[0]
@@ -903,3 +904,147 @@ class TestUpdateSemanalDesacoplado:
         job = self._job()
         assert "systemd-run" in job.prompt
         assert "--on-active" in job.prompt
+
+
+# ═══════════════════════════════════════════
+# Expectativas del día (#217)
+# ═══════════════════════════════════════════
+
+AHORA = datetime(2026, 9, 18, 11, 0)  # viernes
+
+
+def _job_dict(name="job", expr="0 8 * * *", enabled=True, created_at=None, job_id="abc123"):
+    """Job como lo lee `read_live_jobs()`."""
+    job = {
+        "id": job_id,
+        "name": name,
+        "enabled": enabled,
+        "schedule": {"expr": expr},
+    }
+    if created_at is not None:
+        job["created_at"] = created_at.isoformat()
+    return job
+
+
+def _run(hora, status="completed", delivery=None, scheduled=None):
+    """Corrida como la normaliza `read_runs()`."""
+    return {
+        "started_at": hora,
+        "scheduled_instant": scheduled if scheduled is not None else hora,
+        "status": status,
+        "delivery_outcome": delivery,
+    }
+
+
+class TestExpectativasDelDia:
+    """Qué debía correr hoy y no corrió (#217).
+
+    Medido en el spike del 2026-09-18: el chequeo ingenuo da 356 falsos positivos
+    (`suppressed` es el 59% de las entregas), declara perdidos jobs que no
+    disparan hoy, tiene off-by-one en la hora base y no conoce la fecha de alta
+    ni el catch-up del scheduler.
+    """
+
+    def test_ocurrencias_incluyen_la_hora_base(self):
+        # `*/30 * * * *` a las 11:00: 00:00 incluida y tope de gracia (10:45) = 22.
+        assert len(ic.occurrences_today("*/30 * * * *", AHORA)) == 22
+
+    def test_ocurrencias_de_un_job_diario(self):
+        assert ic.occurrences_today("0 8 * * *", AHORA) == [datetime(2026, 9, 18, 8, 0)]
+
+    def test_sin_ocurrencias_cuando_el_schedule_no_dispara_hoy(self):
+        # Viernes: el job dominical no tiene nada que hacer hoy.
+        assert ic.occurrences_today("0 4 * * 0", AHORA) == []
+        assert ic.occurrences_today("0 10 * * 1", AHORA) == []
+
+    def test_respeta_la_ventana_de_gracia(self):
+        # El scheduler recupera corridas perdidas (catch_up_occurrences): a las
+        # 08:05 todavía no se puede declarar perdida la de las 08:00.
+        assert ic.occurrences_today("0 8 * * *", datetime(2026, 9, 18, 8, 5)) == []
+        assert ic.occurrences_today("0 8 * * *", datetime(2026, 9, 18, 8, 20)) == [
+            datetime(2026, 9, 18, 8, 0)
+        ]
+
+    def test_no_espera_corridas_anteriores_al_alta_del_job(self):
+        alta = datetime(2026, 9, 18, 9, 50)
+        esperadas = ic.expected_runs([_job_dict(expr="0 4 * * *", created_at=alta)], AHORA)
+        assert esperadas == {}
+
+    def test_job_deshabilitado_no_genera_expectativa(self):
+        esperadas = ic.expected_runs([_job_dict(enabled=False)], AHORA)
+        assert esperadas == {}
+
+    def test_espera_la_ocurrencia_de_un_job_diario_vivo(self):
+        esperadas = ic.expected_runs(
+            [_job_dict(job_id="j1", expr="0 8 * * *", created_at=datetime(2026, 9, 1))], AHORA
+        )
+        assert esperadas == {"j1": [datetime(2026, 9, 18, 8, 0)]}
+
+    @pytest.mark.parametrize("delivery", [None, "delivered", "suppressed"])
+    def test_entregas_sanas(self, delivery):
+        assert ic.delivery_verdict("completed", delivery) == ic.VERDICT_OK
+
+    def test_entrega_fallida_es_hallazgo(self):
+        assert ic.delivery_verdict("completed", "failed") == ic.VERDICT_FAILED
+
+    def test_corrida_fallida_es_hallazgo(self):
+        assert ic.delivery_verdict("failed", "delivered") == ic.VERDICT_FAILED
+
+    def test_digest_silencioso_con_el_estado_sano(self):
+        jobs = [
+            _job_dict(job_id="j1", name="resumen-noticias-diario", expr="30 8 * * *"),
+            _job_dict(job_id="j2", name="cleanup-housekeeping", expr="0 6 * * *"),
+        ]
+        runs = {
+            "j1": [_run(datetime(2026, 9, 18, 8, 30), delivery="delivered")],
+            "j2": [_run(datetime(2026, 9, 18, 6, 0), delivery="suppressed")],
+        }
+        assert ic.doctor_digest(jobs, runs, AHORA) == []
+
+    def test_digest_reporta_la_corrida_perdida(self):
+        jobs = [_job_dict(job_id="j1", name="job-scout daily run", expr="0 8 * * *")]
+        lineas = ic.doctor_digest(jobs, {}, AHORA)
+        assert len(lineas) == 1
+        assert "job-scout daily run" in lineas[0]
+        assert "08:00" in lineas[0]
+
+    def test_digest_reporta_la_entrega_fallida(self):
+        jobs = [_job_dict(job_id="j1", name="resumen-noticias-diario", expr="30 8 * * *")]
+        runs = {"j1": [_run(datetime(2026, 9, 18, 8, 30), delivery="failed")]}
+        lineas = ic.doctor_digest(jobs, runs, AHORA)
+        assert len(lineas) == 1
+        assert "resumen-noticias-diario" in lineas[0]
+        assert "entrega" in lineas[0]
+
+    def test_digest_reporta_la_corrida_fallida(self):
+        jobs = [_job_dict(job_id="j1", name="runtime-sync", expr="25 4 * * *")]
+        runs = {"j1": [_run(datetime(2026, 9, 18, 4, 25), status="failed")]}
+        lineas = ic.doctor_digest(jobs, runs, AHORA)
+        assert len(lineas) == 1
+        assert "runtime-sync" in lineas[0]
+
+    def test_una_corrida_tardia_cubre_su_ocurrencia(self):
+        """El catch-up corre minutos después: no es una corrida perdida."""
+        jobs = [_job_dict(job_id="j1", name="job-scout daily run", expr="0 8 * * *")]
+        runs = {"j1": [_run(datetime(2026, 9, 18, 8, 9), scheduled=datetime(2026, 9, 18, 8, 0))]}
+        assert ic.doctor_digest(jobs, runs, AHORA) == []
+
+
+class TestJobDiarioDelDoctor:
+    """El manifiesto declara el job diario con el comando de expectativas (#217)."""
+
+    @staticmethod
+    def _job():
+        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
+        jobs = [j for j in ic.parse_jobs(manifest) if j.name == "cron-doctor-daily"]
+        assert len(jobs) == 1
+        return jobs[0]
+
+    def test_existe_y_es_no_agent(self):
+        assert self._job().is_no_agent
+
+    def test_corre_a_las_11_tras_la_tanda_de_la_manana(self):
+        assert self._job().schedule == "0 11 * * *"
+
+    def test_usa_el_modo_de_expectativas(self):
+        assert "--expectations" in self._job().command
