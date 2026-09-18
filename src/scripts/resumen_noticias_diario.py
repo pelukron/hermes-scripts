@@ -253,7 +253,7 @@ def build_subsection_block(
     Returns:
         str: Bloque Markdown o "" si no hay contenido nuevo.
     """
-    sub_lines = [f"_{sub_name}_"]
+    sub_lines = [f"_{sin_parentesis(sub_name)}_"]
     has_content = False
     for (source_name, _url), items in zip(sources, fetched):
         new_lines = []
@@ -328,21 +328,18 @@ def nota_de_recorte(omitidas):
 
 def main():
     setup_logging()
-
-    def emitir(texto):
-        """Todo lo que sale al canal pasa por aquí: sin paréntesis que tiren el
-        MarkdownV2 a texto plano, con las URLs gigantes a la vista (#212)."""
-        log.info(sin_parentesis(texto))
-
-    emitir(
+    log.info(
         f"🪨 **DIARIO GLOBAL HERMES** 🪨\n_Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}_\n"
     )
     time.sleep(0.5)
 
     feeds = load_feeds()
-    omitidas = emitir_secciones(feeds, fetch_all_rss, emitir)
+    # Ojo: aquí NO se sanea la línea completa. `sin_parentesis` sobre el texto
+    # emitido se come los paréntesis del enlace `[titulo](url)` y lo rompe: el
+    # saneo vive en titulares, nombres de fuente y subsección (#212).
+    omitidas = emitir_secciones(feeds, fetch_all_rss, log.info)
     if omitidas:
-        emitir(nota_de_recorte(omitidas))
+        log.info(nota_de_recorte(omitidas))
         time.sleep(1)
 
     # Footer stats
@@ -356,7 +353,7 @@ def main():
                 failed_list += f" +{_stats.fail - 5} más"
             footer_line += f" {_stats.fail} fallos: {failed_list}"
         footer_line += "_\n"
-        emitir(footer_line)
+        log.info(footer_line)
         time.sleep(1)
 
     # Polymarket predictions (entrypoint instalado por #71)
@@ -374,11 +371,11 @@ def main():
     crypto = fetch_crypto()
     curr = fetch_currencies()
     if crypto or curr:
-        emitir("**💰 MERCADOS**\n")
+        log.info("**💰 MERCADOS**\n")
         for sym, price, change, emoji in crypto:
-            emitir(f"• {emoji} {sym}: ${price:,.2f} {change:+.2f}%")
+            log.info(f"• {emoji} {sym}: ${price:,.2f} {change:+.2f}%")
         for label, rate, note in curr:
-            emitir(f"• {label}: ${rate:,.2f} {note}")
+            log.info(f"• {label}: ${rate:,.2f} {note}")
 
 
 if __name__ == "__main__":
