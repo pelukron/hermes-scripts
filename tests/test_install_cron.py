@@ -865,3 +865,41 @@ class TestManifestFueraDeLaVentanaPeak:
         start = int(hour) + int(minute) / 60
         assert not (0 <= start < 4), f"backup-diario cae en peak: {schedule}"
         assert not (19 <= start < 22), f"backup-diario cae en peak: {schedule}"
+
+
+class TestUpdateSemanalDesacoplado:
+    """El job agent del update semanal no puede reiniciar el gateway que lo hospeda (#221).
+
+    Medido el 2026-09-18: la corrida del 2026-09-13 murió con "Interrupted by
+    shutdown before terminal completion" porque el update reinicia el propio
+    `hermes-gateway.service` que hospeda el cron. El reinicio debe quedar
+    **agendado** (systemd-run) para que la corrida termine y entregue el resumen.
+    """
+
+    @staticmethod
+    def _job():
+        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
+        jobs = [j for j in ic.parse_jobs(manifest) if j.name == "Hermes weekly update + backup"]
+        assert len(jobs) == 1
+        return jobs[0]
+
+    def test_el_job_sigue_siendo_agent(self):
+        # Los conflictos de merge del update necesitan criterio: no es un script.
+        assert self._job().mode == "agent"
+
+    def test_prompt_no_invoca_hermes_update(self):
+        job = self._job()
+        # El prompt nombra la orden prohibida para explicar por qué no se usa: lo
+        # que se comprueba es que no la invoque.
+        assert "hermes update --backup" not in job.prompt
+        assert "NO uses `hermes update`" in job.prompt
+
+    def test_prompt_hace_el_update_a_mano(self):
+        job = self._job()
+        assert "git -C /usr/local/lib/hermes-agent merge origin/main" in job.prompt
+        assert "uv sync --frozen" in job.prompt
+
+    def test_prompt_agenda_el_reinicio_desacoplado(self):
+        job = self._job()
+        assert "systemd-run" in job.prompt
+        assert "--on-active" in job.prompt
