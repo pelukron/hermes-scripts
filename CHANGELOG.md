@@ -4,6 +4,9 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.6.1 (2026-09-18)
+
+
 ## v0.6.0 (2026-09-18)
 
 ### 🔧 Infra
