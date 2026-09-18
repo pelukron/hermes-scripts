@@ -15,7 +15,7 @@ Jira-style project management para `hermes-scripts` usando GitHub-native feature
 | **Epics abiertos** | [Issues labeled `👑 epic`](https://github.com/pelukron/hermes-scripts/issues?q=is%3Aissue+label%3A%22%F0%9F%91%91+epic%22+is%3Aopen) |
 | **Roadmap** | [README.md#roadmap](README.md#roadmap) (futuro) |
 | **Agent tracking** | [`.hermes/EPICS_TRACKING.md`](.hermes/EPICS_TRACKING.md) |
-| **Current Epic** | [#58 Security & Tooling Quick Wins](https://github.com/pelukron/hermes-scripts/issues/58) |
+| **Current Epic** | — (sin épicas abiertas 2026-09-17) |
 
 ---
 
@@ -132,11 +132,14 @@ Epic Issue ──→ Milestone ──→ GitHub Project (kanban)
 
 ## Milestones
 
-| Milestone | Due | Scope |
-|---|---|---|
-| [v0.4.0 — Security & Tooling](https://github.com/pelukron/hermes-scripts/milestone/1) | 2026-07-31 | Quick wins de seguridad + extender mypy/bandit |
-| [v0.5.0 — Performance & Concurrency](https://github.com/pelukron/hermes-scripts/milestone/2) | 2026-08-15 | requests.Session, concurrencia feeds, límites de descarga |
-| [v0.6.0 — Refactor & Maintainability](https://github.com/pelukron/hermes-scripts/milestone/3) | 2026-09-15 | Estructura src/scripts, news_utils, logging, dataclasses |
+Cerrados 2026-09-17 con 0 issues abiertos (6/5/7 cerrados). Desde PSR los
+releases van por tags (`v0.5.5` latest); estos milestones quedan históricos.
+
+| Milestone | Due | Scope | Estado |
+|---|---|---|---|
+| [v0.4.0 — Security & Tooling](https://github.com/pelukron/hermes-scripts/milestone/1) | 2026-07-31 | Quick wins de seguridad + extender mypy/bandit | ✅ Cerrado |
+| [v0.5.0 — Performance & Concurrency](https://github.com/pelukron/hermes-scripts/milestone/2) | 2026-08-15 | requests.Session, concurrencia feeds, límites de descarga | ✅ Cerrado |
+| [v0.6.0 — Refactor & Maintainability](https://github.com/pelukron/hermes-scripts/milestone/3) | 2026-09-15 | Estructura src/scripts, news_utils, logging, dataclasses | ✅ Cerrado |
 
 ## Epic Issues
 
@@ -144,11 +147,8 @@ Epics son issues padre que agrupan sub-issues. Usan label `👑 epic` y checklis
 
 ### Current epics
 
-| Epic | Milestone | Status |
-|---|---|---|
-| [#TBD](https://github.com/pelukron/hermes-scripts/issues/) Security & Tooling Quick Wins | v0.4.0 | 🆕 Todo |
-| [#TBD](https://github.com/pelukron/hermes-scripts/issues/) Performance & Concurrency | v0.5.0 | 🆕 Todo |
-| [#TBD](https://github.com/pelukron/hermes-scripts/issues/) Maintainability Refactor | v0.6.0 | 🆕 Todo |
+Sin épicas abiertas (2026-09-17). Últimas cerradas: #60 Maintainability Refactor,
+#98 Gate único + auditoría, #58 Security & Tooling Quick Wins.
 
 ### Creating a new epic
 

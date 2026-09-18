@@ -97,6 +97,22 @@
       "deliver": "${personal}"
     },
     {
+      "name": "aviso-offpeak-22h",
+      "description": "Avisa la salida de la ventana peak de la API DeepSeek (22:00 hora Monterrey)",
+      "schedule": "0 22 * * 0-4",
+      "wrapper": "aviso-offpeak.sh",
+      "command": "bash bin/aviso-offpeak.sh",
+      "deliver": "${personal}"
+    },
+    {
+      "name": "aviso-offpeak-04h",
+      "description": "Avisa la salida de la ventana peak de la API DeepSeek (04:00 hora Monterrey)",
+      "schedule": "0 4 * * 1-5",
+      "wrapper": "aviso-offpeak.sh",
+      "command": "bash bin/aviso-offpeak.sh",
+      "deliver": "${personal}"
+    },
+    {
       "name": "job-scout daily run",
       "description": "Reporte diario del agente de empleo (repo externo hermes-empleo)",
       "schedule": "0 8 * * *",

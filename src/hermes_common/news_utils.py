@@ -571,6 +571,46 @@ def parse_fecha_es(text: str) -> Optional[datetime]:
     return None
 
 
+def _author_from_json_entry(entry: dict[str, Any]) -> str | None:
+    """Autor desde un nodo JSON-LD (dict con name o string)."""
+    auth: Any = entry.get("author")
+    if isinstance(auth, dict) and auth.get("name"):
+        return str(auth["name"]).strip()
+    if isinstance(auth, str) and auth.strip():
+        return auth.strip()
+    return None
+
+
+def _detail_from_json_ld(soup: Any, published: Any, author: Optional[str]) -> tuple:
+    """Recorre scripts JSON-LD completando (published, author)."""
+    import json
+
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.get_text() or "")
+        except (ValueError, TypeError):
+            continue
+        nodes = data if isinstance(data, list) else [data]
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            graph = node.get("@graph", [node])
+            if not isinstance(graph, list):
+                graph = [graph]
+            for entry in graph:
+                if not isinstance(entry, dict):
+                    continue
+                if published is None and entry.get("datePublished"):
+                    published = parse_published(entry.get("datePublished"))
+                if author is None:
+                    found = _author_from_json_entry(entry)
+                    if found is not None:
+                        author = found
+            if published is not None and author is not None:
+                break
+    return published, author
+
+
 def parse_detail_page(html: str) -> tuple:
     """Extrae (published, author) del HTML de un artículo.
 
@@ -583,8 +623,6 @@ def parse_detail_page(html: str) -> tuple:
     Returns:
         tuple: (published datetime|None, author str|None).
     """
-    import json
-
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html, "lxml")
@@ -594,31 +632,7 @@ def parse_detail_page(html: str) -> tuple:
     if meta_pub and meta_pub.get("content"):
         published = parse_published(str(meta_pub.get("content")))
     if published is None:
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.get_text() or "")
-            except (ValueError, TypeError):
-                continue
-            nodes = data if isinstance(data, list) else [data]
-            for node in nodes:
-                if not isinstance(node, dict):
-                    continue
-                graph = node.get("@graph", [node])
-                if not isinstance(graph, list):
-                    graph = [graph]
-                for entry in graph:
-                    if not isinstance(entry, dict):
-                        continue
-                    if published is None and entry.get("datePublished"):
-                        published = parse_published(entry.get("datePublished"))
-                    if author is None:
-                        auth: Any = entry.get("author")
-                        if isinstance(auth, dict) and auth.get("name"):
-                            author = str(auth["name"]).strip()
-                        elif isinstance(auth, str) and auth.strip():
-                            author = auth.strip()
-                if published is not None and author is not None:
-                    break
+        published, author = _detail_from_json_ld(soup, published, author)
     if author is None:
         meta_author = soup.find("meta", attrs={"name": "author"})
         if meta_author and meta_author.get("content"):

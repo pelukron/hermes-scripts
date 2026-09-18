@@ -1,4 +1,4 @@
-.PHONY: test lint format typecheck security run sync lock clean
+.PHONY: test lint format format-check typecheck security run sync lock clean
 
 ## Instalar dependencias del lock file
 sync:
@@ -8,17 +8,21 @@ sync:
 lock:
 	uv lock
 
-## Ejecutar tests con pytest + cobertura mínima (piso actual: 70 %; objetivo: 80 %)
+## Ejecutar tests con pytest + cobertura mínima (piso: 80 %)
 test:
-	uv run pytest -v --cov --cov-report=term-missing --cov-fail-under=70
+	uv run pytest -v --cov --cov-report=term-missing --cov-fail-under=80
 
 ## Lint con ruff
 lint:
 	uv run ruff check .
 
-## Formatear con ruff
+## Formatear con ruff (muta archivos: uso manual)
 format:
 	uv run ruff format .
+
+## Verificar formato con ruff (no muta: lo que corre el gate/CI)
+format-check:
+	uv run ruff format --check .
 
 ## Type check con mypy
 typecheck:
@@ -38,5 +42,5 @@ clean:
 	find . -type d -name __pycache__ -delete
 
 ## Correr todos los checks (CI local)
-check: lint format typecheck security test
+check: lint format-check typecheck security test
 	@echo "✅ Todos los checks pasaron"

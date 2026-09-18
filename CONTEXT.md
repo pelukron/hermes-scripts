@@ -31,7 +31,7 @@
 
 - `src/scripts/` (entrypoints de cron: `resumen_*_diario`, `monitor_ram_mexico`, `polymarket_diario`, `reporte_uso_hermes`, `backup_diario`, `cleanup_housekeeping`; comandos con guiones vía `[project.scripts]`), `hermes_common.py` en raíz solo como compat (fuente viva en `src/`).
 - `src/hermes_common/` (utilidades compartidas), `src/install_cron.py`, `src/generate_issue_body.py`.
-- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (12 helpers + `shellcheck` en CI), `tests/` (340 tests, 2026-09-17).
+- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (14 entradas + `shellcheck` en CI), `tests/` (359 tests, 2026-09-17).
 - Deuda restante (epic #60): solo #73 dataclasses (PR #142); cerrados #70/#71/#72/#74 + epic #59 + #67/#69.
 
 ## 5. Auditoría 2026-09-15 (snapshot)
@@ -55,3 +55,12 @@
 - Epic gate: #98 (medición y alcance). Hijos: #99, #100, #101, #102.
 - Tracking del agente: `.hermes/EPICS_TRACKING.md`. Planes viejos: `.hermes/plans/`.
 - Gestión: `PROJECT_MANAGEMENT.md` (board Project #3, milestones, labels, CLI).
+
+## 8. Sesión 2026-09-17 noche (releases + gate) — estado, no snapshot
+
+- Releases rotos desde 15/09 20:13Z (`GH013`, ruleset 18811339): último tag `v0.5.5`; `describe` en `v0.5.5-94`. Bypass API imposible en repo personal (422); camino = `PSR_TOKEN` (existe desde 19:38Z) cableado en PR #166 (`Closes #165`).
+- Telegram sin secrets (solo queda `PSR_TOKEN`): `notify` de CI en rojo, no bloquea; restauración humana pendiente.
+- Gate honesto en PR #168 (`Closes #167`): `format --check`, `commitlint`, pre-commit ruff `v0.15.21`, shellcheck amplio, `grep -oE` portable. CI del propio PR: `commitlint` ✅; `test` tropezó solo con SC2034 en `pre-push` (fix `93e401d`, re-run pendiente).
+- Backlog verificado: épicas #60/#98/#73 CLOSED; abiertos solo #165/#167/#169. Cola propuesta + checklist de validación en `.hermes/EPICS_TRACKING.md`.
+- Medición local: `pytest` **359 passed** (era 340), `bin/` 14 entradas (era 12). §5 queda congelado como histórico.
+- Memoria del agente: `.hermes/EPICS_TRACKING.md` (local, no versionado) + `CONTEXT.md` (compartido, versionado). Sin `memory-bank/` versionado por decisión #152 (duplicaría lo anterior).
