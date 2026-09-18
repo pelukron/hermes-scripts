@@ -22,6 +22,7 @@ reporte-uso-hermes = "scripts.reporte_uso_hermes:main"
 resumen-noticias-diario = "scripts.resumen_noticias_diario:main"
 resumen-rayados-diario = "scripts.resumen_rayados_diario:main"
 resumen-tigres-diario = "scripts.resumen_tigres_diario:main"
+sync-runtime = "scripts.sync_runtime:main"
 
 [dependency-groups]
 dev = [
