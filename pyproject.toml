@@ -1,6 +1,6 @@
 [project]
 name = "resumen-noticias-diario"
-version = "0.9.2"
+version = "0.9.3"
 description = "Script de resumen diario de noticias multi-región"
 requires-python = ">=3.11"
 # Versiones exactas a proposito: el lock queda reproducible y una dependencia

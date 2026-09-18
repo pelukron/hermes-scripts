@@ -4,6 +4,19 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.9.3 (2026-09-18)
+
+### 📦 Chores
+
+- Seam de directorio de estado ($HERMES_HOME) para que los entrypoints sean sandboxeables
+  ([#215](https://github.com/pelukron/hermes-scripts/issues/215),
+  [#215](https://github.com/pelukron/hermes-scripts/pull/215),
+  [`01a58a0`](https://github.com/pelukron/hermes-scripts/commit/01a58a02738f0675f8727e3175c1ce9842942246))
+
+- Sync uv.lock tras release [skip ci]
+  ([`08175ac`](https://github.com/pelukron/hermes-scripts/commit/08175ace6bd9646dcf3e107a5694e8731fe98aad))
+
+
 ## v0.9.2 (2026-09-18)
 
 ### 📦 Chores
