@@ -29,6 +29,22 @@ def _checks(env):
     return f"test={env.get('STATUS_TEST', '?')} audit={env.get('STATUS_AUDIT', '?')}"
 
 
+def md_escape(text):
+    """Escapa variables libres para parse_mode=Markdown (links van aparte).
+
+    Solo titulos y textos no controlados; repo/SHA/urls tienen charset seguro.
+    """
+    return (
+        str(text)
+        .replace("\\", "\\\\")
+        .replace("_", "\\_")
+        .replace("*", "\\*")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("`", "\\`")
+    )
+
+
 def render_ci(env, templates):
     """Texto del aviso de CI (4 variantes: exito/fallo x PR/push)."""
     checks = _checks(env)
@@ -39,10 +55,11 @@ def render_ci(env, templates):
         if pr:
             return templates["ci_pr_ok"].format(
                 pr=pr,
-                title=env.get("PR_TITLE", ""),
+                title=md_escape(env.get("PR_TITLE", "")),
                 url=env.get("PR_URL", ""),
                 checks=checks,
                 short=short,
+                commit_url=env.get("COMMIT_URL", ""),
             )
         return templates["ci_main_ok"].format(
             repo=env.get("GITHUB_REPOSITORY", ""),
@@ -53,11 +70,12 @@ def render_ci(env, templates):
     if pr:
         return templates["ci_pr_fail"].format(
             pr=pr,
-            title=env.get("PR_TITLE", ""),
+            title=md_escape(env.get("PR_TITLE", "")),
             url=env.get("PR_URL", ""),
             checks=checks,
             run_url=env.get("RUN_URL", ""),
             short=short,
+            commit_url=env.get("COMMIT_URL", ""),
         )
     return templates["ci_main_fail"].format(
         repo=env.get("GITHUB_REPOSITORY", ""),

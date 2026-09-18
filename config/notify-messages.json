@@ -1,7 +1,7 @@
 {
-  "ci_pr_ok": "✅ PR #{pr} listo para review\n{title}\n{url}\nCI en verde ({checks})\nCommit: {short}",
-  "ci_pr_fail": "❌ PR #{pr} fallo el CI ({checks})\n{title}\n{url}\nRun: {run_url}\nCommit: {short}",
-  "ci_main_ok": "✅ CI paso: {repo}\nmain: {short}\n{commit_url}\n{checks}",
-  "ci_main_fail": "❌ CI fallo: {repo}\nmain: {short}\n{commit_url}\nRun: {run_url}\n{checks}",
-  "release": "🚀 {repo} {tag} publicado\n{release_url}"
+  "ci_pr_ok": "✅ PR [#{pr}]({url}) listo para review\n{title}\nCI en verde ({checks})\nCommit: [{short}]({commit_url})",
+  "ci_pr_fail": "❌ PR [#{pr}]({url}) fallo el CI ({checks})\n{title}\nRun: [ver run]({run_url})\nCommit: [{short}]({commit_url})",
+  "ci_main_ok": "✅ CI paso: {repo}\nmain: [{short}]({commit_url})\n{checks}",
+  "ci_main_fail": "❌ CI fallo: {repo}\nmain: [{short}]({commit_url})\nRun: [ver run]({run_url})\n{checks}",
+  "release": "🚀 {repo} {tag} publicado\n[ver release]({release_url})"
 }
