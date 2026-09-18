@@ -12,7 +12,14 @@ from datetime import datetime
 
 import defusedxml.ElementTree as ET  # noqa: N817
 
-from hermes_common import news_utils, repo_root, retry_request, setup_logging, smart_truncate
+from hermes_common import (
+    news_utils,
+    repo_root,
+    retry_request,
+    setup_logging,
+    smart_truncate,
+    version_footer,
+)
 
 log = logging.getLogger("hermes")
 
@@ -353,6 +360,7 @@ def main():
                 failed_list += f" +{_stats.fail - 5} más"
             footer_line += f" {_stats.fail} fallos: {failed_list}"
         footer_line += "_\n"
+        footer_line += version_footer() + "\n"
         log.info(footer_line)
         time.sleep(1)
 

@@ -553,3 +553,8 @@ def get_repo_version(repo_root=None):
     except Exception:
         pass
     return "dev"
+
+
+def version_footer(repo_root=None):
+    """Linea de sello `_hermes-scripts <version>_` para headers de reportes."""
+    return f"_hermes-scripts {get_repo_version(repo_root)}_"

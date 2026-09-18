@@ -16,6 +16,7 @@ from .common import (
     setup_logging,
     smart_truncate,
     state_dir,
+    version_footer,
 )
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "repo_root",
     "setup_logging",
     "smart_truncate",
+    "version_footer",
     "state_dir",
     "get_headers",
     "get_repo_version",

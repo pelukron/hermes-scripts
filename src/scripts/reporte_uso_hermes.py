@@ -10,7 +10,7 @@ import sqlite3
 import sys
 from datetime import datetime
 
-from hermes_common import setup_logging, state_dir
+from hermes_common import setup_logging, state_dir, version_footer
 
 log = logging.getLogger("hermes")
 
@@ -195,6 +195,7 @@ def main():
     output.append("")
     fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
     output.append(f"_Período: últimos 7 días · Generado el {fecha} México_")
+    output.append(version_footer())
     output.append("")
 
     # Tabla resumen

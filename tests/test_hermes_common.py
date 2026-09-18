@@ -445,3 +445,32 @@ class TestReportFailure:
                 texto = f.read()
             assert "report_failure" in texto, name
             assert re.search(r"except Exception as exc", texto), name
+
+
+class TestVersionFooter:
+    def test_formato(self, tmp_path, monkeypatch):
+        from hermes_common import version_footer
+
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
+        out = version_footer()
+        assert out.startswith("_hermes-scripts ") and out.endswith("_")
+
+    def test_todos_los_reportes_sellan(self):
+
+        scripts = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "scripts"
+        )
+        esperados = [
+            "backup_diario",
+            "cleanup_housekeeping",
+            "monitor_ram_mexico",
+            "polymarket_diario",
+            "reporte_uso_hermes",
+            "resumen_noticias_diario",
+            "resumen_rayados_diario",
+            "resumen_tigres_diario",
+        ]
+        for name in esperados:
+            with open(os.path.join(scripts, f"{name}.py"), encoding="utf-8") as f:
+                texto = f.read()
+            assert "version_footer" in texto, name
