@@ -55,10 +55,12 @@ def test_secciones_con_emoji():
     assert not sin_emoji, f"secciones sin prefijo emoji: {sin_emoji}"
 
 
-def test_macros_requeridas():
+def test_macros_vendored_puro():
     macros = (TEMPLATES / ".components" / "macros.md.j2").read_text(encoding="utf-8")
-    assert "macro format_entry_subject" in macros
-    assert "macro format_group_links" in macros
+    assert "macro format_entry_subject" not in macros
+    assert "macro format_group_links" not in macros
+    assert "macro issue_trailer" not in macros
+    assert "macro format_commit_summary_line" in macros
 
 
 def test_insertion_flag_existe_en_changelog():
@@ -121,37 +123,33 @@ def _render(commit_objects):
 def test_render_secciones_emoji_y_links():
     out = _render(
         [
-            ("features", [_fake_commit("agregar x", "feat", issues=("10",), mr="#12")]),
+            ("features", [_fake_commit("agregar x", "feat", mr="#12")]),
             ("bug fixes", [_fake_commit("corregir y", "fix", sha="bbbbbbb0000000")]),
             ("unknown", [_fake_commit("raro", "unknown")]),
         ]
     )
     assert "### ✨ Features" in out
     assert "### 🐛 Fixes" in out
-    assert "unknown" not in out.lower() or "### " in out
-    assert "[#10](https://github.com/pelukron/hermes-scripts/issues/10)" in out
+    assert "raro" not in out
     assert "[#12](https://github.com/pelukron/hermes-scripts/pull/12)" in out
     assert "[`abcdef1`](https://github.com/pelukron/hermes-scripts/commit/abcdef1234567890)" in out
 
 
-def test_render_agrupa_por_issue():
+def test_render_una_linea_por_commit():
     out = _render(
         [
             (
                 "features",
                 [
-                    _fake_commit(
-                        "primera parte", "feat", issues=("10",), mr="#12", sha="aaaaaaa0000001"
-                    ),
-                    _fake_commit(
-                        "segunda parte", "feat", issues=("10",), mr="#12", sha="aaaaaaa0000002"
-                    ),
+                    _fake_commit("primera parte", "feat", mr="#12", sha="aaaaaaa0000001"),
+                    _fake_commit("segunda parte", "feat", mr="#12", sha="aaaaaaa0000002"),
                 ],
             )
         ]
     )
-    assert out.count("issues/10") == 1
-    assert "Primera parte; Segunda parte" in out
+    assert "Primera parte" in out
+    assert "Segunda parte" in out
+    assert "aaaaaaa0000001" in out and "aaaaaaa0000002" in out
 
 
 def test_render_scope_inline():

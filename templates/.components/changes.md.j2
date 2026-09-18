@@ -2,8 +2,6 @@
 %}{%  from 'macros.md.j2' import apply_alphabetical_ordering_by_descriptions
 %}{%  from 'macros.md.j2' import apply_alphabetical_ordering_by_release_notices
 %}{%  from 'macros.md.j2' import format_breaking_changes_description, format_commit_summary_line
-%}{%  from 'macros.md.j2' import format_entry_subject, format_group_links
-%}{%  from 'macros.md.j2' import issue_trailer
 %}{%  from 'macros.md.j2' import format_release_notice
 %}{#
 EXAMPLE:
@@ -53,48 +51,25 @@ EXAMPLE:
   }
 %}{#
 #}{%  for type_, commits in commit_objects if type_ != "unknown" and type_ in section_names
-%}{#    PREPROCESS COMMITS (order by description)
+%}{#    PREPROCESS COMMITS (order by description & format description line)
 #}{%    set ns = namespace(commits=commits)
 %}{%    set _ = apply_alphabetical_ordering_by_descriptions(ns)
 %}{#
-#}{%    set groups = namespace(keys=[], entries={})
-%}{#    GROUP COMMITS BY ISSUE TRAILER (one line per issue; no trailer = MR/sha fallback)
+#}{%    set commit_descriptions = []
+%}{#
 #}{%    for commit in ns.commits
-%}{%      set trailer = (issue_trailer(commit) | trim)
-%}{%      if trailer != ""
-%}{%        set key = "issue:" ~ trailer
-%}{%      elif commit.linked_merge_request != ""
-%}{%        set key = "mr:" ~ commit.linked_merge_request
-%}{%      else
-%}{%        set key = "sha:" ~ commit.hexsha
-%}{%      endif
-%}{%      if key not in groups.entries
-%}{%        set _ = groups.keys.append(key)
-%}{%        set _ = groups.entries.update({key: []})
-%}{%      endif
-%}{%      set _ = groups.entries[key].append(commit)
+%}{#      # Add reference links to the commit summary line
+#}{%      set description = "- %s" | format(format_commit_summary_line(commit))
+%}{%      set description = description | autofit_text_width(max_line_width, hanging_indent)
+%}{%      set _ = commit_descriptions.append(description)
 %}{%    endfor
 %}{#
-#}{%    set group_lines = []
-%}{%    for key in groups.keys
-%}{%      set items = groups.entries[key]
-%}{%      set subjects = []
-%}{%      for commit in items
-%}{%        set _ = subjects.append(format_entry_subject(commit))
-%}{%      endfor
-%}{%      set line = "- %s %s" | format(
-            subjects | unique | join("; "),
-            format_group_links(items),
-          )
-%}{%      set _ = group_lines.append(line | autofit_text_width(max_line_width, hanging_indent))
-%}{%    endfor
-%}{#
-   #    # PRINT SECTION (header & grouped entries)
-#}{%    if group_lines | length > 0
+   #    # PRINT SECTION (header & commits)
+#}{%    if commit_descriptions | length > 0
 %}{{      "\n"
 }}{{      "### %s\n" | format(section_names[type_])
 }}{{      "\n"
-}}{{      "%s\n" | format(group_lines | unique | join("\n\n"))
+}}{{      "%s\n" | format(commit_descriptions | unique | join("\n\n"))
 }}{%    endif
 %}{%  endfor
 %}{#
