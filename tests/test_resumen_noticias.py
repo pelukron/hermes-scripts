@@ -328,7 +328,12 @@ class TestNoticieroGlobal:
         sources = [("Reuters", "https://reuters.example/rss")]
         items = [(f"Título largo {i} " + "x" * 200, f"https://example.com/{i}") for i in range(10)]
         fetched = [items]
-        with patch.object(mod, "MAX_CHARS_POR_SUBSECCION", 300):
+        # Los titulares se recortan a MAX_CHARS_TITULO (#212), así que para
+        # exceder el tope de subsección hacen falta más de ITEMS_POR_FUENTE.
+        with (
+            patch.object(mod, "MAX_CHARS_POR_SUBSECCION", 300),
+            patch.object(mod, "ITEMS_POR_FUENTE", 10),
+        ):
             block = mod.build_subsection_block("Subs", sources, fetched, set())
         assert len(block) <= 300
         assert block.endswith("...")
@@ -377,3 +382,126 @@ class TestLoadFeeds:
         assert subseccion
         assert fuentes[0][0]  # nombre de la fuente
         assert fuentes[0][1].startswith("http")  # url
+
+
+# ═══════════════════════════════════════════
+# Presupuesto global de entrega (#212)
+# ═══════════════════════════════════════════
+
+
+class TestPresupuestoDeEntrega:
+    """Con 8 chunks (30 KB) el envío real falla con `Timed out` (#212, medido).
+
+    El reporte debe caber en 2 chunks: el presupuesto es global, no por subsección.
+    """
+
+    @staticmethod
+    def _feeds(n_secciones):
+        return [
+            (f"SECCIÓN {i}", [("sub", [("S", f"https://s.example/rss{i}")])])
+            for i in range(n_secciones)
+        ]
+
+    @staticmethod
+    def _fetch(n_items=3):
+        """Items de ~100 chars con URL única; el dedupe cross-sección vacía las siguientes si no."""
+        contador = iter(range(1, 99999))
+        return lambda sources: [
+            [
+                (f"Titular {n} " + "T" * 60, f"https://example.com/{n}-{next(contador)}")
+                for n in range(n_items)
+            ]
+        ]
+
+    def test_emite_solo_lo_que_cabe(self):
+        emitidos: list = []
+        omitidas = mod.emitir_secciones(
+            self._feeds(3), self._fetch(), emitidos.append, presupuesto=600
+        )
+        assert omitidas == ["SECCIÓN 2"]
+        assert sum(len(e) for e in emitidos) <= 600
+
+    def test_no_pide_fuentes_cuando_el_presupuesto_esta_agotado(self):
+        llamadas: list = []
+        fetch = self._fetch()
+
+        def fetch_contado(sources):
+            llamadas.append(sources)
+            return fetch(sources)
+
+        mod.emitir_secciones(self._feeds(3), fetch_contado, lambda _t: None, presupuesto=600)
+        assert len(llamadas) == 2  # la tercera sección se omite sin gastar red
+
+    def test_reparte_el_presupuesto_entre_secciones(self):
+        """Ninguna sección se come el presupuesto de las demás (#212)."""
+        emitidos: list = []
+        omitidas = mod.emitir_secciones(
+            self._feeds(3), self._fetch(), emitidos.append, presupuesto=900
+        )
+        assert omitidas == []
+        assert sum(len(e) for e in emitidos) <= 900
+
+    def test_nota_de_recorte(self):
+        nota = mod.nota_de_recorte(["SECCIÓN C", "SECCIÓN D"])
+        assert "SECCIÓN C" in nota and "SECCIÓN D" in nota
+        assert "mañana" in nota
+
+    def test_el_presupuesto_cabe_en_un_solo_mensaje(self):
+        # Medido (#212): con 2 chunks, el corte a 4096 unidades UTF-16 parte un
+        # enlace y Telegram rechaza el markdown de ese chunk (texto plano con las
+        # URLs a la vista). Con 1 chunk el render es limpio.
+        assert mod.MAX_CHARS_REPORTE + mod.RESERVA_FUERA_DE_SECCIONES <= 4000
+
+
+class TestTituloDeItem:
+    """Títulos largos: al leer el reporte se paga el título completo (#212).
+
+    Con el fallback a texto plano, la URL de Google News (~200 chars) se ve
+    entera al lado del título: un titular de 100+ chars por noticia hace
+    ilegible el mensaje.
+    """
+
+    TITULAR_LARGO = (
+        "Aramco halts October crude deliveries to some European refiners "
+        "after pipeline attack, Bloomberg reports"
+    )
+
+    def test_titular_largo_se_recorta(self):
+        bloque = mod.build_subsection_block(
+            "Sub",
+            [("Reuters", "https://r.example/rss")],
+            [[(self.TITULAR_LARGO, "https://example.com/a")]],
+            set(),
+        )
+        assert self.TITULAR_LARGO not in bloque
+        assert "Aramco halts October" in bloque
+        assert "..." in bloque
+
+    def test_titular_corto_no_se_toca(self):
+        bloque = mod.build_subsection_block(
+            "Sub",
+            [("Reuters", "https://r.example/rss")],
+            [[("Corto y claro", "https://example.com/b")]],
+            set(),
+        )
+        assert "Corto y claro" in bloque
+        assert "..." not in bloque
+
+    def test_tope_de_titulo_es_razonable(self):
+        assert 60 <= mod.MAX_CHARS_TITULO <= 100
+
+    def test_quita_parentesis_que_tiran_markdownv2(self):
+        """Los paréntesis del feed hacen que el envío caiga a texto plano (#212)."""
+        bloque = mod.build_subsection_block(
+            "Sub",
+            [("SCMP (HK/CN)", "https://r.example/rss")],
+            [[("Titular (Bloomberg reports)", "https://example.com/c")]],
+            set(),
+        )
+        assert "(HK/CN)" not in bloque
+        assert "(Bloomberg reports)" not in bloque
+        assert "SCMP HK/CN" in bloque
+        assert "Bloomberg reports" in bloque
+
+    def test_sin_parentesis_no_toca_lo_demas(self):
+        assert mod.sin_parentesis("Inflación (+2.1%) en México") == "Inflación +2.1% en México"
