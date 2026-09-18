@@ -10,11 +10,11 @@ import sqlite3
 import sys
 from datetime import datetime
 
-from hermes_common import setup_logging
+from hermes_common import setup_logging, state_dir
 
 log = logging.getLogger("hermes")
 
-HERMES_HOME = os.path.expanduser("~/.hermes")
+HERMES_HOME = str(state_dir())
 DB_PATH = os.path.join(HERMES_HOME, "state.db")
 
 

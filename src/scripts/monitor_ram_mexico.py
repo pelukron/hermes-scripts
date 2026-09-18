@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from hermes_common import get_headers, retry_request, setup_logging, smart_truncate
+from hermes_common import get_headers, retry_request, setup_logging, smart_truncate, state_dir
 
 log = logging.getLogger("hermes")
 
@@ -20,7 +20,7 @@ UMBRAL_ALERTA_PORCENTAJE = 5.0  # Alerta si baja más del 5% del precio mínimo 
 UMBRAL_BAJADA_REPENTINA = 15.0  # Alerta si baja más del 15% respecto al último precio visto
 COSTO_ENVIO_CYBERPUERTA = 133.00
 
-HISTORICO_PATH = os.path.expanduser("~/.hermes/ram-mexico-history.json")
+HISTORICO_PATH = str(state_dir() / "ram-mexico-history.json")
 
 
 @dataclass
