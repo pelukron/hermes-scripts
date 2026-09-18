@@ -15,6 +15,7 @@ from .common import (
     retry_request,
     setup_logging,
     smart_truncate,
+    state_dir,
 )
 
 __all__ = [
@@ -24,9 +25,9 @@ __all__ = [
     "repo_root",
     "setup_logging",
     "smart_truncate",
+    "state_dir",
     "get_headers",
     "get_repo_version",
-    "repo_root",
     "HistoryManager",
     "MAX_RESPONSE_BYTES",
     "PayloadTooLargeError",
