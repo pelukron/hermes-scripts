@@ -45,7 +45,7 @@ def test_mapa_cubre_allowed_tags():
         pyproject = tomllib.load(f)
     allowed = pyproject["tool"]["semantic_release"]["commit_parser_options"]["allowed_tags"]
     section_map = _section_map()
-    faltantes = [tag for tag in allowed if tag not in section_map]
+    faltantes = [tag for tag in allowed if NORMALIZED_SECTIONS.get(tag, tag) not in section_map]
     assert not faltantes, f"tipos sin seccion emoji: {faltantes}"
 
 
@@ -69,13 +69,32 @@ def test_insertion_flag_existe_en_changelog():
     assert flag in changelog, "sin flag PSR no actualiza CHANGELOG.md (falla en silencio)"
 
 
+# Normalizacion tipo->seccion del ConventionalCommitParser de PSR 10.6.1
+# (verificada en semantic_release/commit_parser/conventional/parser.py);
+# los tags custom (infra) pasan crudos.
+NORMALIZED_SECTIONS = {
+    "feat": "features",
+    "fix": "bug fixes",
+    "perf": "performance improvements",
+    "infra": "infra",
+    "build": "build system",
+    "chore": "chores",
+    "ci": "continuous integration",
+    "docs": "documentation",
+    "style": "code style",
+    "refactor": "refactoring",
+    "test": "testing",
+}
+
+
 def _fake_commit(subject, type_, scope="", issues=(), mr="", sha="abcdef1234567890"):
     from types import SimpleNamespace
 
+    descriptions = [subject] + [f"Closes #{n}" for n in issues]
     return SimpleNamespace(
-        descriptions=[subject],
+        descriptions=descriptions,
         scope=scope,
-        linked_issues=tuple(issues),
+        linked_issues=tuple(),
         linked_merge_request=mr,
         hexsha=sha,
         short_hash=sha[:7],
@@ -102,8 +121,8 @@ def _render(commit_objects):
 def test_render_secciones_emoji_y_links():
     out = _render(
         [
-            ("feat", [_fake_commit("agregar x", "feat", issues=("#10",), mr="12")]),
-            ("fix", [_fake_commit("corregir y", "fix", sha="bbbbbbb0000000")]),
+            ("features", [_fake_commit("agregar x", "feat", issues=("10",), mr="#12")]),
+            ("bug fixes", [_fake_commit("corregir y", "fix", sha="bbbbbbb0000000")]),
             ("unknown", [_fake_commit("raro", "unknown")]),
         ]
     )
@@ -119,13 +138,13 @@ def test_render_agrupa_por_issue():
     out = _render(
         [
             (
-                "feat",
+                "features",
                 [
                     _fake_commit(
-                        "primera parte", "feat", issues=("#10",), mr="12", sha="aaaaaaa0000001"
+                        "primera parte", "feat", issues=("10",), mr="#12", sha="aaaaaaa0000001"
                     ),
                     _fake_commit(
-                        "segunda parte", "feat", issues=("#10",), mr="12", sha="aaaaaaa0000002"
+                        "segunda parte", "feat", issues=("10",), mr="#12", sha="aaaaaaa0000002"
                     ),
                 ],
             )
@@ -136,5 +155,5 @@ def test_render_agrupa_por_issue():
 
 
 def test_render_scope_inline():
-    out = _render([("feat", [_fake_commit("job nuevo", "feat", scope="cron")])])
+    out = _render([("features", [_fake_commit("job nuevo", "feat", scope="cron")])])
     assert "**cron**:" in out
