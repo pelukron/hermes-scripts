@@ -7,6 +7,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 from time import struct_time
 from typing import Any, Dict, Iterable, List, Optional, Union
 
@@ -440,6 +441,19 @@ def filter_by_max_age(
         if is_within_max_age(raw, max_age_hours, now=now, missing=missing):
             kept.append(item)
     return kept
+
+
+def repo_root() -> Path:
+    """Raíz del repo hermes-scripts (donde viven config/ y CHANGELOG.md).
+
+    El paquete se instala en modo editable, así que ``__file__`` apunta al
+    árbol de fuentes: ``src/hermes_common/common.py`` -> ``parents[2]``.
+    Mismo criterio que ``src/install_cron.py``.
+
+    Returns:
+        Path: directorio del repo.
+    """
+    return Path(__file__).resolve().parents[2]
 
 
 def get_repo_version(repo_root=None):
