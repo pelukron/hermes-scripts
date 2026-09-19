@@ -188,7 +188,10 @@ class TestCalcularComparativa:
 class TestMainIntegration:
     def test_main_sin_precios_no_imprime(self, capsys, monkeypatch):
         """Sin precios y sin --force, no imprime nada."""
+        from datetime import datetime as _dt
+
         monkeypatch.setattr(sys, "argv", ["monitor-ram-mexico.py"])
+        monkeypatch.setattr(mod, "ahora_local", lambda: _dt(2026, 1, 1, 12, 0))
         with patch.object(mod, "obtener_precio", return_value=None) as mock_obtener:
             with patch.object(mod, "cargar_historial", return_value={}):
                 with patch.object(mod, "guardar_historial"):
