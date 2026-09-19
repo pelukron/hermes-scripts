@@ -18,6 +18,7 @@ from .common import (
     state_dir,
     version_footer,
 )
+from .delivery import TELEGRAM_UTF16_LIMIT, markdown_v2_link_issues, telegram_chunks, utf16_len
 
 __all__ = [
     "retry_request",
@@ -38,4 +39,8 @@ __all__ = [
     "is_within_max_age",
     "filter_by_max_age",
     "news_utils",
+    "utf16_len",
+    "telegram_chunks",
+    "TELEGRAM_UTF16_LIMIT",
+    "markdown_v2_link_issues",
 ]
