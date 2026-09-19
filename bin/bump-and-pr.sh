@@ -15,11 +15,18 @@ cd "$SCRIPT_DIR"
 if [ -z "${GITHUB_TOKEN:-}" ]; then
     ENV_FILE="${HERMES_HOME:-$HOME/.hermes}/.env"
     if [ -f "$ENV_FILE" ]; then
-        GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\n\r')
+        # pipefail + grep sin match mataba el script antes del mensaje (#210)
+        GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\n\r' || true)
+    fi
+fi
+if [ -z "${GITHUB_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then
+    GITHUB_TOKEN=$(gh auth token 2>/dev/null || true)
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        echo "INFO: usando token de gh auth (GITHUB_TOKEN no estaba en env ni .env)" >&2
     fi
 fi
 if [ -z "${GITHUB_TOKEN:-}" ]; then
-    echo "ERROR: GITHUB_TOKEN no encontrado. Configúralo en ~/.hermes/.env"
+    echo "ERROR: GITHUB_TOKEN no encontrado. Configúralo en ~/.hermes/.env o autentica con gh." >&2
     exit 1
 fi
 
