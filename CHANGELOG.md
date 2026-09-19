@@ -4,6 +4,19 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.10.2 (2026-09-19)
+
+### 🐛 Fixes
+
+- Reloj inyectable en monitor-ram
+  ([`613088f`](https://github.com/pelukron/hermes-scripts/commit/613088fbf9ff2fb3689d289f7f082423624644a0))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`485a853`](https://github.com/pelukron/hermes-scripts/commit/485a853ca9468b466a42d6372300b9d48edd1735))
+
+
 ## v0.10.1 (2026-09-18)
 
 ### 📦 Chores
