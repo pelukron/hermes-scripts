@@ -1,7 +1,7 @@
 # CONTEXT.md — hermes-scripts
 
 > Papel: vocabulario compartido y orden de trabajo para agentes y humanos.
-> Actualizado: 2026-09-15. Fuente de verdad del proceso: `PROJECT_MANAGEMENT.md` + `CONTRIBUTING.md`.
+> Actualizado: 2026-09-19. Fuente de verdad del proceso: `PROJECT_MANAGEMENT.md` + `CONTRIBUTING.md`.
 
 ## 1. Vocabulario
 
@@ -11,6 +11,11 @@
 | **Work order** | GitHub issue. Todo cambio cierra un issue con `Closes #N` en el PR. |
 | **Epic** | Issue padre con label `👑 epic`, checklist de hijos y milestone. Board: Project #3. |
 | **Drift (cron)** | Diferencia entre `cron/jobs.json` (deseado) y jobs reales de Hermes. Se revisa con `bin/install-cron.sh --check`. |
+| **canary** | Job `no_agent` que ejecuta entrypoints en sandbox y afirma `rc=0` + huella del estado real. No es el job de producción. _Avoid_: canario (nombre de artefacto). |
+| **observer** | Job `no_agent` que declara el estado del día: qué debía correr y si entregó. No repara. _Avoid_: observador (nombre de artefacto). |
+| **delivery budget** | Tope de lo que Telegram entrega fiable: **un mensaje** (<4096 unidades UTF-16). Por encima, el PR es rojo. _Avoid_: 2 chunks, 8 KB, presupuesto de 6 KB. |
+| **sandbox / hermetic** | Corrida cuyo estado sustituido (`$HERMES_HOME` vía `state_dir()`) no toca producción. Sustituir `HOME` entero está rechazado (ADR 0004). |
+| **allow-list / deny-list** | Entrypoints aptos o no para corrida sintética. Deny-list: los que mutan de verdad (`backup-diario`, `cleanup-housekeeping`, `runtime-sync`). _Avoid_: lista blanca/negra en nombres de artefacto. |
 | **Backlog enfocado** | `hermes-scripts`, `hermes-empleo`, `diego-moreno`, `examen-egreso-fisica` (decidido 2026-09-15, epic #98). Diferidos: `react-stack-roadmap`, `visor-carteras`. |
 
 ## 2. Gate y CI
@@ -24,6 +29,8 @@
 
 - Scripts de gate: `bin/gate.sh` en los 4 repos del backlog (en `examen-egreso-fisica` vale alias a su `bin/gates.sh`).
 - Ramas: `{tipo}/{N}-slug` (ej. `feat/100-gate-sh`). Tipos: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `ci/`.
+- Jobs, wrappers y módulos **nuevos**: nombre en inglés (`cron-canary`, `cron-doctor-daily`, `sync-runtime`). **No** renombrar artefactos vivos en español (`backup-diario`, `reporte-uso-hermes`, `resumen-*`, `aviso-*`): `install-cron.sh` empareja por nombre y renombrar crea drift.
+- Contenido (comentarios, docs, prompts) en español. Glosario del epic de crons en inglés (canary, observer, delivery budget).
 - Issues: prefijos `[infra]`, `[docs]`, `feat:`, `fix:`, `chore:`, `perf:`, `refactor:` + labels de `PROJECT_MANAGEMENT.md` (`👑 epic`, `✨ enhancement`, `🐛 bug`, `📚 documentation`, `🔧 chore`, `🤖 automation`, `priority: pX`, `size: XS–XL`).
 - Emoji: fuera del código; en docs/labels sí, con el vocabulario de `PROJECT_MANAGEMENT.md`.
 
@@ -31,7 +38,8 @@
 
 - `src/scripts/` (entrypoints de cron: `resumen_*_diario`, `monitor_ram_mexico`, `polymarket_diario`, `reporte_uso_hermes`, `backup_diario`, `cleanup_housekeeping`; comandos con guiones vía `[project.scripts]`), `hermes_common.py` en raíz solo como compat (fuente viva en `src/`).
 - `src/hermes_common/` (utilidades compartidas), `src/install_cron.py`, `src/generate_issue_body.py`.
-- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (14 entradas + `shellcheck` en CI), `tests/` (359 tests, 2026-09-17).
+- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (15 entradas + `shellcheck` en CI), `tests/` (510 tests, 2026-09-19).
+- Regresión de crons: ADR `docs/adr/0004-regresion-crons-donde-vive.md` (epic #214).
 - Deuda restante (epic #60): solo #73 dataclasses (PR #142); cerrados #70/#71/#72/#74 + epic #59 + #67/#69.
 
 ## 5. Auditoría 2026-09-15 (snapshot)

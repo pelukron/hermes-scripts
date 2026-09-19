@@ -14,3 +14,6 @@
 - Contexto del repo: `CONTEXT.md`.
 - Skills: aplica el router ask-matt sin que te lo pidan (idea → grill-with-docs → spec → tickets → implement; bug → diagnosing-bugs; pila de requests → triage; si no encaja, ejecución directa).
 - Emoji: fuera del código; en docs y labels sí, con el vocabulario de `PROJECT_MANAGEMENT.md`.
+- Nombres nuevos (jobs, wrappers, módulos) en **inglés** (`cron-canary`, `cron-doctor-daily`). No
+  renombrar artefactos vivos en español (`backup-diario`, `resumen-*`, `aviso-*`): el instalador
+  empareja por nombre. Contenido (comentarios, docs, prompts) en español.
