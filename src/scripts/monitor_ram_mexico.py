@@ -418,6 +418,11 @@ def render_enlaces(resultados):
             log.info(f"- [🛒 {tienda} - {nombre_corto} (${r.precio:,.0f})]({r.url})")
 
 
+def ahora_local():
+    """Reloj inyectable (los tests lo congelan para no depender de la hora real)."""
+    return datetime.now()
+
+
 def main():
     """Punto de entrada: monitorea precios RAM, detecta ofertas y genera reporte.
 
@@ -429,7 +434,7 @@ def main():
     args = parser.parse_args()
     setup_logging()
 
-    ahora_dt = datetime.now()
+    ahora_dt = ahora_local()
     ahora_str = ahora_dt.strftime("%Y-%m-%d %H:%M")
 
     # Resumen diario (ej. 9 AM)

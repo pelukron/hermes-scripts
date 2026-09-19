@@ -150,6 +150,14 @@
       "deliver": "${notify}"
     },
     {
+      "name": "cron-canary",
+      "description": "Canary sintético: allow-list de entrypoints en sandbox, huella del estado real, payload de 1 mensaje. Silencioso si verde.",
+      "schedule": "30 2 * * *",
+      "wrapper": "cron-canary.sh",
+      "command": "uv run python src/cron_canary.py",
+      "deliver": "${notify}"
+    },
+    {
       "name": "Hermes weekly update + backup",
       "description": "Update semanal de Hermes Agent con backup previo",
       "schedule": "0 4 * * 0",
