@@ -27,6 +27,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import tomllib
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -247,6 +248,55 @@ def validate_job(job: Job, wrappers: dict[str, str]) -> list[str]:
         errors.append(f"{label}: mode agent requiere 'prompt'")
     if ABSOLUTE_HOME_RE.search(job.command) or ABSOLUTE_HOME_RE.search(job.prompt):
         errors.append(f"{label}: ruta absoluta de home prohibida (usa $HOME)")
+    return errors
+
+
+def load_project_scripts(repo: Path) -> set[str]:
+    """Nombres de ``[project.scripts]`` en el pyproject del repo."""
+    pyproject = repo / "pyproject.toml"
+    if not pyproject.is_file():
+        return set()
+    data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    return set((data.get("project") or {}).get("scripts") or {})
+
+
+def command_entrypoint_error(job: Job, scripts: set[str], repo: Path) -> str | None:
+    """None si el command de un no_agent resuelve a un entrypoint o script del repo."""
+    cmd = job.command.strip()
+    if not cmd or "$HOME" in cmd or "${HOME}" in cmd:
+        return None
+    parts = cmd.split()
+    if len(parts) >= 3 and parts[0] == "uv" and parts[1] == "run" and parts[2] == "python":
+        rel = parts[3] if len(parts) > 3 else ""
+        # Solo src/: los tests usan `uv run python demo.py` en repos temporales.
+        if rel.startswith("src/") and not (repo / rel).is_file():
+            return f"no existe {rel}"
+        return None
+    if len(parts) >= 3 and parts[0] == "uv" and parts[1] == "run":
+        name = parts[2]
+        if scripts and name not in scripts:
+            return f"entrypoint {name!r} no esta en [project.scripts]"
+        return None
+    if len(parts) >= 2 and parts[0] == "bash":
+        rel = parts[1].strip('"')
+        if rel.startswith("$"):
+            return None
+        if rel.startswith("bin/") and not (repo / rel).is_file():
+            return f"no existe {rel}"
+        return None
+    return None
+
+
+def validate_job_commands(jobs: list[Job], repo: Path) -> list[str]:
+    """Cada no_agent apunta a un entrypoint o a un script que existe (#216)."""
+    scripts = load_project_scripts(repo)
+    errors: list[str] = []
+    for job in jobs:
+        if not job.is_no_agent:
+            continue
+        problem = command_entrypoint_error(job, scripts, repo)
+        if problem:
+            errors.append(f"{job.name}: {problem}")
     return errors
 
 
@@ -877,7 +927,11 @@ def prepare_run(args: argparse.Namespace) -> RunContext:
         if not jobs:
             print(f"ERROR: no hay job llamado {args.only!r}", file=sys.stderr)
             raise _AbortError(2)
-    errors = validate_manifest(manifest, jobs) + validate_repo_texts(repo)
+    errors = (
+        validate_manifest(manifest, jobs)
+        + validate_repo_texts(repo)
+        + validate_job_commands(jobs, repo)
+    )
     errors = [error for error in errors if error]
     if errors:
         print("Manifiesto invalido:", file=sys.stderr)

@@ -439,6 +439,7 @@ class TestReportFailure:
             "resumen_noticias_diario",
             "resumen_rayados_diario",
             "resumen_tigres_diario",
+            "sync_runtime",
         ]
         for name in esperados:
             with open(os.path.join(scripts, f"{name}.py"), encoding="utf-8") as f:
