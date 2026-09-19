@@ -16,7 +16,7 @@ cd "$SCRIPT_DIR"
 if [ -z "${GH_TOKEN:-}" ] && [ -z "${GITHUB_TOKEN:-}" ]; then
     ENV_FILE="${HERMES_HOME:-$HOME/.hermes}/.env"
     if [ -f "$ENV_FILE" ]; then
-        GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\n\r')
+        GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '\n\r' || true)
         export GH_TOKEN="$GITHUB_TOKEN"
     fi
 fi
