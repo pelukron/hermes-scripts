@@ -103,9 +103,12 @@ class TestScrapers:
 # ═══════════════════════════════════════════
 
 
-def _run_main(monkeypatch, caplog, precios, historial, argv=None):
+def _run_main(monkeypatch, caplog, precios, historial, argv=None, hora=None):
     """Corre main() con todo mockeado. Retorna (historial_guardado, salida)."""
+    from datetime import datetime as _dt
+
     monkeypatch.setattr(sys, "argv", ["monitor-ram-mexico.py"] + (argv or []))
+    monkeypatch.setattr(mod, "ahora_local", lambda: hora or _dt(2026, 1, 1, 12, 0))
     monkeypatch.setattr(mod.time, "sleep", lambda s: None)
     valores = dict(precios)
 
@@ -168,3 +171,15 @@ class TestMainAlertas:
     def test_force_imprime_reporte(self, monkeypatch, caplog, no_sleep):
         _, salida = _run_main(monkeypatch, caplog, {}, {}, argv=["--force"])
         assert "RAM Monitor" in salida
+
+    def test_hora_resumen_imprime(self, monkeypatch, caplog, no_sleep):
+        from datetime import datetime as _dt
+
+        _, salida = _run_main(monkeypatch, caplog, {}, {}, hora=_dt(2026, 1, 1, 9, 10))
+        assert "RAM Monitor" in salida
+
+    def test_fuera_de_resumen_no_imprime(self, monkeypatch, caplog, no_sleep):
+        from datetime import datetime as _dt
+
+        _, salida = _run_main(monkeypatch, caplog, {}, {}, hora=_dt(2026, 1, 1, 15, 0))
+        assert "RAM Monitor" not in salida
