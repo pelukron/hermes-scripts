@@ -162,3 +162,14 @@ def main(argv: list[str] | None = None) -> int:
         r["status"] in ("diverged", "error") or r.get("smoke_rc") not in (None, 0) for r in results
     )
     return 1 if bad or problems else 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception as exc:
+        from hermes_common import report_failure
+
+        raise SystemExit(report_failure(exc))
