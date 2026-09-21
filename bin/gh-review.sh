@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# gh-review: revisión compacta de un issue/épica en GitHub — solo lectura.
+# gh-review.sh: revisión compacta de un issue/épica en GitHub — solo lectura.
 # Condensa en una salida: issue, labels, body, comentarios, sub-issues y dependencias.
 #
 # Uso:
-#   bin/gh-review <OWNER/REPO> <Nº issue>   # issue normal
-#   bin/gh-review <OWNER/REPO> <Nº épica> --epic   # incluye sub_issues
-#   bin/gh-review <OWNER/REPO> <Nº> --json  # dump JSON crudo (issue + comments)
+#   bin/gh-review.sh <OWNER/REPO> <Nº issue>   # issue normal
+#   bin/gh-review.sh <OWNER/REPO> <Nº épica> --epic   # incluye sub_issues
+#   bin/gh-review.sh <OWNER/REPO> <Nº> --json  # dump JSON crudo (issue + comments)
 #
 # Ejemplos:
-#   bin/gh-review pelukron/hermes-empleo 12
-#   bin/gh-review pelukron/hermes-empleo 30 --epic
+#   bin/gh-review.sh pelukron/hermes-empleo 12
+#   bin/gh-review.sh pelukron/hermes-empleo 30 --epic
 
 set -euo pipefail
 

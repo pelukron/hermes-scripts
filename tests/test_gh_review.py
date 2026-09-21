@@ -1,4 +1,4 @@
-"""bin/gh-review: cabecera, body, comentarios, dependencias y sub-issues (#243).
+"""bin/gh-review.sh: cabecera, body, comentarios, dependencias y sub-issues (#243).
 
 Hermético: un stub de `gh` en el PATH responde con las formas reales de la API,
 así que no toca la red ni necesita autenticación.
@@ -13,7 +13,7 @@ import subprocess
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SCRIPT = REPO / "bin" / "gh-review"
+SCRIPT = REPO / "bin" / "gh-review.sh"
 
 ISSUE = {
     "number": 7,
