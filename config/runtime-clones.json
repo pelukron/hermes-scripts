@@ -12,6 +12,12 @@
           "expect": "skills/job-scout"
         }
       ]
+    },
+    {
+      "name": "hermes-scripts",
+      "path": "~/hermes-scripts",
+      "branch": "main",
+      "smoke": "env -u VIRTUAL_ENV uv run python -m scripts.sync_runtime --help"
     }
   ]
 }
