@@ -62,26 +62,28 @@ if [ "$count" -eq 0 ]; then
   echo "(sin comentarios)"
 else
   echo "$comments" | python3 -c '
-import sys,json
+import sys, json
 for c in json.load(sys.stdin):
-    print(f"[{c[\"user\"][\"login\"]}]: {c[\"body\"]}")
+    print("[" + c["user"]["login"] + "]: " + c["body"])
     print("---")
 '
 fi
 echo ""
 
-# Dependencies (blocked by / blocking)
+# Dependencies (blocked by / blocking) — los endpoints devuelven listas de issues
 echo "--- DEPENDENCIAS ---"
-echo "$issue_json" | python3 -c '
-import sys,json
-d=json.load(sys.stdin)
-ids=d.get("issue_dependencies_summary") or {}
-bb=ids.get("blocked_by",[]); bl=ids.get("blocking",[])
+bb_json="$(gh api "repos/$REPO/issues/$NUMBER/dependencies/blocked_by" 2>/dev/null || echo '[]')"
+bl_json="$(gh api "repos/$REPO/issues/$NUMBER/dependencies/blocking" 2>/dev/null || echo '[]')"
+BB="$bb_json" BL="$bl_json" python3 -c '
+import json, os
+def refs(raw):
+    return ", ".join("#" + str(i["number"]) + " [" + i["state"] + "]" for i in json.loads(raw))
+bb, bl = refs(os.environ["BB"]), refs(os.environ["BL"])
 if not bb and not bl:
     print("(ninguna)")
 else:
-    if bb: print("blocked_by:", ", ".join(str(x) for x in bb))
-    if bl: print("blocking:  ", ", ".join(str(x) for x in bl))
+    if bb: print("blocked_by: " + bb)
+    if bl: print("blocking:   " + bl)
 '
 echo ""
 
@@ -94,9 +96,9 @@ if [ "$MODE" = "--epic" ]; then
     echo "(sin sub-issues)"
   else
     echo "$sub" | python3 -c '
-import sys,json
+import sys, json
 for i in json.load(sys.stdin):
-    print(f"#{i[\"number\"]} [{i[\"state\"]}] {(i[\"title\"])}")
+    print("#" + str(i["number"]) + " [" + i["state"] + "] " + i["title"])
 '
   fi
   echo ""
