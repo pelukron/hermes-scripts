@@ -44,16 +44,24 @@ def utf16_len(text: str) -> int:
 
 
 def fingerprint(root: Path) -> str:
-    """Huella del estado: archivos bajo root excepto logs/."""
+    """Huella del estado: archivos bajo root, menos logs/ y los sidecars de SQLite.
+
+    Los `-shm`/`-wal` de una DB viva aparecen y desaparecen mientras Hermes la usa: no son
+    estado, y contarlos dejaría la huella inestable. Y un archivo que se esfuma entre listarlo
+    y leerlo tampoco puede romper la corrida (#241).
+    """
     digest = hashlib.sha256()
     if not root.is_dir():
         return digest.hexdigest()
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
-        if "logs" in path.parts:
+        if "logs" in path.parts or path.name.endswith(("-shm", "-wal")):
             continue
-        rel = path.relative_to(root).as_posix().encode()
-        digest.update(rel)
-        digest.update(path.read_bytes())
+        try:
+            datos = path.read_bytes()
+        except FileNotFoundError:
+            continue
+        digest.update(path.relative_to(root).as_posix().encode())
+        digest.update(datos)
     return digest.hexdigest()
 
 
