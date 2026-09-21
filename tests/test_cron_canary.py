@@ -39,6 +39,33 @@ def test_fingerprint_ignora_logs(tmp_path):
     assert cc.fingerprint(tmp_path) == before
 
 
+def test_fingerprint_ignora_sidecars_sqlite(tmp_path):
+    """Los -shm/-wal de una DB viva aparecen y desaparecen: no son estado (#241)."""
+    (tmp_path / "kanban.db").write_bytes(b"db")
+    before = cc.fingerprint(tmp_path)
+    for sufijo in ("-shm", "-wal"):
+        (tmp_path / f"kanban.db{sufijo}").write_bytes(b"memoria de trabajo")
+        assert cc.fingerprint(tmp_path) == before
+
+
+def test_fingerprint_tolera_archivo_que_desaparece(tmp_path, monkeypatch):
+    """Un archivo que se esfuma entre listarlo y leerlo no puede romper el canary (#241)."""
+    objetivo = tmp_path / "dato.json"
+    objetivo.write_text("{}", encoding="utf-8")
+    real = Path.read_bytes
+
+    def desaparece(self):
+        if self == objetivo:
+            self.unlink()
+            raise FileNotFoundError(str(self))
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", desaparece)
+    huella = cc.fingerprint(tmp_path)
+    assert isinstance(huella, str)
+    assert len(huella) == 64
+
+
 def test_sano_stdout_vacio(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(cc, "state_dir", lambda: tmp_path)
     monkeypatch.setattr(cc, "run_drift_check", lambda *_a, **_k: None)
