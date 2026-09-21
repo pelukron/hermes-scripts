@@ -4,6 +4,14 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.11.5 (2026-09-21)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9e44edf`](https://github.com/pelukron/hermes-scripts/commit/9e44edf0c4c4f8341410fbb9551eaba1a6941352))
+
+
 ## v0.11.4 (2026-09-21)
 
 ### 🐛 Fixes
