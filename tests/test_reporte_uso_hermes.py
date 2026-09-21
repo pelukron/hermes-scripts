@@ -138,12 +138,18 @@ class TestFetchStats:
 class TestMainSmoke:
     """Smoke tests for main()."""
 
-    def test_main_no_db(self, tmp_path, monkeypatch, capsys):
+    def test_main_no_db_is_healthy(self, tmp_path, monkeypatch, capsys):
+        """A missing state.db is 'no data yet', not a failure.
+
+        The canary runs every allow-listed entrypoint against an empty state
+        (#215), so a missing DB must not be reported as a broken entrypoint
+        (#239). The warning still reaches the delivered report.
+        """
         fake_db = str(tmp_path / "nonexistent.db")
         monkeypatch.setattr(_mod, "DB_PATH", fake_db)
         with pytest.raises(SystemExit) as exc:
             _mod.main()
-        assert exc.value.code == 1
+        assert exc.value.code == 0
         captured = capsys.readouterr()
         assert "No se encontró state.db" in captured.out
 
