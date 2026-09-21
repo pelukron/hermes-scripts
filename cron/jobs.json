@@ -24,6 +24,14 @@
       "deliver": "${notify}"
     },
     {
+      "name": "adopted-sha-audit",
+      "description": "E2E del sha que runtime-sync adoptó: gate + línea de historia. Silencioso si verde.",
+      "schedule": "0 5 * * *",
+      "wrapper": "adopted-sha-audit.sh",
+      "command": "uv run python src/adopted_sha_audit.py",
+      "deliver": "${notify}"
+    },
+    {
       "name": "cleanup-housekeeping",
       "description": "Limpieza semanal: backups viejos, noticias >4d, caches npm/pnpm/pip",
       "schedule": "0 3 * * 0",
