@@ -174,8 +174,11 @@ def main():
     """
     setup_logging()
     if not os.path.exists(DB_PATH):
+        # Sin DB no hay nada que reportar: estado vacío, no fallo. El canary corre los
+        # entrypoints contra un sandbox recién creado y un rc=1 aquí es un falso positivo
+        # (#239). El aviso sigue llegando al reporte entregado.
         log.warning("No se encontró state.db.")
-        sys.exit(1)
+        sys.exit(0)
 
     rows = fetch_daily_stats(days=7)
     models = fetch_model_stats(days=7)

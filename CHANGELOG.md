@@ -4,6 +4,35 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.11.6 (2026-09-21)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`793c6ea`](https://github.com/pelukron/hermes-scripts/commit/793c6ea9561c51e3c742d1a23f684d1d7497eb44))
+
+
+## v0.11.5 (2026-09-21)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9e44edf`](https://github.com/pelukron/hermes-scripts/commit/9e44edf0c4c4f8341410fbb9551eaba1a6941352))
+
+
+## v0.11.4 (2026-09-21)
+
+### 🐛 Fixes
+
+- El test de bump-and-pr ya no depende de la rama del checkout
+  ([`e4b95b5`](https://github.com/pelukron/hermes-scripts/commit/e4b95b554538f1cb22ca6dfc070e975511e062a7))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`e30e21c`](https://github.com/pelukron/hermes-scripts/commit/e30e21cbb42b81e353388ce60fcd9ca3050eedf6))
+
+
 ## v0.11.3 (2026-09-20)
 
 ### 📦 Chores
