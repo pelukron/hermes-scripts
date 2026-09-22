@@ -17,6 +17,7 @@ from typing import Any, Callable
 
 import defusedxml.ElementTree as ET  # noqa: N817
 
+from healthcheck import load_ping_url, ping
 from hermes_common import report_failure, state_dir
 
 HISTORY_NAME = "adopted-sha-history.json"
@@ -174,8 +175,24 @@ def run_gate(
 
 
 def main(argv: list[str] | None = None, run: RunStep | None = None) -> int:
-    """0 y stdout vacío si verde. 1 y un mensaje si hay fallos. Siempre escribe historia."""
+    """0 y stdout vacío si verde. 1 y un mensaje si hay fallos. Siempre escribe historia.
+
+    Ping ``/start`` al arrancar y success/``/fail`` al terminar (#236). Si la
+    caja muere a mitad, el testigo externo alerta: no hay silencio.
+    """
     del argv
+    url = load_ping_url()
+    ping(url, "start")
+    try:
+        rc = _audit(run)
+    except Exception:
+        ping(url, "fail")
+        raise
+    ping(url, "fail" if rc else "")
+    return rc
+
+
+def _audit(run: RunStep | None = None) -> int:
     repo = Path(__file__).resolve().parent.parent
     home = state_dir()
     sha = adopted_sha(repo)

@@ -101,8 +101,12 @@ def test_verde_stdout_vacio_y_escribe_historia(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(audit, "state_dir", lambda: tmp_path)
     monkeypatch.setattr(audit, "adopted_sha", lambda _r: "deadbeef" * 5)
     monkeypatch.setattr(audit, "run_gate", lambda *_a, **_k: [])
+    monkeypatch.setattr(audit, "load_ping_url", lambda: "https://hc-ping.com/u")
+    pings = []
+    monkeypatch.setattr(audit, "ping", lambda url, suffix="": pings.append(suffix))
     assert audit.main([]) == 0
     assert capsys.readouterr().out == ""
+    assert pings == ["start", ""]
     hist = json.loads((tmp_path / audit.HISTORY_NAME).read_text(encoding="utf-8"))
     assert hist[-1]["veredicto"] == "verde"
     assert hist[-1]["sha_adoptado"] == "deadbeef" * 5
@@ -120,13 +124,37 @@ def test_rojo_un_mensaje_con_tipo(monkeypatch, capsys, tmp_path):
         }
     ]
     monkeypatch.setattr(audit, "run_gate", lambda *_a, **_k: fallos)
+    monkeypatch.setattr(audit, "load_ping_url", lambda: "https://hc-ping.com/u")
+    pings = []
+    monkeypatch.setattr(audit, "ping", lambda url, suffix="": pings.append(suffix))
     assert audit.main([]) == 1
     out = capsys.readouterr().out
     assert out.count("adopted-sha-audit:") == 1
     assert "[codigo]" in out
     assert "test_con_token_no_muere_en_la_carga" in out
+    assert pings == ["start", "fail"]
     hist = json.loads((tmp_path / audit.HISTORY_NAME).read_text(encoding="utf-8"))
     assert hist[-1]["veredicto"] == "rojo"
+
+
+def test_excepcion_hace_ping_fail(monkeypatch, tmp_path):
+    monkeypatch.setattr(audit, "state_dir", lambda: tmp_path)
+    monkeypatch.setattr(audit, "adopted_sha", lambda _r: "x")
+
+    def boom(*_a, **_k):
+        raise RuntimeError("cae")
+
+    monkeypatch.setattr(audit, "run_gate", boom)
+    monkeypatch.setattr(audit, "load_ping_url", lambda: "https://hc-ping.com/u")
+    pings = []
+    monkeypatch.setattr(audit, "ping", lambda url, suffix="": pings.append(suffix))
+    try:
+        audit.main([])
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("debía relanzar")
+    assert pings == ["start", "fail"]
 
 
 def test_run_gate_clasifica_audit_sin_red(tmp_path):
