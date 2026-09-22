@@ -19,6 +19,7 @@ from hermes_common import (
     parse_published,
     retry_request,
     setup_logging,
+    uv_bin,
 )
 
 URL = "https://example.com/test"
@@ -475,3 +476,53 @@ class TestVersionFooter:
             with open(os.path.join(scripts, f"{name}.py"), encoding="utf-8") as f:
                 texto = f.read()
             assert "version_footer" in texto, name
+
+
+def _uv_ejecutable(tmp_path, subdir=""):
+    """Crea un `uv` falso ejecutable y devuelve su ruta."""
+    carpeta = tmp_path / subdir if subdir else tmp_path
+    carpeta.mkdir(parents=True, exist_ok=True)
+    uv = carpeta / "uv"
+    uv.write_text("#!/bin/sh\n", encoding="utf-8")
+    uv.chmod(0o755)
+    return str(uv)
+
+
+def _entorno_tipo_cron(tmp_path, monkeypatch):
+    """PATH mínimo y HOME aislado: la condición que tumbaba los jobs (#254)."""
+    monkeypatch.delenv("UV", raising=False)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+
+def test_uv_bin_prioriza_la_variable_entorno(tmp_path, monkeypatch):
+    falso = _uv_ejecutable(tmp_path, "otro")
+    monkeypatch.setenv("UV", falso)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    assert uv_bin() == falso
+
+
+def test_uv_bin_cae_a_hermes_bin_con_path_minimo(tmp_path, monkeypatch):
+    _entorno_tipo_cron(tmp_path, monkeypatch)
+    esperado = _uv_ejecutable(tmp_path, ".hermes/bin")
+
+    resuelto = uv_bin()
+
+    assert resuelto == esperado
+    assert os.path.isabs(resuelto)
+    assert os.access(resuelto, os.X_OK)
+
+
+def test_uv_bin_sin_uv_en_ningun_sitio_devuelve_el_nombre(tmp_path, monkeypatch):
+    _entorno_tipo_cron(tmp_path, monkeypatch)
+    assert uv_bin() == "uv"
+
+
+def test_uv_bin_ignora_una_ruta_no_ejecutable(tmp_path, monkeypatch):
+    _entorno_tipo_cron(tmp_path, monkeypatch)
+    no_ejecutable = tmp_path / "uv"
+    no_ejecutable.write_text("nada\n", encoding="utf-8")
+    no_ejecutable.chmod(0o644)
+    monkeypatch.setenv("UV", str(no_ejecutable))
+
+    assert uv_bin() == "uv"

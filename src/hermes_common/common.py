@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import random
+import shutil
 import subprocess
 import sys
 import time
@@ -527,6 +528,28 @@ def state_dir() -> Path:
         Path: directorio de estado.
     """
     return Path(os.environ.get("HERMES_HOME") or (Path.home() / ".hermes"))
+
+
+def uv_bin() -> str:
+    """Ruta de `uv`, en el mismo orden que resuelven los wrappers de cron (#254).
+
+    En cron el PATH es mínimo y `uv` no resuelve por nombre: el wrapper del job sí
+    lo encuentra (`$UV` → `command -v uv` → `~/.hermes/bin/uv`), pero eso no lo mete
+    en el PATH del hijo. Cualquier `subprocess` que invoque uv desde Python tiene
+    que usar esta ruta, no `"uv"`.
+
+    Returns:
+        str: ruta absoluta al ejecutable, o `"uv"` si no aparece en ningún sitio
+        (último recurso: el paso fallará con el error de siempre, no en silencio).
+    """
+    for candidato in (
+        os.environ.get("UV"),
+        shutil.which("uv"),
+        os.path.expanduser("~/.hermes/bin/uv"),
+    ):
+        if candidato and os.path.isfile(candidato) and os.access(candidato, os.X_OK):
+            return candidato
+    return "uv"
 
 
 def get_repo_version(repo_root=None):

@@ -134,3 +134,33 @@ def test_manifiesto_declara_cron_canary():
     assert canary.is_no_agent
     assert canary.wrapper == "cron-canary.sh"
     assert "src/cron_canary.py" in canary.command
+
+
+def test_entrypoint_usa_uv_absoluto(tmp_path, monkeypatch):
+    """Igual que adopted-sha-audit: en cron `uv` no está en el PATH (#254)."""
+    monkeypatch.delenv("UV", raising=False)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    uv = tmp_path / ".hermes" / "bin" / "uv"
+    uv.parent.mkdir(parents=True)
+    uv.write_text("#!/bin/sh\n", encoding="utf-8")
+    uv.chmod(0o755)
+    visto: dict[str, list[str]] = {}
+
+    class _Proc:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(argv, **_kw):
+        visto["argv"] = argv
+        return _Proc()
+
+    monkeypatch.setattr(cc.subprocess, "run", fake_run)
+
+    assert cc.run_entrypoint("reporte-uso-hermes", tmp_path, tmp_path) is None
+
+    argv = visto["argv"]
+    assert Path(argv[0]).is_absolute(), f"{argv[0]} no es absoluto"
+    assert Path(argv[0]).exists(), f"{argv[0]} no existe"
+    assert argv[1] == "run"

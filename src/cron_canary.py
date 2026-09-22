@@ -14,7 +14,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from hermes_common import report_failure, state_dir
+from hermes_common import report_failure, state_dir, uv_bin
 
 # Mutan de verdad: tarball, borrados, clones. Su validación es el drift-check.
 DENY_LIST = {
@@ -91,7 +91,7 @@ def run_entrypoint(name: str, repo: Path, sandbox: Path) -> str | None:
     """None si rc=0. Nombre del fallo si no."""
     env = {**os.environ, "HERMES_HOME": str(sandbox)}
     proc = subprocess.run(
-        ["uv", "run", name],
+        [uv_bin(), "run", name],
         cwd=str(repo),
         capture_output=True,
         text=True,

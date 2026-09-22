@@ -18,7 +18,7 @@ from typing import Any, Callable
 import defusedxml.ElementTree as ET  # noqa: N817
 
 from healthcheck import load_ping_url, ping
-from hermes_common import report_failure, state_dir
+from hermes_common import report_failure, state_dir, uv_bin
 
 HISTORY_NAME = "adopted-sha-history.json"
 STEP_TIMEOUT = 600
@@ -132,16 +132,17 @@ def _default_run(
 
 def gate_steps(junit: Path) -> list[tuple[str, list[str]]]:
     """Los mismos pasos que `make check`, tests con JUnit XML."""
+    uv = uv_bin()
     return [
-        ("lint", ["uv", "run", "ruff", "check", "."]),
-        ("format-check", ["uv", "run", "ruff", "format", "--check", "."]),
-        ("typecheck", ["uv", "run", "mypy", "."]),
+        ("lint", [uv, "run", "ruff", "check", "."]),
+        ("format-check", [uv, "run", "ruff", "format", "--check", "."]),
+        ("typecheck", [uv, "run", "mypy", "."]),
         (
             "security",
-            ["uv", "run", "bandit", "-c", "pyproject.toml", "-r", ".", "-x", ".venv,tests", "-ll"],
+            [uv, "run", "bandit", "-c", "pyproject.toml", "-r", ".", "-x", ".venv,tests", "-ll"],
         ),
-        ("audit", ["uv", "run", "pip-audit"]),
-        ("test", ["uv", "run", "pytest", "-q", f"--junitxml={junit}"]),
+        ("audit", [uv, "run", "pip-audit"]),
+        ("test", [uv, "run", "pytest", "-q", f"--junitxml={junit}"]),
     ]
 
 
