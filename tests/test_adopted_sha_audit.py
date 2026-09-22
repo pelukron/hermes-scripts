@@ -186,3 +186,21 @@ def test_manifiesto_declara_el_job():
     assert "src/adopted_sha_audit.py" in job.command
     sync = next(j for j in jobs if j.name == "runtime-sync")
     assert job.schedule != sync.schedule
+
+
+def test_los_pasos_del_gate_usan_uv_absoluto(tmp_path, monkeypatch):
+    """En cron el PATH es mínimo: `uv` por nombre no resuelve (#254)."""
+    monkeypatch.delenv("UV", raising=False)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    uv = tmp_path / ".hermes" / "bin" / "uv"
+    uv.parent.mkdir(parents=True)
+    uv.write_text("#!/bin/sh\n", encoding="utf-8")
+    uv.chmod(0o755)
+
+    pasos = audit.gate_steps(tmp_path / "junit.xml")
+
+    assert pasos, "el gate debe declarar pasos"
+    for nombre, argv in pasos:
+        assert Path(argv[0]).is_absolute(), f"{nombre}: {argv[0]} no es absoluto"
+        assert Path(argv[0]).exists(), f"{nombre}: {argv[0]} no existe"

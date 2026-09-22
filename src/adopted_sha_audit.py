@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -130,18 +131,31 @@ def _default_run(
     )
 
 
+def uv_bin() -> str:
+    """Ruta de `uv`. En cron el PATH es mínimo y `uv` por nombre no resuelve (#254)."""
+    for candidato in (
+        os.environ.get("UV"),
+        shutil.which("uv"),
+        os.path.expanduser("~/.hermes/bin/uv"),
+    ):
+        if candidato and os.path.isfile(candidato) and os.access(candidato, os.X_OK):
+            return candidato
+    return "uv"  # último recurso: el paso fallará con el error de siempre
+
+
 def gate_steps(junit: Path) -> list[tuple[str, list[str]]]:
     """Los mismos pasos que `make check`, tests con JUnit XML."""
+    uv = uv_bin()
     return [
-        ("lint", ["uv", "run", "ruff", "check", "."]),
-        ("format-check", ["uv", "run", "ruff", "format", "--check", "."]),
-        ("typecheck", ["uv", "run", "mypy", "."]),
+        ("lint", [uv, "run", "ruff", "check", "."]),
+        ("format-check", [uv, "run", "ruff", "format", "--check", "."]),
+        ("typecheck", [uv, "run", "mypy", "."]),
         (
             "security",
-            ["uv", "run", "bandit", "-c", "pyproject.toml", "-r", ".", "-x", ".venv,tests", "-ll"],
+            [uv, "run", "bandit", "-c", "pyproject.toml", "-r", ".", "-x", ".venv,tests", "-ll"],
         ),
-        ("audit", ["uv", "run", "pip-audit"]),
-        ("test", ["uv", "run", "pytest", "-q", f"--junitxml={junit}"]),
+        ("audit", [uv, "run", "pip-audit"]),
+        ("test", [uv, "run", "pytest", "-q", f"--junitxml={junit}"]),
     ]
 
 

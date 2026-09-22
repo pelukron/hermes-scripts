@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -87,11 +88,23 @@ def run_drift_check(repo: Path, hermes_home: Path) -> str | None:
     return None
 
 
+def uv_bin() -> str:
+    """Ruta de `uv`. En cron el PATH es mínimo y `uv` por nombre no resuelve (#254)."""
+    for candidato in (
+        os.environ.get("UV"),
+        shutil.which("uv"),
+        os.path.expanduser("~/.hermes/bin/uv"),
+    ):
+        if candidato and os.path.isfile(candidato) and os.access(candidato, os.X_OK):
+            return candidato
+    return "uv"  # último recurso: el entrypoint fallará con el error de siempre
+
+
 def run_entrypoint(name: str, repo: Path, sandbox: Path) -> str | None:
     """None si rc=0. Nombre del fallo si no."""
     env = {**os.environ, "HERMES_HOME": str(sandbox)}
     proc = subprocess.run(
-        ["uv", "run", name],
+        [uv_bin(), "run", name],
         cwd=str(repo),
         capture_output=True,
         text=True,
