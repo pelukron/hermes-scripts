@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,7 +18,7 @@ from typing import Any, Callable
 import defusedxml.ElementTree as ET  # noqa: N817
 
 from healthcheck import load_ping_url, ping
-from hermes_common import report_failure, state_dir
+from hermes_common import report_failure, state_dir, uv_bin
 
 HISTORY_NAME = "adopted-sha-history.json"
 STEP_TIMEOUT = 600
@@ -129,18 +128,6 @@ def _default_run(
         timeout=STEP_TIMEOUT,
         env=env,
     )
-
-
-def uv_bin() -> str:
-    """Ruta de `uv`. En cron el PATH es mínimo y `uv` por nombre no resuelve (#254)."""
-    for candidato in (
-        os.environ.get("UV"),
-        shutil.which("uv"),
-        os.path.expanduser("~/.hermes/bin/uv"),
-    ):
-        if candidato and os.path.isfile(candidato) and os.access(candidato, os.X_OK):
-            return candidato
-    return "uv"  # último recurso: el paso fallará con el error de siempre
 
 
 def gate_steps(junit: Path) -> list[tuple[str, list[str]]]:

@@ -9,13 +9,12 @@ from __future__ import annotations
 
 import hashlib
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-from hermes_common import report_failure, state_dir
+from hermes_common import report_failure, state_dir, uv_bin
 
 # Mutan de verdad: tarball, borrados, clones. Su validación es el drift-check.
 DENY_LIST = {
@@ -86,18 +85,6 @@ def run_drift_check(repo: Path, hermes_home: Path) -> str | None:
     if proc.returncode != 0:
         return (proc.stderr or proc.stdout or "drift-check rc!=0").strip()
     return None
-
-
-def uv_bin() -> str:
-    """Ruta de `uv`. En cron el PATH es mínimo y `uv` por nombre no resuelve (#254)."""
-    for candidato in (
-        os.environ.get("UV"),
-        shutil.which("uv"),
-        os.path.expanduser("~/.hermes/bin/uv"),
-    ):
-        if candidato and os.path.isfile(candidato) and os.access(candidato, os.X_OK):
-            return candidato
-    return "uv"  # último recurso: el entrypoint fallará con el error de siempre
 
 
 def run_entrypoint(name: str, repo: Path, sandbox: Path) -> str | None:
