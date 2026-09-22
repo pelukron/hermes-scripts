@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "_doc": "Skills que este despliegue necesita y NO versiona: consejo reutilizable sin datos del repo (ADR 0003). El repo solo avisa si faltan; reinstalarlas es clonar o copiar su origen en ~/.hermes/skills (ver README).",
+  "required": [
+    {
+      "name": "repo-ci-gate-replication",
+      "category": "software-development",
+      "why": "correr los gates como CI, auditar el quality gate y priorizar el backlog"
+    },
+    {
+      "name": "hermes-automation-cron",
+      "category": "devops",
+      "why": "como se declaran, instalan y entregan los jobs de Hermes"
+    },
+    {
+      "name": "external-skills",
+      "category": "productivity",
+      "why": "adopcion de skills de terceros (clon + adapter)"
+    }
+  ]
+}

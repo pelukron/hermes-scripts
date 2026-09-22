@@ -135,10 +135,10 @@
     },
     {
       "name": "cron-drift-check",
-      "description": "Aviso semanal si el manifiesto difiere de Hermes (sin drift no entrega nada)",
+      "description": "Aviso semanal si el manifiesto o las skills declaradas difieren del despliegue (sin drift no entrega nada)",
       "schedule": "0 10 * * 1",
       "wrapper": "cron-check.sh",
-      "command": "uv run python src/install_cron.py --check --quiet",
+      "command": "bash bin/check-drift.sh --check --quiet",
       "deliver": "${notify}"
     },
     {

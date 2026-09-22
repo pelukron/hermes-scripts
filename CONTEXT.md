@@ -10,7 +10,10 @@
 | **Gate** | `bash bin/gate.sh` (= `make check`: ruff check + C901 + ruff format + mypy + bandit + pytest + shellcheck en CI). Mismo comando en local y CI. |
 | **Work order** | GitHub issue. Todo cambio cierra un issue con `Closes #N` en el PR. |
 | **Epic** | Issue padre con label `👑 epic`, checklist de hijos y milestone. Board: Project #3. |
-| **Drift (cron)** | Diferencia entre `cron/jobs.json` (deseado) y jobs reales de Hermes. Se revisa con `bin/install-cron.sh --check`. |
+| **Drift (cron)** | Diferencia entre `cron/jobs.json` (deseado) y jobs reales de Hermes. Se revisa con `bin/install-cron.sh --check`; el job semanal corre `bin/check-drift.sh --check --quiet`. |
+| **skill del sistema** | Skill cuyo contrato vive en este repo: se versiona en `skills/` y el despliegue se enlaza con symlink al clon declarado, vigilado por el job `runtime-sync`. |
+| **skill independiente** | Skill que este despliegue necesita pero el repo **no** versiona (consejo reutilizable, sin datos del despliegue): se declara en `config/skills.json` y `bin/check-skills.sh` avisa si falta. |
+| **skill de contrato de otro repo** | Skill atada a un despliegue ajeno (datos, umbrales, canales): se queda con su repo. Criterio y frontera: ADR 0003. |
 | **canary** | Job `no_agent` que ejecuta entrypoints en sandbox y afirma `rc=0` + huella del estado real. No es el job de producción. _Avoid_: canario (nombre de artefacto). |
 | **observer** | Job `no_agent` que declara el estado del día: qué debía correr y si entregó. No repara. _Avoid_: observador (nombre de artefacto). |
 | **delivery budget** | Tope de lo que Telegram entrega fiable: **un mensaje** (<4096 unidades UTF-16). Por encima, el PR es rojo. _Avoid_: 2 chunks, 8 KB, presupuesto de 6 KB. |
@@ -37,8 +40,9 @@
 ## 4. Mapa del repo
 
 - `src/scripts/` (entrypoints de cron: `resumen_*_diario`, `monitor_ram_mexico`, `polymarket_diario`, `reporte_uso_hermes`, `backup_diario`, `cleanup_housekeeping`; comandos con guiones vía `[project.scripts]`), `hermes_common.py` en raíz solo como compat (fuente viva en `src/`).
-- `src/hermes_common/` (utilidades compartidas), `src/install_cron.py`, `src/generate_issue_body.py`.
-- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/` (15 entradas + `shellcheck` en CI), `tests/` (510 tests, 2026-09-19).
+- `src/hermes_common/` (utilidades compartidas), `src/install_cron.py`, `src/check_skills.py`, `src/generate_issue_body.py`.
+- `skills/` (skills del sistema, versionadas aquí), `config/skills.json` (skills independientes declaradas), `config/runtime-clones.json` (clones + sus symlinks vigilados).
+- `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/check-drift.sh`, `bin/check-skills.sh`, `bin/` (entradas + `shellcheck` en CI), `tests/`.
 - Regresión de crons: ADR `docs/adr/0004-regresion-crons-donde-vive.md` (epic #214).
 - Deuda restante (epic #60): solo #73 dataclasses (PR #142); cerrados #70/#71/#72/#74 + epic #59 + #67/#69.
 
