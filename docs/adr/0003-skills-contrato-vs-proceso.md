@@ -54,6 +54,36 @@ agente leía una skill vieja: la instalación tampoco estaba determinada.
   común y los detalles por repo como notas), y los repos privados las referencian en vez de duplicarlas.
 - Las skills de contrato siguen viajando con su repo; el symlink desplegado debe apuntar **al clon declarado**
   (ver `config/runtime-clones.json` y el job `runtime-sync`), que ahora vigila ese drift.
-- **Trigger para revisar esta decisión**: cuando exista un consumidor externo (otra persona montando su Hermes) o
-  más de ~5 skills compartidas. Entonces: repo propio `hermes-skills` + instalación por el mecanismo de
+- **Trigger para revisar esta decisión**: cuando exista un consumidor externo (otra persona montando su
+  Hermes) o más de ~5 skills compartidas. Entonces: repo propio `hermes-skills` + instalación por el mecanismo de
   `~/.hermes/skills/external/`.
+
+## Revisión 2026-09-22 — el punto 2 se ejecuta; las independientes se declaran
+
+Ejecutado el corte que faltaba (issue #252), con un matiz que la decisión no cubría:
+
+1. **`skills/` ya existe** con las dos primeras skills de proceso: `github-pelukron-flow` (el flujo de estos
+   repos: `bin/`, gates, PRs, `install-cron`) y `telegram-notify-config` **partida** — el protocolo
+   (resolución del invite link, workflow, nombres de secreto, presupuesto de un mensaje) al repo, y los ids
+   reales fuera: viven en `cron/targets.local.json` (no versionado), y el ejemplo versionado es
+   `cron/targets.example.json`. El punto 4 lo verifica ahora un test, no la disciplina de quien escribe.
+2. **Las que no son del repo se declaran, no se copian.** `config/skills.json` lista las independientes
+   (`repo-ci-gate-replication`, `hermes-automation-cron`, `external-skills`); `bin/check-skills.sh` avisa si
+   falta alguna, y el job `cron-drift-check` (lunes 10:00) corre `bin/check-drift.sh --quiet`, que une ese
+   aviso con el del manifiesto de cron. Silencio en verde, como el resto de los avisos.
+3. **Vocabulario**: *skill del sistema* (vive en `skills/`), *skill de contrato de otro repo* (se queda, punto
+   1) y *skill independiente* (se declara). El término «de contrato» a secas se evitó porque nombraba las dos
+   cosas. Vive en `CONTEXT.md` §1.
+4. **Verificación del symlink**: el `links` de `config/runtime-clones.json` ya lo vigilaba `runtime-sync`
+   (Consecuencias, segundo punto); lo que faltaba era contenido que enlazar. RED medido: apuntar el enlace a
+   otro directorio devuelve rc=1.
+
+**Trigger actualizado**, con la medición al lado: se crea `pelukron/hermes-skills` cuando ocurra cualquiera de
+estas: (1) >5 skills versionadas (hoy 2; con `hygiene` y `write-review-loop` serían 4); (2) >3 releases por
+trimestre causados por ediciones de skills (`git log --oneline -- skills/`); (3) un consumidor externo
+(mismo caso de arriba); (4) el curator de Hermes empieza a escribir contenido (consolidación encendida) y
+pelea con los symlinks del repo.
+
+**Sigue pendiente del punto 2 original:** extraer `hygiene` y `write-review-loop` a `skills/` con su
+protocolo común. Medido el 2026-09-22: siguen duplicadas y divergiendo (38 líneas en empleo vs 71 en
+exámenes; sólo 8 coinciden por posición).

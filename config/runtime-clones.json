@@ -17,7 +17,17 @@
       "name": "hermes-scripts",
       "path": "~/hermes-scripts",
       "branch": "main",
-      "smoke": "env -u VIRTUAL_ENV uv run python -m scripts.sync_runtime --help"
+      "smoke": "env -u VIRTUAL_ENV uv run python -m scripts.sync_runtime --help",
+      "links": [
+        {
+          "path": "~/.hermes/skills/github/github-pelukron-flow",
+          "expect": "skills/github-pelukron-flow"
+        },
+        {
+          "path": "~/.hermes/skills/devops/telegram-notify-config",
+          "expect": "skills/telegram-notify-config"
+        }
+      ]
     }
   ]
 }
