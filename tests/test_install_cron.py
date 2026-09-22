@@ -520,8 +520,26 @@ class TestQuiet:
         )
         code = ic.main(base_args(repo, home, "--check"))
         out = capsys.readouterr().out
+        assert code == 1
+        assert "no en el manifiesto" in out
+        assert "otro" in out
+
+    def test_quiet_extra_no_declarado_avisa(self, tmp_path, monkeypatch, capsys):
+        """`--quiet` ya no se come el job vivo sin declarar (#237)."""
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        write_manifest(repo, [demo_manifest_job()])
+        job = ic.parse_jobs(ic.load_manifest(repo / "cron" / "jobs.json"))[0]
+        (home / "scripts").mkdir(parents=True)
+        (home / "scripts" / "demo.sh").write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        monkeypatch.setattr(
+            ic, "read_live_jobs", lambda h: [fake_job(), fake_job(id="x9", name="otro")]
+        )
+        code = ic.main(base_args(repo, home, "--check", "--quiet"))
+        out = capsys.readouterr().out
         assert code == 0
-        assert "info: job 'otro' existe en Hermes pero no en el manifiesto" in out
+        assert "otro" in out
+        assert "no en el manifiesto" in out
 
     def test_manifiesto_real_trae_cron_drift_check(self, tmp_path):
         manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)

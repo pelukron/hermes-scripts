@@ -65,6 +65,25 @@ def test_silencio_cuando_ya_esta_al_dia(tmp_path):
     assert sr.render([result]) == ""
 
 
+def test_smoke_solo_tras_pull(tmp_path, monkeypatch):
+    _remote, runtime = _escenario(tmp_path)
+    llamadas = []
+
+    def fake_sh(command, cwd, timeout=120):
+        del timeout
+        llamadas.append((command, cwd))
+        return 0, ""
+
+    monkeypatch.setattr(sr, "_sh", fake_sh)
+    pulled = sr.sync_clone(_entry(runtime, smoke="true"))
+    assert pulled["status"] == "pulled"
+    assert llamadas == [("true", runtime)]
+    llamadas.clear()
+    quiet = sr.sync_clone(_entry(runtime, smoke="true"))
+    assert quiet["status"] == "up-to-date"
+    assert llamadas == []
+
+
 def test_divergido_no_se_toca(tmp_path):
     remote, runtime = _escenario(tmp_path)
     (runtime / "local.txt").write_text("x", encoding="utf-8")
@@ -104,6 +123,17 @@ def test_symlink_correcto_no_reporta(tmp_path):
     link.symlink_to(runtime / "skills" / "job-scout")
     entry = _entry(runtime, links=[{"path": str(link), "expect": "skills/job-scout"}])
     assert sr.check_links(entry) == []
+
+
+def test_config_real_declara_hermes_scripts():
+    clones = sr.load_config(sr.CONFIG_DEFAULT)
+    names = [c["name"] for c in clones]
+    assert "empleo-prod" in names
+    scripts = next(c for c in clones if c["name"] == "hermes-scripts")
+    assert scripts["path"] == "~/hermes-scripts"
+    assert scripts["branch"] == "main"
+    assert "VIRTUAL_ENV" in scripts["smoke"]
+    assert "sync_runtime" in scripts["smoke"]
 
 
 def test_main_recorre_la_config(tmp_path, capsys):

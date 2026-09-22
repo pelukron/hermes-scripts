@@ -371,7 +371,7 @@ def render_drift_digest(drift: list[str], date_str: str) -> str:
 
 
 def live_extra_names(jobs: list[Job], hermes_home: Path) -> list[str]:
-    """Jobs reales que no están en el manifiesto (informativos, no drift)."""
+    """Jobs reales que no están en el manifiesto (drift: el aviso quiet los tragaba)."""
     wanted = {job.name for job in jobs if job.name}
     live = {str(job.get("name") or "") for job in read_live_jobs(hermes_home)}
     return sorted(name for name in live if name and name not in wanted)
@@ -947,6 +947,7 @@ def run_check(ctx: RunContext) -> int:
     targets, hermes_home, repo = ctx.targets, ctx.hermes_home, ctx.repo
     drift = check_all(jobs, targets, hermes_home, repo)
     extra = live_extra_names(jobs, hermes_home)
+    drift += [f"job '{name}': existe en Hermes pero no en el manifiesto" for name in extra]
     if args.quiet:
         if drift:
             print(render_drift_digest(drift, date.today().isoformat()))
@@ -955,12 +956,8 @@ def run_check(ctx: RunContext) -> int:
         print("Drift detectado:")
         for line in drift:
             print(f"  - {line}")
-        for name in extra:
-            print(f"info: job '{name}' existe en Hermes pero no en el manifiesto")
         return 1
     print("Sin drift: wrappers y jobs coinciden con el manifiesto")
-    for name in extra:
-        print(f"info: job '{name}' existe en Hermes pero no en el manifiesto")
     return 0
 
 
