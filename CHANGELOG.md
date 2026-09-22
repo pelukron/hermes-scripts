@@ -4,6 +4,41 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.13.0 (2026-09-22)
+
+### 🐛 Fixes
+
+- El gate del sha adoptado vuelve a verde
+  ([`6eaab5c`](https://github.com/pelukron/hermes-scripts/commit/6eaab5c7496bb0c946edd94fa9b5bd88589cce44))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`e61faf2`](https://github.com/pelukron/hermes-scripts/commit/e61faf27f8f1fa1d5064386f76a3cea8c4f04cde))
+
+### ✨ Features
+
+- Auditoria nocturna del sha adoptado ([#248](https://github.com/pelukron/hermes-scripts/pull/248),
+  [`ce2605b`](https://github.com/pelukron/hermes-scripts/commit/ce2605b3ea948d95a113378490dfacf878c28ccd))
+
+
+## v0.12.1 (2026-09-22)
+
+### 🐛 Fixes
+
+- El release lista los cambios que entran por PR
+  ([#247](https://github.com/pelukron/hermes-scripts/pull/247),
+  [`9479bc1`](https://github.com/pelukron/hermes-scripts/commit/9479bc139445d3798106ac463017f96152e2d36e))
+
+- El release lista los cambios que entran por PR
+  ([`22f3099`](https://github.com/pelukron/hermes-scripts/commit/22f309989ad23bcb4904a7e0b5656131ce9cafa1))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`040d90c`](https://github.com/pelukron/hermes-scripts/commit/040d90cb40ac9c2737b8c0749d327a72f14aab77))
+
+
 ## v0.12.0 (2026-09-21)
 
 ### 📦 Chores
