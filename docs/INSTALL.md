@@ -44,6 +44,10 @@ bin/install-cron.sh
 - **A quién entrega:** `cron/targets.local.json` (nombres usados como `${reports}` en el manifiesto).
 - **Jobs que no aplican a tu caso:** deshabilítalos con `"enabled": false` — el instalador los pausa
   (`monitor-ram-mexico` viene así, y `job-scout daily run` requiere el repo externo `hermes-empleo`).
+- **Testigo externo (dead-man's switch):** crea un check en [healthchecks.io](https://healthchecks.io)
+  (periodo 1 día, gracia ~2 h) y pon `HEALTHCHECK_PING_URL=https://hc-ping.com/<uuid>` en
+  `$HERMES_HOME/.env`. La auditoría nocturna hace ping `/start` al arrancar y success/`/fail`
+  al terminar. Sin esa variable los pings son no-op.
 
 ## Verificar
 
