@@ -231,7 +231,7 @@ PATH="$PWD/.venv/bin:$PATH" git commit -m "..."
 PATH="$PWD/.venv/bin:$PATH" git push -u origin <rama>
 ```
 
-`bin/gh-issue.sh` deriva el slug del título con `tr -cs 'a-z0-9' '-'`, así que los acentos se
+`bin/gh-issue` deriva el slug del título con `tr -cs 'a-z0-9' '-'`, así que los acentos se
 vuelven guiones (`automático` → `autom-tico`). Renombrar antes del push:
 `git branch -m <tipo>/N-slug-limpio`.
 
@@ -420,7 +420,11 @@ When a repo has a multi-block roadmap, use block-level epic issues in README.md 
   - `react-stack-roadmap`: manual GitHub releases via `bin/bump-version` + semver tags + CI `release.yml` (tag-triggered, no npm). No Changesets, no npm publish. See `CONTRIBUTING.md` in that repo.
   - Other repos may use Changesets + npm publish. If the Release workflow fails with `Publish command exited with code 1`, the most common cause is a missing `NPM_TOKEN` repository secret. See [references/release-guide.md](references/release-guide.md).
 - New work always starts from a fresh branch off `main`.
-- **PR titles MUST include issue number** in the format `🤖 tipo: descripción (#N)`. The `bin/gh-pr` script auto-generates this format. When creating PRs manually, always append `(#N)`. User verifies this on every PR.
+- **Título del PR: Conventional Commits en español, encabezado por el tipo.** Lo exige
+  `.github/workflows/hygiene.yml` (job `commitlint`) con
+  `^(feat|fix|perf|infra|build|chore|ci|docs|style|refactor|test)(\(scope\))?: .+`. Los emoji van en las
+  **labels**, nunca en el título: un prefijo `🤖` no casa esa regex y tumba el check. `bin/gh-pr <N> <rama>`
+  arma el título con el del issue + ` (#N)`; el título del issue ya trae el tipo conventional.
 - **`Closes #N` MUST be in PR body**, not just in the commit message. User explicitly verifies this on every PR. If the PR body is missing `Closes #N`, issues won't auto-close on merge. Always include it in both the commit body AND the `--body` of `gh pr create`.
 - **Issue-driven documentation**: requirements, acceptance criteria and history live in the GitHub issue, not in new repo `.md` files. See [references/issue-driven-documentation.md](references/issue-driven-documentation.md).
 
@@ -433,7 +437,10 @@ Para cambios full-stack (frontend + backend):
 - **Backend:** levantar el servicio (p.ej. `uv run uvicorn app.main:app --port 8000`) y hacer `curl -s -w "%{http_code}"` al endpoint tocado. Confirmar 200 + shape del JSON. Matar el proceso después (`pkill -f "uvicorn app.main:app"`).
 - **Evidencia fresca:** mostrar `BUILD_EXIT=0` / `LINT_EXIT=0` y el curl 200 en el resumen. Sin eso, el "listo" no está verificado.
 
-**Pitfall — PRs manuales pierden la convención de título.** `gh pr create` manual NO aplica el prefijo `🤖` ni el sufijo `(#N)` que `bin/gh-pr` sí aplica. Si se crea el PR a mano, el título debe quedar `🤖 tipo: descripción (#N)` y el body debe incluir `Closes #N`. El usuario lo verifica en cada PR. Preferir `bin/gh-pr <N> <rama>` cuando exista.
+**Pitfall — PR manual: el `(#N)` se pierde (y el emoji delante rompe CI).** `bin/gh-pr` arma el título con el
+del issue + ` (#N)` y el body con `Closes #N`; `gh pr create` a mano no añade ninguno de los dos. El sufijo
+`(#N)` no lo exige ningún workflow, pero el **tipo conventional sí** (`commitlint` en `hygiene.yml`, regex
+anclada al inicio): un prefijo `🤖` tumba el check. Manual: título `tipo: descripción` y body con `Closes #N`.
 
 **Pitfall — `backend/build/` suelto.** `uv`/`hatch` generan `backend/build/` no ignorado por `.gitignore`; `gh pr create` avisa "1 uncommitted change". No formaba parte del commit (no se incluya). Se puede ignorar o añadir a `.gitignore` si molesta.
 
