@@ -1,6 +1,6 @@
 [project]
 name = "resumen-noticias-diario"
-version = "0.12.0"
+version = "0.12.1"
 description = "Script de resumen diario de noticias multi-región"
 requires-python = ">=3.11"
 # Versiones exactas a proposito: el lock queda reproducible y una dependencia
@@ -62,6 +62,10 @@ patch_tags = ["fix", "perf", "infra"]
 allowed_tags = ["feat", "fix", "perf", "infra", "build", "chore", "ci", "docs", "style", "refactor", "test"]
 # 2 = LevelBump.PATCH: todo commit convencional corta release (feat sigue minor).
 default_bump_level = 2
+# Los PRs entran como merge commit con el titulo del PR (2 padres). PSR los descarta
+# por default (ignore_merge_commits=True) y las notas del release salian vacias:
+# medido en v0.11.5/v0.11.6/v0.12.0, cuya unica linea era el `sync uv.lock`.
+ignore_merge_commits = false
 
 [tool.semantic_release.changelog]
 template_dir = "templates"
