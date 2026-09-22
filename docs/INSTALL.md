@@ -59,6 +59,28 @@ hermes cron list                                 # jobs activos (los no-agent se
 python3 -c "import json,pathlib; d=json.loads((pathlib.Path.home()/'.hermes/cron/jobs.json').read_text()); [print(j['name'], j.get('script'), j.get('no_agent')) for j in d['jobs']]"
 ```
 
+## Verificar un job `no_agent` nuevo (condiciones de cron)
+
+Tu shell interactiva **no** es el entorno del cron: la tuya trae `uv` y `~/.hermes/bin` en el PATH, la del
+gateway no. Un job puede dar exit 0 a mano y morir a la hora programada — así fallaron `adopted-sha-audit`
+(05:00) y `cron-canary` (02:30) en su primer horario, con `FileNotFoundError: [Errno 2] ... 'uv'` (#254).
+
+Regla: **ningún `subprocess` a una herramienta externa usa el nombre relativo.** Para `uv` hay un solo
+resolver, `hermes_common.uv_bin()` (`$UV` → PATH → `~/.hermes/bin/uv`); si no está en ninguno de los tres
+devuelve `"uv"`, para que el paso falle con el error de siempre en vez de en silencio.
+
+```bash
+# entorno mínimo, como el del cron: exit 0 y stdout vacío = verde
+env -i HOME=$HOME PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+  /bin/bash ~/.hermes/scripts/<job>.sh
+```
+
+- Con `HERMES_HOME` y `HERMES_SCRIPTS_DIR` apuntas la corrida a un estado o a un clon de prueba sin tocar el
+  real (útil para no ensuciar `adopted-sha-history.json` ni el sandbox del canary).
+- Si el job vive en un **worktree**, el chequeo de drift no puede salir limpio: los wrappers embeben la ruta
+  del repo donde se renderizaron. Su verificación completa es desde el clon desplegado.
+- Un job no está verificado por haber corrido una vez: las corridas programadas son las que cierran el DoD.
+
 ## Aviso semanal de drift
 
 El job `cron-drift-check` (lunes 10:00, `no_agent`, `deliver: origin`) ejecuta
