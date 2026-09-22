@@ -52,7 +52,8 @@ def gate_env(base: dict[str, str] | None = None) -> dict[str, str]:
     """TMPDIR saneado y sin VIRTUAL_ENV (trampas 1 y 2 del spike)."""
     env = dict(base if base is not None else os.environ)
     env.pop("VIRTUAL_ENV", None)
-    tmp = "/tmp" if Path("/tmp").is_dir() else tempfile.gettempdir()
+    # B108 no aplica: aquí no se crea ningún temporal, sólo se apunta TMPDIR a /tmp.
+    tmp = "/tmp" if Path("/tmp").is_dir() else tempfile.gettempdir()  # nosec B108
     env["TMPDIR"] = tmp
     env["TEMP"] = tmp
     env["TMP"] = tmp
