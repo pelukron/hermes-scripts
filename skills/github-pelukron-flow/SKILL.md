@@ -68,9 +68,15 @@ bin/install-cron.sh --check     # sólo deben quedar los extras como info
   su `schedule.expr` y `next_run_at`. `hermes cron list` es la vista cómoda, no la fuente.
 - `--check` lista los jobs que existen en Hermes y no están en el manifiesto como info: **no los
   borra** (quedan one-shots viejos). Decírselo al usuario, no limpiarlos por cuenta propia.
-- Prueba e2e del job nuevo: corre el wrapper a mano una vez (`~/.hermes/scripts/<job>.sh`) y lee el
-  artefacto que produce. Silencio + `exit 0` = verde; si el script debe escribir historia, comprueba
+- **Prueba e2e del job nuevo, con el entorno del cron — no con tu shell.** Correr el wrapper a pelo
+  (`~/.hermes/scripts/<job>.sh`) sale exit 0 porque tu PATH trae `uv` y `~/.hermes/bin`; el del gateway no, así que
+  el job muere a su hora programada (`FileNotFoundError: 'uv'`, #254: dos jobs a la primera). El comando que sí
+  prueba algo:
+  `env -i HOME=$HOME PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /bin/bash ~/.hermes/scripts/<job>.sh`
+  (exit 0 y stdout vacío = verde). Lee el artefacto que produce: si el script debe escribir historia, comprueba
   que la entrada nueva apunte al sha desplegado (`git -C ~/hermes-scripts rev-parse HEAD`).
+- En el código del job, nunca `subprocess.run(["uv", ...])`: el resolver es `hermes_common.uv_bin()`. Y el DoD lo
+  cierran las corridas programadas, no la corrida a mano.
 - El clone es de runtime: `curl`/pruebas destructivas contra él no; los cambios de código van por PR.
 
 ## Auth
