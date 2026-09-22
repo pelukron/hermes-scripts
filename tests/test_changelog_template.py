@@ -71,6 +71,84 @@ def test_insertion_flag_existe_en_changelog():
     assert flag in changelog, "sin flag PSR no actualiza CHANGELOG.md (falla en silencio)"
 
 
+def _notas(resultado):
+    """`parse()` devuelve lista cuando `parse_squash_commits` esta activo (default)."""
+    return resultado if isinstance(resultado, list) else [resultado]
+
+
+def test_los_merge_commits_no_se_descartan(tmp_path):
+    """Todo cambio de este repo entra por PR: el merge commit lleva el titulo del PR y la rama
+    cuelga del segundo padre. PSR descarta merge commits por default (`ignore_merge_commits =
+    True`), y ademas manda el commit de rama a un release viejo por el bucketing topologico, asi
+    que las notas quedaban con el unico commit directo a main (el `sync uv.lock` del bot):
+    medido en v0.11.5, v0.11.6 y v0.12.0. El guard lee la config real de pyproject y ejerce el
+    parser sobre un merge de verdad, para que la opcion no se pueda volver a caer en silencio.
+
+    Limite conocido: cubre los dos filtros del parser, no el de `release_history.py` ni el
+    render final (una reproduccion de la pipeline completa sobre el historial real vive en el
+    issue #245; en un repo sintetico el bucketing de PSR desvia la entrada).
+    """
+    from git import Repo
+    from semantic_release.commit_parser.conventional import (
+        ConventionalCommitParser,
+        ConventionalCommitParserOptions,
+    )
+    from semantic_release.commit_parser.token import ParsedCommit
+
+    with open(REPO / "pyproject.toml", "rb") as f:
+        pyproject = tomllib.load(f)
+    opciones = pyproject["tool"]["semantic_release"].get("commit_parser_options", {})
+    assert opciones.get("ignore_merge_commits") is False, (
+        "falta `ignore_merge_commits = false`: PSR descarta el merge y la nota del PR no sale"
+    )
+
+    ruta = tmp_path / "repo"
+    repo = Repo.init(ruta)
+    with repo.config_writer() as cw:
+        cw.set_value("user", "name", "test")
+        cw.set_value("user", "email", "test@example.com")
+        # El fixture no debe heredar la config global (p. ej. commit.gpgsign o core.hooksPath).
+        cw.set_value("commit", "gpgsign", "false")
+
+    (ruta / "base.txt").write_text("base", encoding="utf-8")
+    repo.index.add(["base.txt"])
+    repo.index.commit("chore: base")
+
+    repo.git.checkout("-b", "rama")
+    (ruta / "rama.txt").write_text("rama", encoding="utf-8")
+    repo.index.add(["rama.txt"])
+    repo.index.commit("fix: la rama toca algo")
+
+    repo.git.checkout("-")
+    (ruta / "main.txt").write_text("main", encoding="utf-8")
+    repo.index.add(["main.txt"])
+    repo.index.commit("chore: main avanza")
+
+    repo.git.merge("rama", "--no-ff", "-m", "fix: el release no listaba los cambios del PR (#999)")
+    merge_commit = repo.head.commit
+    assert len(merge_commit.parents) == 2, "el fixture no genero un merge commit"
+
+    parser = ConventionalCommitParser(ConventionalCommitParserOptions(**opciones))
+
+    incluidas = [
+        n
+        for n in _notas(parser.parse(merge_commit))
+        if isinstance(n, ParsedCommit) and n.include_in_changelog
+    ]
+    assert incluidas, (
+        "PSR descarto el merge commit (ignore_merge_commits): las notas del release salen vacias"
+    )
+    assert incluidas[0].linked_merge_request == "#999", "el PR dejo de enlazarse en la nota"
+
+    # El caso simple no se rompe al destapar el anterior.
+    simple = [
+        n
+        for n in _notas(parser.parse(repo.commit("HEAD~1")))
+        if isinstance(n, ParsedCommit) and n.include_in_changelog
+    ]
+    assert simple
+
+
 # Normalizacion tipo->seccion del ConventionalCommitParser de PSR 10.6.1
 # (verificada en semantic_release/commit_parser/conventional/parser.py);
 # los tags custom (infra) pasan crudos.
