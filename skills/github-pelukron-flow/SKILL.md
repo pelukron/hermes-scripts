@@ -337,17 +337,20 @@ To keep issue/branch/PR creation consistent in repos without `bump-and-pr.sh`, c
 `pm-status`, `pm-weekly`) son deuda previa, no el patrón. Un helper nuevo entra como
 `bin/<nombre>.sh`, y su test y su ayuda deben citar esa misma ruta.
 
-| Branch type | Issue label | PR emoji prefix |
-|---|---|---|
-| `feature/` | `✨ enhancement` | ✨ |
-| `bugfix/` | `🐛 bug` | 🐛 |
-| `hotfix/` | `🚨 hotfix` | 🚨 |
-| `docs/` | `📚 documentation` | 📚 |
-| `chore/`, `ci/`, `refactor/`, `test/` | `🔧 chore` | 🔧 |
+| Branch type | Issue label |
+|---|---|
+| `feature/` | `✨ enhancement` |
+| `bugfix/` | `🐛 bug` |
+| `hotfix/` | `🚨 hotfix` |
+| `docs/` | `📚 documentation` |
+| `chore/`, `ci/`, `refactor/`, `test/` | `🔧 chore` |
+
+El emoji vive **sólo en la label del issue**: el título del PR empieza por el tipo conventional
+(`commitlint` de `hygiene.yml` ancla la regex ahí), nunca por un emoji.
 
 ```bash
 bin/gh-issue <type> <title> [body]   # creates issue + branch, prints next steps
-bin/gh-pr <issue-number> <branch>    # pushes branch and creates PR with title "🤖 tipo: descripción (#N)"
+bin/gh-pr <issue-number> <branch>    # pushes branch and crea el PR: título = el del issue + " (#N)"
 ```
 
 Supported types: `feature`, `bugfix`, `hotfix`, `chore`, `docs`, `ci`, `refactor`, `test`.
