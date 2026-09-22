@@ -4,6 +4,34 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.0 (2026-09-22)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`47e907e`](https://github.com/pelukron/hermes-scripts/commit/47e907e2c86ffbe14b9adc5a26e750f7bf5e5573))
+
+### 📝 Docs
+
+- El emoji de estado no va en el titulo del PR
+  ([`7becbf5`](https://github.com/pelukron/hermes-scripts/commit/7becbf59244d07ee8b705759de03bf3990cfefb5))
+
+- La skill del flujo dice la verdad sobre titulos de PR y helpers
+  ([`5f8406d`](https://github.com/pelukron/hermes-scripts/commit/5f8406d6b183b4247ef5683a1827d1120e28eadc))
+
+- La skill del flujo ya no manda verificar un job a mano
+  ([`01240f8`](https://github.com/pelukron/hermes-scripts/commit/01240f8dceb008ef5d8ea984adbbc2151facae54))
+
+### ✨ Features
+
+- Las skills del sistema viven en el repo y las independientes se declaran
+  ([#253](https://github.com/pelukron/hermes-scripts/pull/253),
+  [`eda6802`](https://github.com/pelukron/hermes-scripts/commit/eda6802bbb22f1a1600cbea2b1f2bd98b148382b))
+
+- Las skills del sistema viven en el repo y las independientes se declaran
+  ([`d8b3457`](https://github.com/pelukron/hermes-scripts/commit/d8b3457daced7d6b11f3d381946d029ddf999efc))
+
+
 ## v0.15.0 (2026-09-22)
 
 ### 📦 Chores

@@ -47,10 +47,33 @@ bin/install-cron.sh              # aplica + verifica
 ```
 
 Aviso semanal de drift: el job `cron-drift-check` (lunes 10:00, `no_agent`,
-cero tokens) corre `--check --quiet` — sin drift no entrega nada; con drift
-entrega el digest. A mano: `uv run python src/install_cron.py --check --quiet`.
+cero tokens) corre `bin/check-drift.sh --quiet` — sin drift no entrega nada; con drift
+entrega el digest. A mano: `bin/check-drift.sh` (cron + skills declaradas).
 
 Detalles, personalización y cómo quitarlo: [`docs/INSTALL.md`](docs/INSTALL.md).
+
+## Skills
+
+El repo versiona las skills cuyo contrato es suyo (**skills del sistema**), declara las que necesita
+pero no son suyas (**skills independientes**) y deja con su repo las atadas a otro despliegue
+(**skill de contrato de otro repo**). La decisión y su frontera, con el trigger para separarlas a un
+repo propio: [`docs/adr/0003-skills-contrato-vs-proceso.md`](docs/adr/0003-skills-contrato-vs-proceso.md).
+
+```
+skills/                      # skills del sistema: fuente de verdad, versionada aquí
+config/skills.json           # skills independientes: se declaran y se vigilan, no se copian
+```
+
+- **Despliegue:** el symlink de cada skill del sistema debe apuntar **dentro del clon declarado**
+  (`config/runtime-clones.json`, clave `links`). Lo vigila el job `runtime-sync` (04:25): avisa si el
+  enlace apunta a otro clon o si no es un enlace.
+- **Datos del despliegue fuera del repo:** ids de canal, tokens y destinos **nunca** se versionan
+  (viven en `cron/targets.local.json`; el ejemplo es `cron/targets.example.json`). El test
+  `tests/test_skills_del_repo.py` falla si una skill versionada lleva un id de canal.
+- **Chequeo a mano:** `bin/check-skills.sh` (¿están las declaradas?) y `bin/check-drift.sh`
+  (manifiesto de cron + skills; `--quiet` para el digest de un mensaje).
+- Si falta una skill independiente, reinstalarla es trabajo del operador (clonar o copiar su origen en
+  `~/.hermes/skills`): el repo sólo avisa, nunca la descarga ni la copia.
 
 ## Desarrollo
 
@@ -79,8 +102,10 @@ make test       # pytest -v
 │   ├── gate_audit.py          # Auditoría de gates cross-repo
 │   └── generate_issue_body.py # Generador de bodies enriquecidos para issues
 ├── config/
-│   └── feeds.json              # Configuración de feeds RSS
-├── bin/                        # Helpers shell (gate.sh, install-cron.sh, aviso-peak.sh, …)
+│   ├── feeds.json              # Configuración de feeds RSS
+│   └── skills.json             # Skills independientes declaradas (sólo se vigilan)
+├── skills/                     # Skills del sistema (fuente de verdad, versionada aquí)
+├── bin/                        # Helpers shell (gate.sh, install-cron.sh, check-drift.sh, …)
 ├── cron/
 │   └── jobs.json               # Manifiesto de cron jobs
 ├── hermes_common.py            # Legacy compat (moved to src/)
