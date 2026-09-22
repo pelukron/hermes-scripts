@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.1 (2026-09-22)
+
+### 🐛 Fixes
+
+- Los jobs que invocan uv por nombre fallan en cron
+  ([#255](https://github.com/pelukron/hermes-scripts/pull/255),
+  [`0a7de6b`](https://github.com/pelukron/hermes-scripts/commit/0a7de6b79d139e358690e59f6dd06f79568512e2))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`f9b3f82`](https://github.com/pelukron/hermes-scripts/commit/f9b3f82e16cd6515e667136ced6fb2c778941624))
+
+
 ## v0.16.0 (2026-09-22)
 
 ### 📦 Chores
