@@ -4,6 +4,30 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.10 (2026-09-23)
+
+### 🐛 Fixes
+
+- Volver a python-semantic-release 10.6.1
+  ([#285](https://github.com/pelukron/hermes-scripts/pull/285),
+  [`630f38c`](https://github.com/pelukron/hermes-scripts/commit/630f38c7f0b792d7a29e90041b6070d4b80be24d))
+
+- Volver a python-semantic-release 10.6.1
+  ([`2b208b1`](https://github.com/pelukron/hermes-scripts/commit/2b208b1f8b8360214e5153e121f4903b743ff6d1))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`7b5d0ac`](https://github.com/pelukron/hermes-scripts/commit/7b5d0ac03cfb1dca0b71cce1fe98e27796efc7b5))
+
+- **deps-dev**: Bump python-semantic-release from 10.6.1 to 10.6.2
+  ([#264](https://github.com/pelukron/hermes-scripts/pull/264),
+  [`f8055d4`](https://github.com/pelukron/hermes-scripts/commit/f8055d4452b989609e1afe6a4b04015c0c556108))
+
+- **deps-dev**: Bump python-semantic-release from 10.6.1 to 10.6.2
+  ([`2117c07`](https://github.com/pelukron/hermes-scripts/commit/2117c0775c455b653443e76cfadfdc37fbba99b3))
+
+
 ## v0.16.9 (2026-09-23)
 
 ### 📦 Chores
