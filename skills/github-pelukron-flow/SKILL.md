@@ -446,6 +446,24 @@ Para cambios full-stack (frontend + backend):
 - **Backend:** levantar el servicio (p.ej. `uv run uvicorn app.main:app --port 8000`) y hacer `curl -s -w "%{http_code}"` al endpoint tocado. Confirmar 200 + shape del JSON. Matar el proceso después (`pkill -f "uvicorn app.main:app"`).
 - **Evidencia fresca:** mostrar `BUILD_EXIT=0` / `LINT_EXIT=0` y el curl 200 en el resumen. Sin eso, el "listo" no está verificado.
 
+### Los tres rojos locales del gate no son del código
+
+Correr el gate como lo corre CI, con `PATH` y `TMPDIR` explícitos, antes de culpar al diff:
+
+```bash
+PATH="$HOME/.hermes/bin:$PATH" TMPDIR=/tmp bash bin/gate.sh
+```
+
+1. **`make: uv: No such file or directory` (Error 127)** si falta el `PATH`: `make` invoca `uv` por nombre, y en
+   el servidor `uv` vive en `$HOME/.hermes/bin/uv`, que ningún dotfile exporta. Muere en el primer target
+   (`lint`) y el rojo parece del cambio.
+2. **`test_uv_se_convierte_a_uv_bin` falla solo en local** si falta `TMPDIR=/tmp`: el `tmp_path` de pytest cae
+   dentro de `$HOME/.hermes/cache/scratch` (el `TMPDIR` que exporta Hermes) y el test afirma que el wrapper no
+   lleva rutas absolutas de home. Se ve igual en `main` limpio: es el entorno del operador, no el test.
+3. **`/tmp` es tmpfs de 2.6 GB** y va por el 80 %: un clon desechable ahí con `uv run` dentro falla al construir
+   su `.venv` (`Disk quota exceeded (os error 122)`), y el smoke parece roto. Los clones de prueba van al
+   scratch de Hermes (`$TMPDIR`), no a `/tmp`.
+
 **Pitfall — PR manual: el `(#N)` se pierde (y el emoji delante rompe CI).** `bin/gh-pr` arma el título con el
 del issue + ` (#N)` y el body con `Closes #N`; `gh pr create` a mano no añade ninguno de los dos. El sufijo
 `(#N)` no lo exige ningún workflow, pero el **tipo conventional sí** (`commitlint` en `hygiene.yml`, regex
