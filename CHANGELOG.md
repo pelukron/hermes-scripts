@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.6 (2026-09-23)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`56c409a`](https://github.com/pelukron/hermes-scripts/commit/56c409a366a9ad2badedd60eb2ab45536070adbd))
+
+### 📝 Docs
+
+- Cómo dar de baja un job extra que no está en el manifiesto
+  ([#275](https://github.com/pelukron/hermes-scripts/pull/275),
+  [`34fad8e`](https://github.com/pelukron/hermes-scripts/commit/34fad8e8a69984fddb0d4c12f93e1c022cb70d22))
+
+- Cómo dar de baja un job extra que no está en el manifiesto
+  ([`b5737e2`](https://github.com/pelukron/hermes-scripts/commit/b5737e251ba8a17af4925d615b5fd32b4cbfc586))
+
+
 ## v0.16.5 (2026-09-23)
 
 ### 📦 Chores
