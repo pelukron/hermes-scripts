@@ -68,6 +68,14 @@ bin/install-cron.sh --check     # sólo deben quedar los extras como info
   su `schedule.expr` y `next_run_at`. `hermes cron list` es la vista cómoda, no la fuente.
 - `--check` lista los jobs que existen en Hermes y no están en el manifiesto como info: **no los
   borra** (quedan one-shots viejos). Decírselo al usuario, no limpiarlos por cuenta propia.
+- **Un extra se da de baja con `hermes cron remove <id>`, no con el instalador.** `bin/install-cron.sh
+  --remove NAME` sólo acepta nombres del manifiesto y con un extra contesta
+  `ERROR: no hay job llamado '<name>' en el manifiesto`. Antes de borrar, mirar su estado: `state: completed`,
+  `enabled: false`, `next_run_at: null` = one-shot cumplido, es basura; `enabled: true` con `next_run_at`
+  futuro es un job vivo y no se toca. Orden que no pierde historia: respaldar su entrada de
+  `~/.hermes/cron/jobs.json`, su wrapper de `~/.hermes/scripts/<job>.sh` y el output de
+  `~/.hermes/cron/output/<id>/`; `hermes cron remove <id>`; borrar el wrapper huérfano. DoD:
+  `bin/install-cron.sh --check` en **rc=0** con «Sin drift: wrappers y jobs coinciden con el manifiesto».
 - **Prueba e2e del job nuevo, con el entorno del cron — no con tu shell.** Correr el wrapper a pelo
   (`~/.hermes/scripts/<job>.sh`) sale exit 0 porque tu PATH trae `uv` y `~/.hermes/bin`; el del gateway no, así que
   el job muere a su hora programada (`FileNotFoundError: 'uv'`, #254: dos jobs a la primera). El comando que sí
