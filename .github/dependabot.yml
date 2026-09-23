@@ -8,6 +8,11 @@ updates:
     labels:
       - "📦 bump"
       - "🤖 automation"
+    # 10.6.2 exige click~=8.1.0 y choca con click>=8.3.3 (PYSEC-2026-2132).
+    # Solo esa version: una posterior puede entrar si abre el rango de click.
+    ignore:
+      - dependency-name: "python-semantic-release"
+        versions: ["10.6.2"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
