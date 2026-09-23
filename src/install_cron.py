@@ -992,7 +992,8 @@ def smoke_env(repo: Path, sandbox: Path, home: Path) -> dict[str, str]:
         "PATH": SMOKE_PATH,
         "HERMES_HOME": str(sandbox),
         "HERMES_SCRIPTS_DIR": str(repo),
-        "TMPDIR": "/tmp",
+        # B108: el sandbox del cron necesita un TMPDIR real y estable.
+        "TMPDIR": "/tmp",  # nosec B108
     }
 
 
