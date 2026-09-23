@@ -11,6 +11,7 @@ Modos::
 
     python src/install_cron.py --dry-run      # plan, sin escribir nada
     python src/install_cron.py --check        # deseado vs real; exit 1 si hay drift
+    python src/install_cron.py --smoke        # arranca cada no_agent en sandbox
     python src/install_cron.py --expectations # qué debía correr hoy y no corrió
     python src/install_cron.py                # aplica
 
@@ -27,6 +28,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import tomllib
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -688,6 +690,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="qué debía correr hoy y no corrió (corridas y entregas); silencio si todo OK",
     )
+    parser.add_argument(
+        "--smoke",
+        action="store_true",
+        help="corre cada job no_agent en un sandbox; no escribe en el estado real",
+    )
     return parser
 
 
@@ -964,6 +971,86 @@ def run_check(ctx: RunContext) -> int:
     return 0
 
 
+# Mutan de verdad. Mismo criterio que la deny-list del canary (#257).
+SMOKE_DENY = frozenset(
+    {
+        "backup-diario",
+        "cleanup-housekeeping",
+        "runtime-sync",
+        "sync-runtime",
+    }
+)
+SMOKE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+SMOKE_MAX_LINES = 8
+SMOKE_TIMEOUT = 300
+
+
+def smoke_env(repo: Path, sandbox: Path, home: Path) -> dict[str, str]:
+    """Entorno mínimo de cron: HOME real (ahí está uv), estado y repo explícitos."""
+    return {
+        "HOME": str(home),
+        "PATH": SMOKE_PATH,
+        "HERMES_HOME": str(sandbox),
+        "HERMES_SCRIPTS_DIR": str(repo),
+        # B108: el sandbox del cron necesita un TMPDIR real y estable.
+        "TMPDIR": "/tmp",  # nosec B108
+    }
+
+
+def _smoke_subprocess(argv: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        argv,
+        cwd=env.get("HERMES_SCRIPTS_DIR") or None,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=SMOKE_TIMEOUT,
+    )
+
+
+def run_smoke(ctx: RunContext, runner=None) -> int:
+    """Arranca cada no_agent en un sandbox. 1 si alguno sale distinto de 0.
+
+    No toca ``ctx.hermes_home``: el estado va a un temporal. HOME sigue siendo
+    el del operador para resolver ``~/.hermes/bin/uv``. Sin el flag, nada de esto corre.
+    """
+    ejecutar = runner or _smoke_subprocess
+    sandbox = Path(tempfile.mkdtemp(prefix="install-cron-smoke-"))
+    scripts = sandbox / "scripts"
+    scripts.mkdir()
+    env = smoke_env(ctx.repo, sandbox, Path.home())
+    fallos = 0
+    try:
+        for job in ctx.jobs:
+            if not job.is_no_agent:
+                print(f"{job.name}: omitido (agent)")
+                continue
+            if job.name in SMOKE_DENY:
+                print(f"{job.name}: omitido (muta)")
+                continue
+            if not job.enabled:
+                print(f"{job.name}: omitido (pausado)")
+                continue
+            wrapper = scripts / (job.wrapper or f"{job.name}.sh")
+            wrapper.write_text(render_wrapper(job, ctx.repo), encoding="utf-8")
+            try:
+                proc = ejecutar(["bash", str(wrapper)], env)
+            except (OSError, subprocess.SubprocessError) as exc:
+                print(f"{job.name}: rc=1")
+                print(f"  {exc}")
+                fallos += 1
+                continue
+            print(f"{job.name}: rc={proc.returncode}")
+            texto = "\n".join(parte for parte in (proc.stdout, proc.stderr) if parte)
+            for linea in texto.splitlines()[:SMOKE_MAX_LINES]:
+                print(f"  {linea}")
+            if proc.returncode != 0:
+                fallos += 1
+    finally:
+        shutil.rmtree(sandbox, ignore_errors=True)
+    return 1 if fallos else 0
+
+
 def run_apply(ctx: RunContext) -> int:
     """Modo por defecto (+ --dry-run): avisa requires, planea o aplica."""
     args, jobs = ctx.args, ctx.jobs
@@ -1027,6 +1114,8 @@ def main(argv: list[str] | None = None) -> int:
         ctx = prepare_run(args)
     except _AbortError as exc:
         return exc.rc
+    if args.smoke:
+        return run_smoke(ctx)
     if not args.quiet:
         print(f"Manifiesto OK: {len(ctx.jobs)} job(s) ({ctx.repo})")
     if args.check:

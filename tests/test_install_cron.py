@@ -177,6 +177,61 @@ class TestRenderWrapper:
         assert proc.returncode == 0, proc.stderr
         assert "uv resuelto: run python -m demo --help" in proc.stdout
 
+    def test_exporta_el_path_del_uv(self, tmp_path):
+        """El hijo hereda el directorio de UV_BIN: si no, `uv` por nombre no existe (#257)."""
+        content = ic.render_wrapper(no_agent_job(), tmp_path)
+        assert 'export PATH="$(dirname "$UV_BIN"):$PATH"' in content
+
+    def test_el_hijo_encuentra_uv_aunque_el_path_no_lo_traiga(self, tmp_path):
+        bash = _bash_usable()
+        if bash is None:
+            pytest.skip("bash no disponible")
+        home = tmp_path / "home"
+        uv = home / ".hermes" / "bin" / "uv"
+        uv.parent.mkdir(parents=True)
+        uv.write_text("#!/bin/sh\necho uv-ok\n", encoding="utf-8")
+        uv.chmod(0o755)
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "child.sh").write_text("#!/bin/sh\nuv\n", encoding="utf-8")
+        wrapper = tmp_path / "demo.sh"
+        wrapper.write_text(
+            ic.render_wrapper(no_agent_job(command="bash child.sh"), repo),
+            encoding="utf-8",
+        )
+        proc = subprocess.run(
+            [bash, _posix(wrapper)],
+            capture_output=True,
+            text=True,
+            env={
+                "HOME": _posix(home),
+                "PATH": "/usr/bin:/bin",
+                "HERMES_SCRIPTS_DIR": _posix(repo),
+            },
+            timeout=30,
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert "uv-ok" in proc.stdout
+
+
+def _posix(path: Path) -> str:
+    """Ruta que bash de Git entiende: `/c/...` en Windows, tal cual en Linux."""
+    text = path.resolve().as_posix()
+    if len(text) >= 2 and text[1] == ":":
+        return f"/{text[0].lower()}{text[2:]}"
+    return text
+
+
+def _bash_usable() -> str | None:
+    """`bash` del PATH, salvo el stub de WSL que no arranca en esta máquina."""
+    candidatos = [shutil.which("bash") or "", r"C:\Program Files\Git\bin\bash.exe"]
+    for candidato in candidatos:
+        if not candidato or "WindowsApps" in candidato.replace("/", "\\"):
+            continue
+        if Path(candidato).is_file():
+            return candidato
+    return None
+
 
 class TestValidateManifest:
     """Reglas del manifiesto."""
@@ -826,6 +881,69 @@ def agent_job(**overrides) -> "ic.Job":
         provider="deepseek",
         **overrides,
     )
+
+
+class TestSmoke:
+    """--smoke corre no_agent en sandbox y no toca el estado real (#257)."""
+
+    def test_omite_deny_list_y_no_escribe_en_el_home_real(self, tmp_path, capsys):
+        repo = tmp_path / "repo"
+        real = tmp_path / "real"
+        write_manifest(
+            repo,
+            [
+                demo_manifest_job(command="bash child.sh"),
+                demo_manifest_job(
+                    name="backup-diario",
+                    wrapper="backup-diario.sh",
+                    command="uv run backup-diario",
+                ),
+                {
+                    "name": "agente",
+                    "schedule": "0 9 * * *",
+                    "mode": "agent",
+                    "deliver": "origin",
+                    "prompt": "hola",
+                },
+            ],
+        )
+        sentinel = real / "cron" / "jobs.json"
+        sentinel.parent.mkdir(parents=True)
+        sentinel.write_text("intacto", encoding="utf-8")
+        vistos: list[dict[str, str]] = []
+
+        def runner(argv, env):
+            vistos.append(env)
+            assert env["HERMES_HOME"] != str(real)
+            assert env["HOME"] == str(Path.home())
+            assert env["PATH"] == ic.SMOKE_PATH
+            assert env["HERMES_SCRIPTS_DIR"] == str(repo)
+            return subprocess.CompletedProcess(argv, 0, "ok\n", "")
+
+        args = ic.build_parser().parse_args(base_args(repo, real, "--smoke"))
+        ctx = ic.prepare_run(args)
+        code = ic.run_smoke(ctx, runner=runner)
+        out = capsys.readouterr().out
+        assert code == 0
+        assert len(vistos) == 1
+        assert "demo: rc=0" in out
+        assert "backup-diario: omitido (muta)" in out
+        assert "agente: omitido (agent)" in out
+        assert sentinel.read_text(encoding="utf-8") == "intacto"
+
+    def test_un_fallo_deja_rc_1(self, tmp_path, capsys):
+        repo = tmp_path / "repo"
+        write_manifest(repo, [demo_manifest_job(command="bash child.sh")])
+
+        def runner(argv, env):
+            return subprocess.CompletedProcess(argv, 3, "", "boom")
+
+        args = ic.build_parser().parse_args(base_args(repo, tmp_path / "real", "--smoke"))
+        code = ic.run_smoke(ic.prepare_run(args), runner=runner)
+        out = capsys.readouterr().out
+        assert code == 1
+        assert "demo: rc=3" in out
+        assert "boom" in out
 
 
 class TestArgvContraElCLI:
