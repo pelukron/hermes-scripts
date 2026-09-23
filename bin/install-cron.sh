@@ -4,6 +4,7 @@
 # Uso:
 #   bin/install-cron.sh --dry-run     # muestra el plan, no escribe nada
 #   bin/install-cron.sh --check       # deseado vs real; exit 1 si hay drift
+#   bin/install-cron.sh --smoke       # arranca cada no_agent en sandbox
 #   bin/install-cron.sh               # aplica wrappers + jobs (idempotente)
 #   bin/install-cron.sh --only backup-diario
 #
