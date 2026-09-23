@@ -14,7 +14,7 @@
 | **skill del sistema** | Skill cuyo contrato vive en este repo: se versiona en `skills/` y el despliegue se enlaza con symlink al clon declarado, vigilado por el job `runtime-sync`. |
 | **skill independiente** | Skill que este despliegue necesita pero el repo **no** versiona (consejo reutilizable, sin datos del despliegue): se declara en `config/skills.json` y `bin/check-skills.sh` avisa si falta. |
 | **skill de contrato de otro repo** | Skill atada a un despliegue ajeno (datos, umbrales, canales): se queda con su repo. Criterio y frontera: ADR 0003. |
-| **canary** | Job `no_agent` que ejecuta entrypoints en sandbox y afirma `rc=0` + huella del estado real. No es el job de producción. _Avoid_: canario (nombre de artefacto). |
+| **canary** | Job `no_agent` que ejecuta entrypoints en sandbox y afirma `rc=0` + huella de lo que los jobs poseen (manifiesto sin el libro de runtime, wrappers en `scripts/`, enlaces de skills declarados). No es el job de producción. _Avoid_: canario (nombre de artefacto). |
 | **observer** | Job `no_agent` que declara el estado del día: qué debía correr y si entregó. No repara. _Avoid_: observador (nombre de artefacto). |
 | **delivery budget** | Tope de lo que Telegram entrega fiable: **un mensaje** (<4096 unidades UTF-16). Por encima, el PR es rojo. _Avoid_: 2 chunks, 8 KB, presupuesto de 6 KB. |
 | **sandbox / hermetic** | Corrida cuyo estado sustituido (`$HERMES_HOME` vía `state_dir()`) no toca producción. Sustituir `HOME` entero está rechazado (ADR 0004). |

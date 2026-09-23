@@ -1,18 +1,20 @@
 """cron-canary — suite sintética nocturna de entrypoints (#218).
 
-Corre la allow-list con ``HERMES_HOME`` temporal, afirma que el estado real
-no cambió, y (si hay token) manda un payload de 1 mensaje a Telegram.
+Corre la allow-list con ``HERMES_HOME`` temporal, afirma que lo que los jobs
+poseen no cambió, y (si hay token) manda un payload de 1 mensaje a Telegram.
 Silencioso si todo está verde. ``no_agent``, 0 tokens.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from hermes_common import report_failure, state_dir, uv_bin
 
@@ -43,25 +45,149 @@ def utf16_len(text: str) -> int:
     return len(text.encode("utf-16-le")) // 2
 
 
-def fingerprint(root: Path) -> str:
-    """Huella del estado: archivos bajo root, menos logs/ y los sidecars de SQLite.
+# Libro que Hermes reescribe al guardar o al cerrar una corrida (cron/jobs.py:
+# save_jobs sella updated_at; mark_job_run sella estado, claims y repeat.completed).
+# No es la definición del job. #258
+_CLAVES_DE_LATIDO = frozenset(
+    {
+        "updated_at",
+        "last_run_at",
+        "next_run_at",
+        "last_status",
+        "last_error",
+        "last_delivery_error",
+        "last_delivery_unverified",
+        "failure_streak",
+        "fire_claim",
+        "run_claim",
+        "pending_slot",
+        "last_fire_error",
+        "state",
+        "completed",
+        "manual_run_at",
+        "manual_run_prompt",
+    }
+)
 
-    Los `-shm`/`-wal` de una DB viva aparecen y desaparecen mientras Hermes la usa: no son
-    estado, y contarlos dejaría la huella inestable. Y un archivo que se esfuma entre listarlo
-    y leerlo tampoco puede romper la corrida (#241).
+
+def _sin_latido(node: Any) -> Any:
+    """Quita el libro de runtime: el ticker lo reescribe aunque el job no cambie (#258)."""
+    if isinstance(node, dict):
+        return {
+            clave: _sin_latido(valor)
+            for clave, valor in node.items()
+            if clave not in _CLAVES_DE_LATIDO
+        }
+    if isinstance(node, list):
+        return [_sin_latido(valor) for valor in node]
+    return node
+
+
+def _bytes_manifiesto(path: Path) -> bytes:
+    """Manifiesto canónico. Si no es JSON, los bytes crudos: una corrupción también muta."""
+    crudo = path.read_bytes()
+    try:
+        data = json.loads(crudo)
+    except json.JSONDecodeError:
+        return crudo
+    return json.dumps(_sin_latido(data), sort_keys=True, separators=(",", ":")).encode()
+
+
+def _clave_de(path: Path, root: Path) -> bytes:
+    """Ruta que entra en la huella: relativa a root, o absoluta si el enlace vive fuera."""
+    try:
+        return path.relative_to(root).as_posix().encode()
+    except ValueError:
+        return path.as_posix().encode()
+
+
+def _pieza(path: Path, root: Path, datos: bytes) -> tuple[bytes, bytes]:
+    return _clave_de(path, root), datos
+
+
+def _pieza_manifiesto(path: Path, root: Path) -> tuple[bytes, bytes] | None:
+    try:
+        return _pieza(path, root, _bytes_manifiesto(path))
+    except FileNotFoundError:
+        return None
+
+
+def _pieza_archivo(path: Path, root: Path) -> tuple[bytes, bytes] | None:
+    try:
+        return _pieza(path, root, path.read_bytes())
+    except FileNotFoundError:
+        return None
+
+
+def _leer_enlace(path: Path, root: Path) -> tuple[bytes, bytes]:
+    """Identidad del enlace, no el cuerpo del skill: ese vive en el clon y lo mueve runtime-sync."""
+    clave = _clave_de(path, root)
+    try:
+        if path.is_symlink():
+            return clave, os.readlink(path).encode()
+        if path.is_file():
+            return clave, path.read_bytes()
+    except (FileNotFoundError, OSError):
+        return clave, b"absent"
+    return clave, b"absent"
+
+
+def _enlaces_declarados(root: Path) -> list[Path]:
+    """Symlinks de config/runtime-clones.json, reubicados bajo ``root``."""
+    config = Path(__file__).resolve().parent.parent / "config" / "runtime-clones.json"
+    data = json.loads(config.read_text(encoding="utf-8"))
+    hogar = Path.home() / ".hermes"
+    rutas: list[Path] = []
+    for clon in data.get("clones") or []:
+        for link in clon.get("links") or []:
+            texto = link.get("path") or ""
+            if not texto:
+                continue
+            expandido = Path(texto).expanduser()
+            try:
+                rutas.append(root / expandido.relative_to(hogar))
+            except ValueError:
+                rutas.append(expandido)
+    return sorted(rutas)
+
+
+def _piezas(root: Path) -> list[tuple[bytes, bytes]]:
+    """Manifiesto normalizado, wrappers y enlaces declarados. Nada más."""
+    piezas: list[tuple[bytes, bytes]] = []
+    manifiesto = root / "cron" / "jobs.json"
+    if manifiesto.is_file():
+        leido = _pieza_manifiesto(manifiesto, root)
+        if leido is not None:
+            piezas.append(leido)
+    scripts = root / "scripts"
+    if scripts.is_dir():
+        for path in sorted(p for p in scripts.rglob("*") if p.is_file()):
+            leido = _pieza_archivo(path, root)
+            if leido is not None:
+                piezas.append(leido)
+    for path in _enlaces_declarados(root):
+        piezas.append(_leer_enlace(path, root))
+    return piezas
+
+
+def fingerprint(root: Path) -> str:
+    """Huella de lo que los jobs poseen (#258).
+
+    Cubre el manifiesto desplegado (``cron/jobs.json`` sin el libro de runtime:
+    ``updated_at``, ``last_run_at``, ``next_run_at``, estado y claims), los
+    wrappers de ``scripts/`` y el destino de los enlaces
+    de skills declarados. El ticker, los heartbeats, ``cron/output/`` y el
+    resto del runtime quedan fuera: mutan solos mientras Hermes está vivo.
+    Un archivo que se esfuma entre listarlo y leerlo no rompe la corrida (#241).
     """
     digest = hashlib.sha256()
     if not root.is_dir():
         return digest.hexdigest()
-    for path in sorted(p for p in root.rglob("*") if p.is_file()):
-        if "logs" in path.parts or path.name.endswith(("-shm", "-wal")):
-            continue
-        try:
-            datos = path.read_bytes()
-        except FileNotFoundError:
-            continue
-        digest.update(path.relative_to(root).as_posix().encode())
+    for clave, datos in sorted(_piezas(root), key=lambda pieza: pieza[0]):
+        digest.update(clave)
+        digest.update(b"\0")
         digest.update(datos)
+        digest.update(b"\0")
     return digest.hexdigest()
 
 

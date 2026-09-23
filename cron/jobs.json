@@ -159,7 +159,7 @@
     },
     {
       "name": "cron-canary",
-      "description": "Canary sintético: allow-list de entrypoints en sandbox, huella del estado real, payload de 1 mensaje. Silencioso si verde.",
+      "description": "Canary sintético: allow-list de entrypoints en sandbox, huella de lo que los jobs poseen, payload de 1 mensaje. Silencioso si verde.",
       "schedule": "30 2 * * *",
       "wrapper": "cron-canary.sh",
       "command": "uv run python src/cron_canary.py",
