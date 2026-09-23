@@ -74,7 +74,10 @@ que rompía el enlace, no el chunker.
 - Riesgo aceptado: una corrida con muchos titulares largos puede dar 3 chunks. `nota_de_recorte()`
   declara qué secciones quedaron fuera; un mensaje mutilado es peor que tres completos.
 - Una sección puede quedar partida entre dos mensajes (el corte es en `\n`). Aceptado: el diario se
-  lee, no se referencia.
+  lee, no se referencia. Medido en el reporte arreglado: el mensaje 1 termina en `• *Wired* (1/2)` y su
+  titular abre el mensaje 2 — el bullet queda huérfano de su item. Es inherente a que el corte lo haga
+  la capa de entrega y no el generador; se entiende al leer los mensajes seguidos, y juntar bullet y
+  titular en la misma línea empeoraría la lectura del caso normal (un bullet con un solo item).
 - Todo lo demás de ADR 0004 (capas CI/server, sandbox `$HERMES_HOME`, deny-list del canary) sigue
   vigente.
 - **Pendiente, fuera de este PR**: el sello `version_footer()` sigue emitiendo `_hermes-scripts vX_`,
