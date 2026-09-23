@@ -29,13 +29,17 @@ log = logging.getLogger("hermes")
 ITEMS_POR_FUENTE = 3
 MAX_CHARS_POR_SUBSECCION = news_utils.TELEGRAM_MAX_CHARS
 
-# Presupuesto de entrega (#212, medido 2026-09-18): el sender de Telegram corta a
-# 4096 unidades UTF-16 por mensaje. Con 2 chunks el corte parte un enlace por la
-# mitad y Telegram RECHAZA el markdown de ese chunk: se entrega como texto plano y
-# quedan a la vista las URLs de Google News (~200 chars). Con 1 chunk el render es
-# limpio, así que el techo es un solo mensaje. Títulos y paréntesis van acotados.
-MAX_CHARS_REPORTE = 3200
+# Presupuesto de entrega (#278, medido 2026-09-23): el chunker de Hermes
+# (gateway/platforms/base.py `truncate_message`) parte en el último '\n' del bloque, así que
+# mientras NINGUNA LÍNEA pase del tope, un enlace no puede quedar partido. Eso permite volver a
+# un reporte de varias tomas por sección: #212 lo había capado a 3200 (un mensaje) y ese techo es
+# lo que forzó el `smart_truncate` que cortaba a mitad de la URL de Google News (208-244 chars).
+# Medición: 1 mensaje = 3144 u16 con 6/10 enlaces reconocidos; el reporte rico de 2 mensajes
+# (6119 u16) entrega 36/36. Presupuesto por MENSAJE, no por corrida.
+MAX_CHARS_REPORTE = 7100
 RESERVA_FUERA_DE_SECCIONES = 600
+# Tope de una línea emitida: 4096 (Telegram) − marco del cron (~200) − indicador de chunk (10).
+MAX_CHARS_LINEA = 3800
 # Una sección por debajo de esto no vale el viaje: encabezado + nombre de fuente
 # + un item con su link. Si lo que queda del presupuesto no llega, la sección se
 # omite SIN pedir sus fuentes (ahorra red en la cola del reporte).
@@ -52,6 +56,7 @@ __all__ = [
     "ITEMS_POR_FUENTE",
     "MAX_CHARS_POR_SUBSECCION",
     "MAX_CHARS_REPORTE",
+    "MAX_CHARS_LINEA",
     "MAX_CHARS_TITULO",
     "RESERVA_FUERA_DE_SECCIONES",
     "build_subsection_block",
@@ -244,44 +249,65 @@ def build_subsection_block(
     sources: list,
     fetched: list,
     seen_urls: set,
+    cuota: int | None = None,
 ) -> str:
-    """Arma el bloque Markdown de una subsección.
+    """Arma el bloque Markdown de una subsección, acotado a `cuota` caracteres.
 
-    Toma hasta ITEMS_POR_FUENTE por fuente (top por fecha), omite URLs
-    ya vistas en el run (dedupe cross-sección) y acota el bloque a
-    MAX_CHARS_POR_SUBSECCION vía smart_truncate.
+    Toma hasta ITEMS_POR_FUENTE por fuente (top por fecha), omite URLs ya vistas en
+    el run (dedupe cross-sección) y recorta **por item completo**: el bullet de una
+    fuente es indivisible de su primer item y ninguna línea se parte por la mitad.
+    Partir una línea caía dentro de la URL de Google News (208-244 chars) y dejaba el
+    enlace sin cerrar; Telegram lo entregaba como texto plano, con la URL a la vista
+    (#278: 4 de 10 enlaces así).
+
+    Un item que no cupo NO se marca como visto: puede salir en una sección siguiente
+    si allí queda presupuesto.
 
     Args:
         sub_name: Nombre de la subsección (cabecera en itálicas).
         sources: Lista de (nombre, url).
         fetched: Lista de items por fuente, mismo orden que sources.
-        seen_urls: Set de URLs ya emitidas; se actualiza in-place.
+        seen_urls: Set de URLs ya emitidas; se actualiza in-place con lo que sí se emite.
+        cuota: Presupuesto de caracteres del bloque, cabecera incluida.
 
     Returns:
-        str: Bloque Markdown o "" si no hay contenido nuevo.
+        str: Bloque Markdown, o "" si no cabe ni un item.
     """
-    sub_lines = [f"_{sin_parentesis(sub_name)}_"]
-    has_content = False
+    tope = MAX_CHARS_POR_SUBSECCION if cuota is None else cuota
+    encabezado = f"*{sin_parentesis(sub_name)}*"
+    lineas = [encabezado]
+    usado = len(encabezado) + 1
     for (source_name, _url), items in zip(sources, fetched):
-        new_lines = []
+        bullet = f"• *{sin_parentesis(source_name)}*"
+        candidatos = []
         for title, link in (items or [])[:ITEMS_POR_FUENTE]:
             clean_link = escape_link(link)
             if clean_link in seen_urls:
                 continue
-            seen_urls.add(clean_link)
             titulo = smart_truncate(sin_parentesis(clean_title(title)), limit=MAX_CHARS_TITULO)
-            new_lines.append(f"  [{titulo}]({clean_link})")
-        if new_lines:
-            has_content = True
-            sub_lines.append(f"• *{sin_parentesis(source_name)}*")
-            sub_lines.extend(new_lines)
-    if not has_content:
-        return ""
-    return smart_truncate("\n".join(sub_lines), limit=MAX_CHARS_POR_SUBSECCION)
+            candidatos.append((f"  [{titulo}]({clean_link})", clean_link))
+        if not candidatos:
+            continue
+        # El bullet viaja con su primer item; los siguientes entran de uno en uno.
+        gastado = usado + len(bullet) + 1 + len(candidatos[0][0]) + 1
+        if gastado > tope:
+            continue
+        emitidos = [candidatos[0]]
+        for candidato in candidatos[1:]:
+            if gastado + len(candidato[0]) + 1 > tope:
+                break
+            emitidos.append(candidato)
+            gastado += len(candidato[0]) + 1
+        lineas.append(bullet)
+        for linea, url in emitidos:
+            lineas.append(linea)
+            seen_urls.add(url)
+        usado = gastado
+    return "\n".join(lineas) if len(lineas) > 1 else ""
 
 
 def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE):
-    """Emite las secciones que caben en el presupuesto de entrega (#212).
+    """Emite las secciones que caben en el presupuesto de entrega (#212, #278).
 
     Args:
         feeds: salida de `load_feeds()`.
@@ -292,11 +318,11 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE):
 
     Returns:
         list[str]: nombres de las secciones omitidas, en orden de aparición.
-            El presupuesto se reparte en una cuota por sección (no es
-            primero-llega-se-lo-lleva: la primera sección no puede dejar sin
-            espacio a las demás). Una sección cuyo texto se trunca a la cuota
-            sí se emite; solo se omite si lo que queda del presupuesto no llega
-            para el mínimo, y en ese caso no se piden sus fuentes (ahorra red).
+            El presupuesto se reparte en una cuota por sección y, dentro de la sección,
+            en una cuota por subsección que se redistribuye entre las que faltan: sin ese
+            reparto la primera subsección se come el techo y los demás encuadres no salen
+            —así se entregaba el 2026-09-23, con solo `Mainstream / Wires` publicado—.
+            Una sección cuyo contenido no cabe se omite y sus fuentes no se piden.
     """
     seen_urls: set = set()
     usado = 0
@@ -307,20 +333,24 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE):
         if restante < MIN_CHARS_SECCION:
             omitidas.append(section_name)
             continue
-        section_lines = [f"**{section_name}**"]
-        section_has_content = False
-        for sub_name, sources in subsections:
+        encabezado = f"**{section_name}**"
+        disponible = min(cuota, restante) - len(encabezado) - 1
+        section_lines = [encabezado]
+        for indice, (sub_name, sources) in enumerate(subsections):
+            cuota_sub = disponible // (len(subsections) - indice)
+            if cuota_sub <= 0:
+                continue
             fetched = fetch(sources)
-            block = build_subsection_block(sub_name, sources, fetched, seen_urls)
+            block = build_subsection_block(sub_name, sources, fetched, seen_urls, cuota=cuota_sub)
             if block:
                 section_lines.append(block)
-                section_has_content = True
-        if not section_has_content:
+                disponible -= len(block) + 1
+        if len(section_lines) == 1:
             continue
-        texto = smart_truncate("\n".join(section_lines), limit=min(cuota, restante))
+        texto = "\n".join(section_lines)
         emit(texto)
         emit("")
-        usado += len(texto)
+        usado += len(texto) + 1
         time.sleep(1)
     return omitidas
 
@@ -336,7 +366,7 @@ def nota_de_recorte(omitidas):
 def main():
     setup_logging()
     log.info(
-        f"🪨 **DIARIO GLOBAL HERMES** 🪨\n_Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}_\n"
+        f"🪨 **DIARIO GLOBAL HERMES** 🪨\n*Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}*\n"
     )
     time.sleep(0.5)
 
@@ -359,7 +389,7 @@ def main():
             if _stats.fail > 5:
                 failed_list += f" +{_stats.fail - 5} más"
             footer_line += f" {_stats.fail} fallos: {failed_list}"
-        footer_line += "_\n"
+        footer_line += "\n"
         footer_line += version_footer() + "\n"
         log.info(footer_line)
         time.sleep(1)

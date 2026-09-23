@@ -4,6 +4,7 @@ import importlib.util  # noqa: E402
 import os
 import sys
 import threading
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 # Add script dir to path para importar
@@ -336,7 +337,9 @@ class TestNoticieroGlobal:
         ):
             block = mod.build_subsection_block("Subs", sources, fetched, set())
         assert len(block) <= 300
-        assert block.endswith("...")
+        # #278: el bloque termina en un item completo, no en '...' (el recorte es por item,
+        # no por carácter: antes cortaba a mitad de la URL y dejaba el enlace sin cerrar).
+        assert block.rstrip().splitlines()[-1].endswith(")")
 
     def test_dedupe_cross_seccion(self):
         seen: set = set()
@@ -446,11 +449,12 @@ class TestPresupuestoDeEntrega:
         assert "SECCIÓN C" in nota and "SECCIÓN D" in nota
         assert "mañana" in nota
 
-    def test_el_presupuesto_cabe_en_un_solo_mensaje(self):
-        # Medido (#212): con 2 chunks, el corte a 4096 unidades UTF-16 parte un
-        # enlace y Telegram rechaza el markdown de ese chunk (texto plano con las
-        # URLs a la vista). Con 1 chunk el render es limpio.
-        assert mod.MAX_CHARS_REPORTE + mod.RESERVA_FUERA_DE_SECCIONES <= 4000
+    def test_el_reporte_cabe_en_dos_mensajes(self):
+        # Medido (#278): el chunker de Hermes (gateway/platforms/base.py `truncate_message`)
+        # corta en el último '\n' del bloque, así que el techo es por MENSAJE y no por corrida.
+        # #212 había fijado 1 mensaje (3200) y ese techo forzó el corte que rompió el diseño.
+        # 2 mensajes de 4096 menos el marco del cron (~200) y el indicador de chunk (10).
+        assert mod.MAX_CHARS_REPORTE + mod.RESERVA_FUERA_DE_SECCIONES <= 2 * 4096 - 300
 
 
 class TestTituloDeItem:
@@ -505,3 +509,117 @@ class TestTituloDeItem:
 
     def test_sin_parentesis_no_toca_lo_demas(self):
         assert mod.sin_parentesis("Inflación (+2.1%) en México") == "Inflación +2.1% en México"
+
+
+# ═══════════════════════════════════════════
+# Diseño del diario (#278): el recorte es por item, no por carácter
+# ═══════════════════════════════════════════
+
+URL_GOOGLE_NEWS = "https://news.google.com/rss/articles/CBMi" + "A" * 220
+
+
+def _enlaces_abiertos(texto):
+    from hermes_common import markdown_v2_link_issues
+
+    return markdown_v2_link_issues(texto)
+
+
+def _lineas_colgadas(texto):
+    return [linea for linea in texto.splitlines() if linea.rstrip().endswith("...")]
+
+
+class TestRecortePorItem:
+    """Con la URL de Google News (241 chars), cortar por carácter partía el enlace."""
+
+    @staticmethod
+    def _bloque(cuota, fuentes=("Reuters", "AP")):
+        sources = [(nombre, "http://rss") for nombre in fuentes]
+        fetched = [
+            [(f"Titular {i} de {nombre}", f"{URL_GOOGLE_NEWS}{nombre}{i}") for i in range(2)]
+            for nombre in fuentes
+        ]
+        return mod.build_subsection_block("Wires", sources, fetched, set(), cuota=cuota)
+
+    def test_la_cuota_no_parte_enlaces(self):
+        bloque = self._bloque(400)
+        assert _enlaces_abiertos(bloque) == []
+        assert _lineas_colgadas(bloque) == []
+
+    def test_no_emite_bullet_de_fuente_sin_items(self):
+        bloque = self._bloque(400)
+        assert bloque.strip().splitlines()[-1].startswith("  ["), bloque
+
+    def test_cuota_minima_no_emite_nada_en_vez_de_medio_item(self):
+        assert self._bloque(120) == ""
+
+    def test_un_item_que_no_cupo_no_se_marca_como_visto(self):
+        vistos: set = set()
+        sources = [("Reuters", "http://rss")]
+        fetched = [
+            [(f"Titular {i}", f"{URL_GOOGLE_NEWS}{i}") for i in range(2)],
+        ]
+        mod.build_subsection_block("Wires", sources, fetched, vistos, cuota=120)
+        assert vistos == set()
+        mod.build_subsection_block("Wires", sources, fetched, vistos, cuota=400)
+        assert len(vistos) == 1
+
+
+class TestRepartoDeSeccion:
+    """El techo de la sección se reparte: sin reparto la primera subsección se come todo (#278)."""
+
+    def _emitidos(self, presupuesto, subsections=2):
+        subs = [
+            (f"Sub {letra}", [(f"Fuente {letra}", f"http://rss/{letra}")])
+            for letra in "ABCD"[:subsections]
+        ]
+        feeds = [("SECCIÓN", subs)]
+
+        def fetch(sources):
+            return [
+                [(f"Titular {i} de {nombre}", f"{URL_GOOGLE_NEWS}{nombre}{i}") for i in range(3)]
+                for nombre, _ in sources
+            ]
+
+        emitidos: list[str] = []
+        with patch.object(mod.time, "sleep", lambda *_a, **_k: None):
+            omitidas = mod.emitir_secciones(feeds, fetch, emitidos.append, presupuesto=presupuesto)
+        return "\n".join(emitidos), omitidas
+
+    def test_ninguna_subseccion_sale_sin_item_completo(self):
+        texto, _ = self._emitidos(900)
+        lineas = texto.splitlines()
+        for i, linea in enumerate(lineas):
+            if linea.startswith("*Sub "):
+                assert lineas[i + 1].startswith("• *"), lineas[i : i + 3]
+                assert lineas[i + 2].startswith("  [") and lineas[i + 2].endswith(")"), lineas[
+                    i : i + 3
+                ]
+
+    def test_no_parte_enlaces_con_presupuesto_justo(self):
+        texto, _ = self._emitidos(900)
+        assert _enlaces_abiertos(texto) == []
+        assert _lineas_colgadas(texto) == []
+
+    def test_con_presupuesto_amplio_salen_mas_tomas(self):
+        corto, _ = self._emitidos(900)
+        largo, _ = self._emitidos(2400)
+        assert len(largo) > len(corto)
+
+
+class TestDialectoMarkdown:
+    """Hermes escapa `_` en texto plano: las itálicas salen con guiones bajos a la vista.
+
+    Mismo caso en las subsecciones y en el sello de versión (#278).
+    """
+
+    def test_subseccion_usa_asteriscos(self):
+        bloque = mod.build_subsection_block(
+            "Wires", [("Reuters", "http://rss")], [[("Titular", "https://e.com/a")]], set()
+        )
+        assert "*Wires*" in bloque
+        assert "_Wires_" not in bloque
+
+    def test_footer_de_fuentes_sin_underscore_huerfano(self):
+        fuente = Path(__file__).resolve().parent.parent / "src" / "scripts"
+        texto = (fuente / "resumen_noticias_diario.py").read_text(encoding="utf-8")
+        assert 'footer_line += "_\\n"' not in texto
