@@ -136,6 +136,46 @@ class TestRenderWrapper:
         content = ic.render_wrapper(job, tmp_path)
         assert f"HERMES_SCRIPTS_DIR:-{tmp_path}" in content
         assert 'UV_BIN="$HOME/.hermes/bin/uv"' in content
+        assert 'export PATH="$(dirname "$UV_BIN"):$PATH"' in content
+
+    def test_uv_alcanzable_desde_el_smoke(self, tmp_path):
+        """El smoke de un clon corre con `bash -lc`: sin el export, `uv` a secas da rc=127 (#270).
+
+        El PATH del cron no trae `$HOME/.hermes/bin`, asi que el wrapper debe dejar el `uv`
+        que ya resolvio al alcance de sus hijos.
+        """
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        fake_bin = tmp_path / "fakebin"
+        fake_bin.mkdir()
+        fake_uv = fake_bin / "uv"
+        fake_uv.write_text('#!/usr/bin/env bash\necho "uv resuelto: $*"\n', encoding="utf-8")
+        fake_uv.chmod(0o755)
+        job = ic.Job(
+            name="demo",
+            description="demo",
+            schedule="0 9 * * *",
+            mode="no_agent",
+            deliver="origin",
+            enabled=True,
+            wrapper="demo.sh",
+            command="env -u VIRTUAL_ENV uv run python -m demo --help",
+        )
+        wrapper = tmp_path / "demo.sh"
+        wrapper.write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        proc = subprocess.run(
+            ["bash", str(wrapper)],
+            env={
+                "PATH": "/usr/bin:/bin",
+                "HOME": str(tmp_path / "home"),
+                "UV": str(fake_uv),
+                "HERMES_SCRIPTS_DIR": str(repo),
+            },
+            capture_output=True,
+            text=True,
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert "uv resuelto: run python -m demo --help" in proc.stdout
 
     def test_exporta_el_path_del_uv(self, tmp_path):
         """El hijo hereda el directorio de UV_BIN: si no, `uv` por nombre no existe (#257)."""

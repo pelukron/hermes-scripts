@@ -356,6 +356,8 @@ def render_wrapper(job: Job, repo: Path) -> str:
         "fi\n"
         'UV_BIN="${UV:-$(command -v uv || true)}"\n'
         'if [ -z "$UV_BIN" ] || [ ! -x "$UV_BIN" ]; then UV_BIN="$HOME/.hermes/bin/uv"; fi\n'
+        # El smoke de un clon corre con `bash -lc`: sin export, un `uv` a secas no existe
+        # bajo el PATH minimo del cron (#270, rc=127).
         'export PATH="$(dirname "$UV_BIN"):$PATH"\n'
         'cd "$REPO_DIR" || exit 1\n'
         f"{prefix}{command} 2>&1\n"

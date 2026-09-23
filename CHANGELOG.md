@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.3 (2026-09-23)
+
+### 🐛 Fixes
+
+- El smoke de runtime-sync falla con rc=127 bajo el PATH del cron
+  ([#271](https://github.com/pelukron/hermes-scripts/pull/271),
+  [`fd27d50`](https://github.com/pelukron/hermes-scripts/commit/fd27d50f91d716d04e8c6e57fcf4653bdd5d5a13))
+
+- El smoke de runtime-sync falla con rc=127 bajo el PATH del cron
+  ([`7d9d940`](https://github.com/pelukron/hermes-scripts/commit/7d9d9403d0778794512ebd4fa43c38554c70857d))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`332b1e9`](https://github.com/pelukron/hermes-scripts/commit/332b1e92e009d5d4196f96f590cfda8dfac0d001))
+
+
 ## v0.16.2 (2026-09-23)
 
 ### 🐛 Fixes
