@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.2 (2026-09-23)
+
+### 🐛 Fixes
+
+- La huella del canary ignora el latido del gateway
+  ([#268](https://github.com/pelukron/hermes-scripts/pull/268),
+  [`8cb8414`](https://github.com/pelukron/hermes-scripts/commit/8cb8414bbd4a5df8976b05f2c8596f38076f0ee0))
+
+- La huella del canary ignora el latido del gateway
+  ([`3314ef8`](https://github.com/pelukron/hermes-scripts/commit/3314ef8937dffa1f78cde971feadcd0882fb1f3f))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`96625ef`](https://github.com/pelukron/hermes-scripts/commit/96625efeddd3496c4cdae56832078bf286d5bcdf))
+
+
 ## v0.16.1 (2026-09-22)
 
 ### 🐛 Fixes
