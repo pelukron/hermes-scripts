@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.5 (2026-09-23)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`0fc9754`](https://github.com/pelukron/hermes-scripts/commit/0fc97549a9748cb36625e7cf543b8e95ce898dc5))
+
+### 📝 Docs
+
+- Los tres rojos locales del gate (PATH de uv, TMPDIR de pytest y /tmp tmpfs)
+  ([#273](https://github.com/pelukron/hermes-scripts/pull/273),
+  [`1d11d1f`](https://github.com/pelukron/hermes-scripts/commit/1d11d1f565ad0222d0a89882fefecd331e127e6c))
+
+- Los tres rojos locales del gate (PATH de uv, TMPDIR de pytest y /tmp tmpfs)
+  ([`2a90444`](https://github.com/pelukron/hermes-scripts/commit/2a904443130411116b446287b8e5e7c2a45df294))
+
+
 ## v0.16.4 (2026-09-23)
 
 ### 🐛 Fixes
