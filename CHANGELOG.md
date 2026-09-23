@@ -4,6 +4,25 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.4 (2026-09-23)
+
+### 🐛 Fixes
+
+- El sandbox del smoke se libra de B108 con nosec
+  ([`b2b1834`](https://github.com/pelukron/hermes-scripts/commit/b2b1834046af5fea63cbc525239c61b77e320c10))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`015516a`](https://github.com/pelukron/hermes-scripts/commit/015516a02466c414f60a52099374180137155b80))
+
+### 🔧 Infra
+
+- El wrapper exporta el PATH de uv y el instalador puede probar un job
+  ([#269](https://github.com/pelukron/hermes-scripts/pull/269),
+  [`429f790`](https://github.com/pelukron/hermes-scripts/commit/429f79069709d9bbf52d367dbf037406b1c2cc8f))
+
+
 ## v0.16.3 (2026-09-23)
 
 ### 🐛 Fixes
