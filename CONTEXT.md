@@ -16,7 +16,7 @@
 | **skill de contrato de otro repo** | Skill atada a un despliegue ajeno (datos, umbrales, canales): se queda con su repo. Criterio y frontera: ADR 0003. |
 | **canary** | Job `no_agent` que ejecuta entrypoints en sandbox y afirma `rc=0` + huella de lo que los jobs poseen (manifiesto sin el libro de runtime, wrappers en `scripts/`, enlaces de skills declarados). No es el job de producción. _Avoid_: canario (nombre de artefacto). |
 | **observer** | Job `no_agent` que declara el estado del día: qué debía correr y si entregó. No repara. _Avoid_: observador (nombre de artefacto). |
-| **delivery budget** | Tope de lo que Telegram entrega fiable: **un mensaje** (<4096 unidades UTF-16). Por encima, el PR es rojo. _Avoid_: 2 chunks, 8 KB, presupuesto de 6 KB. |
+| **delivery budget** | Tope **por mensaje**: ninguna línea emitida pasa de `MAX_CHARS_LINEA` (3800 unidades UTF-16) — así el chunker de Hermes corta en un `\n` y ningún enlace se parte. El reporte puede ocupar 2 mensajes (ADR 0005); el techo de **un** mensaje es lo que forzaba el corte a mitad de URL de #212. _Avoid_: presupuesto de 6 KB, corte por carácter, contar la corrida entera como si fuera un mensaje. |
 | **sandbox / hermetic** | Corrida cuyo estado sustituido (`$HERMES_HOME` vía `state_dir()`) no toca producción. Sustituir `HOME` entero está rechazado (ADR 0004). |
 | **allow-list / deny-list** | Entrypoints aptos o no para corrida sintética. Deny-list: los que mutan de verdad (`backup-diario`, `cleanup-housekeeping`, `runtime-sync`). _Avoid_: lista blanca/negra en nombres de artefacto. |
 | **Backlog enfocado** | `hermes-scripts`, `hermes-empleo`, `diego-moreno`, `examen-egreso-fisica` (decidido 2026-09-15, epic #98). Diferidos: `react-stack-roadmap`, `visor-carteras`. |

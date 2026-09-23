@@ -223,3 +223,78 @@ class TestManifiestoEntrypoints:
         )
         assert code == 0
         assert "Sin drift" in capsys.readouterr().out
+
+
+# ═══════════════════════════════════════════
+# Diseño del diario (#278): el corte no puede romper el render
+# ═══════════════════════════════════════════
+
+
+class TestEnlacesSinCerrar:
+    """Un corte a mitad de URL emite `[titular](https://…` y Telegram lo entrega como texto.
+
+    Medido 2026-09-23: 4 de 10 enlaces llegaron así (URL cruda de Google News a la vista).
+    El guard viejo usaba `_LINK_RE`, que sólo encuentra enlaces CERRADOS: era ciego al defecto.
+    """
+
+    def test_enlace_sin_cerrar_se_detecta(self):
+        texto = (
+            "• *Reuters*\n"
+            "  [Russian military helicopter entered Polish airspace]"
+            "(https://news.google.com/rss/articles/CBMi1gFBVV95cUxOMWdWYUU3UHU..."
+        )
+        issues = markdown_v2_link_issues(texto)
+        assert issues, "un enlace sin cerrar pasó el guard"
+        assert any("sin cerrar" in i for i in issues)
+
+    def test_enlace_cerrado_no_se_reporta(self):
+        texto = "  [Titular](https://news.google.com/rss/articles/CBMi1gF)\n"
+        assert markdown_v2_link_issues(texto) == []
+
+
+class TestPresupuestoPorUnidad:
+    """El recorte es por item completo: ni URLs partidas ni bullets de fuente huérfanos."""
+
+    @staticmethod
+    def _emitidos(presupuesto: int) -> str:
+        emitidos: list[str] = []
+        feeds = [("SECCIÓN A", [("Sub", [("Fuente", "https://example.com/rss")])])]
+
+        def fetch(_sources):
+            url = "https://news.google.com/rss/articles/CBMi" + "A" * 220
+            return [[(f"Titular de prueba {i}", f"{url}{i}") for i in range(3)]]
+
+        with patch.object(noticias.time, "sleep", lambda *_a, **_k: None):
+            noticias.emitir_secciones(feeds, fetch, emitidos.append, presupuesto=presupuesto)
+        return "\n".join(emitidos)
+
+    def test_no_emite_enlaces_sin_cerrar(self):
+        assert markdown_v2_link_issues(self._emitidos(600)) == []
+
+    def test_ninguna_linea_termina_cortada(self):
+        lineas = self._emitidos(600).splitlines()
+        assert lineas, "el reporte salió vacío: el fixture ya no reproduce el caso"
+        colgadas = [linea for linea in lineas if linea.rstrip().endswith("...")]
+        assert colgadas == [], colgadas
+
+    def test_nunca_emite_bullet_de_fuente_sin_items(self):
+        lineas = self._emitidos(600).splitlines()
+        assert not lineas[-1].startswith("• "), lineas[-3:]
+
+    def test_ninguna_linea_supera_el_tope_de_chunk(self):
+        for linea in self._emitidos(600).splitlines():
+            assert utf16_len(linea) <= noticias.MAX_CHARS_LINEA, linea[:60]
+
+
+class TestPresupuestoDeEntrega:
+    """Presupuesto por MENSAJE (no por corrida) y tope por línea (#278, reemplaza el de #212)."""
+
+    def test_tope_de_linea_bajo_el_chunk_de_telegram(self):
+        assert noticias.MAX_CHARS_LINEA < TELEGRAM_UTF16_LIMIT
+
+    def test_presupuesto_por_mensaje_no_por_corrida(self):
+        # #212 fijó 1 mensaje (3200 chars) y ese techo es lo que forzó el corte que rompió el
+        # diseño. El chunker de Hermes corta en el último '\n' del bloque
+        # (gateway/platforms/base.py), así que con líneas cortas un enlace no puede partirse.
+        assert noticias.MAX_CHARS_REPORTE > 3200
+        assert noticias.MAX_CHARS_REPORTE <= 2 * (TELEGRAM_UTF16_LIMIT - 300)
