@@ -3,6 +3,8 @@
 - Estado: aceptado
 - Fecha: 2026-09-19
 - Issue: #219 (epic #214)
+- Supersede parcial: ADR 0005 reemplaza la cláusula de **un mensaje** del presupuesto de entrega
+  (punto 1 de la decisión). El resto sigue vigente.
 
 ## Contexto
 
@@ -20,7 +22,8 @@ Tres capas, un seam, nada de E2E de entorno en CI.
 
 1. **CI = contratos deterministas.** Sin Hermes, sin red, sin token: tamaño de entrega,
    markdown, exit codes, manifiesto ↔ fixture. Un reporte que no cabe en **un mensaje**
-   (<4096 unidades UTF-16) **rompe el PR**.
+   (<4096 unidades UTF-16) **rompe el PR**. Reemplazado por ADR 0005: el techo es **por mensaje**
+   y por **línea**, y un reporte de 2 mensajes con enlaces íntegros ya no rompe el PR.
 2. **Server = entorno.** **canary** sintético a las 02:30 y **observer** post-tanda a las
    11:00, ambos `no_agent`. El canary corre entrypoints en **sandbox** (`$HERMES_HOME` vía
    `state_dir()`) y envía **un** payload a `ci_notify`. El observer declara lo que debía

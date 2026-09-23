@@ -30,7 +30,9 @@ def markdown_v2_link_issues(text: str) -> list[str]:
 
     El disparador medido son paréntesis sin escapar en el título. ``.`` y ``-``
     en el título se listan: no rompen el parseo del enlace, pero MarkdownV2 los
-    reserva — el presupuesto de 1 mensaje evita el corte a mitad de URL.
+    reserva. También lista las líneas con corchetes o paréntesis sin cerrar: un
+    corte a mitad de URL emite `[titular](https://…` y Telegram lo entrega como
+    texto plano, con la URL cruda a la vista (#278: 4 de 10 enlaces así).
     """
     issues: list[str] = []
     for title, url in _LINK_RE.findall(text):
@@ -38,4 +40,12 @@ def markdown_v2_link_issues(text: str) -> list[str]:
             issues.append(f"titulo con parentesis: {title!r}")
         if ")" in url:
             issues.append(f"url con parentesis: {url!r}")
+    # El regex de arriba sólo ve enlaces CERRADOS, así que era ciego justo al defecto que se
+    # entregaba a diario. Las URLs ya vienen con `)` escapado a `%29` (news_utils.clean_url),
+    # así que el conteo por línea es un contrato válido.
+    for n, linea in enumerate(text.splitlines(), 1):
+        if linea.count("[") != linea.count("]"):
+            issues.append(f"linea {n}: corchetes sin cerrar: {linea[:60]!r}")
+        elif linea.count("(") != linea.count(")"):
+            issues.append(f"linea {n}: parentesis sin cerrar: {linea[:60]!r}")
     return issues

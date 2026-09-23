@@ -4,6 +4,34 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.8 (2026-09-23)
+
+### 🐛 Fixes
+
+- El corte del diario no puede partir un enlace
+  ([#278](https://github.com/pelukron/hermes-scripts/pull/278),
+  [`45fff64`](https://github.com/pelukron/hermes-scripts/commit/45fff64620180d3c33bced2bae0da139ed617852))
+
+- El corte del diario parte la URL y pierde el diseño
+  ([#278](https://github.com/pelukron/hermes-scripts/pull/278),
+  [`159c1a4`](https://github.com/pelukron/hermes-scripts/commit/159c1a4073512cc5aa01aa3579e93fc1a43a3c53))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`015e3ab`](https://github.com/pelukron/hermes-scripts/commit/015e3abc2047fb80d31988010977a72662f9de28))
+
+### 📝 Docs
+
+- El corte puede dejar un bullet huérfano de su item
+  ([#278](https://github.com/pelukron/hermes-scripts/pull/278),
+  [`87bd069`](https://github.com/pelukron/hermes-scripts/commit/87bd069c33dde58323faea097c4923c7b2236f0f))
+
+- El presupuesto de entrega es por mensaje, no por corrida
+  ([#278](https://github.com/pelukron/hermes-scripts/pull/278),
+  [`7a0b78c`](https://github.com/pelukron/hermes-scripts/commit/7a0b78cdf04c94f93208b9f4f2cb862baf712c86))
+
+
 ## v0.16.7 (2026-09-23)
 
 ### 📦 Chores
