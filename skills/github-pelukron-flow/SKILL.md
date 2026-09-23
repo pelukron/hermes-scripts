@@ -86,6 +86,11 @@ bin/install-cron.sh --check     # sólo deben quedar los extras como info
 - En el código del job, nunca `subprocess.run(["uv", ...])`: el resolver es `hermes_common.uv_bin()`. Y el DoD lo
   cierran las corridas programadas, no la corrida a mano.
 - El clone es de runtime: `curl`/pruebas destructivas contra él no; los cambios de código van por PR.
+- **Nada de `uv run` ni del gate dentro del clon de runtime.** `uv` reescribe `uv.lock` (el `version` del paquete
+  editable que el bot de release acaba de subir en `main`) y el job hace `pull --ff-only`: al día siguiente el
+  clone contesta `Aborting` y `runtime-sync` reporta `pull fallo` para un clon que estaba bien. El trabajo va en
+  worktree; si ya pasó, `git stash push uv.lock -m "..."` (recuperable) y `git pull --ff-only`. Comprobación de un
+  segundo antes de dejarlo: `git -C ~/hermes-scripts status --porcelain` tiene que salir **vacío**.
 
 ## Auth
 
