@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.7 (2026-09-23)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d8ddbaf`](https://github.com/pelukron/hermes-scripts/commit/d8ddbafe2398d0e927ab292b8405660979c999c0))
+
+### 📝 Docs
+
+- Uv run dentro del clon de runtime rompe el ff-only del job
+  ([#277](https://github.com/pelukron/hermes-scripts/pull/277),
+  [`b49f7e3`](https://github.com/pelukron/hermes-scripts/commit/b49f7e3b584fbb4745a8c5e0cf92e60b48a32a6a))
+
+- Uv run dentro del clon de runtime rompe el ff-only del job
+  ([`9672a9b`](https://github.com/pelukron/hermes-scripts/commit/9672a9bcc1ec922c5a412c03c8b77e7a3230bda1))
+
+
 ## v0.16.6 (2026-09-23)
 
 ### 📦 Chores
