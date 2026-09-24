@@ -552,6 +552,30 @@ def uv_bin() -> str:
     return "uv"
 
 
+def gh_bin() -> str:
+    """Ruta de `gh`, mismo contrato que `uv_bin()` (#256).
+
+    En cron el PATH es mínimo y `gh` vive en `~/.local/bin`, así que el nombre
+    relativo no resuelve: `subprocess` lanza `FileNotFoundError` y quien lo capture
+    (el `except OSError` de `gate_audit._gh`) seguirá como si la API hubiera fallado.
+    Medido con el PATH del cron (`env -i … PATH=/usr/local/sbin:/usr/local/bin:
+    /usr/sbin:/usr/bin:/sbin:/bin`): `git`, `date` y `bash` sí resuelven (`/usr/bin`);
+    `gh` no (`NO-GH`).
+
+    Returns:
+        str: ruta absoluta al ejecutable, o `"gh"` si no aparece en ningún sitio
+        (último recurso: el paso fallará con el error de siempre, no en silencio).
+    """
+    for candidato in (
+        os.environ.get("GH"),
+        shutil.which("gh"),
+        os.path.expanduser("~/.local/bin/gh"),
+    ):
+        if candidato and os.path.isfile(candidato) and os.access(candidato, os.X_OK):
+            return candidato
+    return "gh"
+
+
 def get_repo_version(repo_root=None):
     """Devuelve el último tag semántico del repo (para sellar reportes).
 
