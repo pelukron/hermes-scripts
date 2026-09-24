@@ -489,18 +489,30 @@ def _uv_ejecutable(tmp_path, subdir="", nombre="uv"):
     return str(exe)
 
 
+def _path_sin_herramientas(tmp_path):
+    """PATH que apunta a un directorio vacío: ni `uv` ni `gh` resuelven por nombre."""
+    vacio = tmp_path / "bin"
+    vacio.mkdir(exist_ok=True)
+    return str(vacio)
+
+
 def _entorno_tipo_cron(tmp_path, monkeypatch):
-    """PATH mínimo y HOME aislado: la condición que tumbaba los jobs (#254)."""
+    """PATH sin herramientas y HOME aislado: la condición que tumbaba los jobs (#254).
+
+    PATH apunta a un directorio vacío, no a `/usr/bin:/bin`: en el runner de GitHub
+    `gh` sí vive en `/usr/bin`, así que `which("gh")` ganaba a `~/.local/bin/gh` y el
+    test medía el entorno del runner en vez del resolutor (#289).
+    """
     monkeypatch.delenv("UV", raising=False)
     monkeypatch.delenv("GH", raising=False)
-    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("PATH", _path_sin_herramientas(tmp_path))
     monkeypatch.setenv("HOME", str(tmp_path))
 
 
 def test_uv_bin_prioriza_la_variable_entorno(tmp_path, monkeypatch):
     falso = _uv_ejecutable(tmp_path, "otro")
     monkeypatch.setenv("UV", falso)
-    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("PATH", _path_sin_herramientas(tmp_path))
     assert uv_bin() == falso
 
 
@@ -533,7 +545,7 @@ def test_uv_bin_ignora_una_ruta_no_ejecutable(tmp_path, monkeypatch):
 def test_gh_bin_prioriza_la_variable_entorno(tmp_path, monkeypatch):
     falso = _uv_ejecutable(tmp_path, "otro", nombre="gh")
     monkeypatch.setenv("GH", falso)
-    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("PATH", _path_sin_herramientas(tmp_path))
     assert gh_bin() == falso
 
 
@@ -552,6 +564,17 @@ def test_gh_bin_cae_a_local_bin_con_path_minimo(tmp_path, monkeypatch):
 def test_gh_bin_sin_gh_en_ningun_sitio_devuelve_el_nombre(tmp_path, monkeypatch):
     _entorno_tipo_cron(tmp_path, monkeypatch)
     assert gh_bin() == "gh"
+
+
+def test_gh_bin_prioriza_el_path_sobre_local_bin(tmp_path, monkeypatch):
+    """`which` gana a `~/.local/bin`: en el runner, `gh` está en `/usr/bin` (#289)."""
+    monkeypatch.delenv("GH", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _uv_ejecutable(tmp_path, ".local/bin", nombre="gh")
+    en_path = _uv_ejecutable(tmp_path, "bin", nombre="gh")
+    monkeypatch.setenv("PATH", str(tmp_path / "bin"))
+
+    assert gh_bin() == en_path
 
 
 def test_gh_bin_ignora_una_ruta_no_ejecutable(tmp_path, monkeypatch):
