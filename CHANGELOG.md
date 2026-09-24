@@ -4,6 +4,26 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.12 (2026-09-24)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`b3849f9`](https://github.com/pelukron/hermes-scripts/commit/b3849f9e95efe21c2ee5d9b8ba9d707c3e1eaa34))
+
+### 🔧 Infra
+
+- La excepcion de click se muda al audit
+  ([#288](https://github.com/pelukron/hermes-scripts/pull/288),
+  [`14bbdd4`](https://github.com/pelukron/hermes-scripts/commit/14bbdd446a34373f8859304444f8dfb22b78bb0f))
+
+- La excepcion de click vive en el audit, no en el resolver
+  ([`ec750c7`](https://github.com/pelukron/hermes-scripts/commit/ec750c7954e2a448c2dddf1015f8d8ae158754b5))
+
+- Python-semantic-release vuelve a 10.6.2 y fuera el guard de click
+  ([`44c36e7`](https://github.com/pelukron/hermes-scripts/commit/44c36e735c297e3282fe08c078900c5756697e48))
+
+
 ## v0.16.11 (2026-09-24)
 
 ### 📦 Chores
