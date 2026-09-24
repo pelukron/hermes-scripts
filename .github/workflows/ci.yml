@@ -38,10 +38,9 @@ jobs:
         run: uv sync --locked --python ${{ matrix.python-version }}
 
       - name: Install shellcheck
+        # Requisito del comando: `make check` corre shellcheck (#265). El paso se queda
+        # aquí porque el runner no lo trae; lo que se fue es el shellcheck suelto.
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
-
-      - name: Shellcheck bin/*.sh
-        run: shellcheck bin/*.sh .githooks/pre-push
 
       - name: Changelog check (PSR lo genera al mergear)
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'github-actions/')
@@ -58,26 +57,8 @@ jobs:
       - name: Gate
         run: bash bin/gate.sh
 
-  audit:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
-
-      - name: Python
-        run: uv python install 3.11
-
-      - name: Install deps
-        run: uv sync --locked --python 3.11
-
-      - name: pip-audit
-        run: make audit
-
   notify:
-    needs: [test, audit]
+    needs: [test]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -89,7 +70,6 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           STATUS_TEST: ${{ needs.test.result }}
-          STATUS_AUDIT: ${{ needs.audit.result }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}

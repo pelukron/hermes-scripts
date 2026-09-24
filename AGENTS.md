@@ -7,6 +7,14 @@
   el entorno: `PATH="$HOME/.hermes/bin:$PATH" TMPDIR=/tmp bash bin/gate.sh` — sin `TMPDIR=/tmp`, el
   `tmp_path` de pytest cae bajo `/home/…` y `test_install_cron` se pone rojo por la ruta de temporales,
   no por lo que acabas de cambiar (pasa igual en `main` limpio).
+- El gate es **un comando**, no una lista de pasos que alguien mantiene en paralelo: lo corren local,
+  CI y la noche (`adopted-sha-audit`) con `bash bin/gate.sh`. Incluye `shellcheck` (requiere el binario
+  en el PATH; en CI entra por apt) y `pip-audit` con su excepción documentada en el Makefile.
+  `GATE_JUNIT=<ruta>` escribe el XML que lee la noche; sin la variable no hay XML.
+- `src/` no invoca herramientas externas por nombre relativo: `["uv", …]` o `["gh", …]` no resuelven en
+  el cron (PATH mínimo) y el fallo aparece a la hora del job, no en CI. Usa `uv_bin()` / `gh_bin()` de
+  `hermes_common` o una ruta absoluta; `tests/test_relpath_guard.py` lo hace cumplir (allow-list corta:
+  `bash`, `sh`, `git`, `date`, que sí viven en `/usr/bin`).
 - Ramas `{tipo}/{N}-slug`. Push normal; nunca `--force` ni `--amend` tras push.
 - Regla de oro: **un issue = un worktree** (`git worktree add ../w<N>-<slug> -b {tipo}/{N}-slug`); si no
   existe, lo crea el agente. Dos issues en el mismo árbol mezclan cambios, pisan ramas y meten scope

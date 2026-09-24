@@ -26,7 +26,8 @@ def load_templates(path=None):
 
 
 def _checks(env):
-    return f"test={env.get('STATUS_TEST', '?')} audit={env.get('STATUS_AUDIT', '?')}"
+    """Un solo job desde #265: el gate entero (lint, shellcheck, mypy, bandit, audit, tests)."""
+    return f"gate={env.get('STATUS_TEST', '?')}"
 
 
 def md_escape(text):
@@ -50,7 +51,7 @@ def render_ci(env, templates):
     checks = _checks(env)
     short = env.get("SHA", "")[:7]
     pr = env.get("PR_NUMBER", "")
-    ok = env.get("STATUS_TEST") == "success" and env.get("STATUS_AUDIT") == "success"
+    ok = env.get("STATUS_TEST") == "success"
     if ok:
         if pr:
             return templates["ci_pr_ok"].format(

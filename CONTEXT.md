@@ -7,7 +7,7 @@
 
 | Término | Significado en este repo |
 |---|---|
-| **Gate** | `bash bin/gate.sh` (= `make check`: ruff check + C901 + ruff format + mypy + bandit + pytest + shellcheck en CI). Mismo comando en local y CI. |
+| **Gate** | `bash bin/gate.sh` (= `make check`: ruff check + C901 + ruff format + shellcheck + mypy + bandit + pip-audit + pytest). Mismo comando en local, CI y la noche (`adopted-sha-audit`). |
 | **Work order** | GitHub issue. Todo cambio cierra un issue con `Closes #N` en el PR. |
 | **Epic** | Issue padre con label `👑 epic`, checklist de hijos y milestone. Board: Project #3. |
 | **Drift (cron)** | Diferencia entre `cron/jobs.json` (deseado) y jobs reales de Hermes. Se revisa con `bin/install-cron.sh --check`; el job semanal corre `bin/check-drift.sh --check --quiet`. |
@@ -23,8 +23,9 @@
 
 ## 2. Gate y CI
 
-- Local: `bash bin/gate.sh`. Windows sin `make`: equivalencia manual `uv run ruff check .` + `ruff format --check .` + `mypy .` + `bandit -c pyproject.toml -r . -x .venv,tests -ll` + `pytest -q`.
-- CI (`.github/workflows/ci.yml`): checkout + `setup-uv` + `uv python install 3.11` + `uv sync` + changelog check (solo PRs) + `bash bin/gate.sh` + notify Telegram. No duplicar pasos de lint/test en el YAML.
+- Local: `bash bin/gate.sh` (necesita `shellcheck` en el PATH: `sudo apt-fast install -y shellcheck`). Windows: el mismo comando desde Git Bash; no hay lista manual de invocaciones que mantener.
+- JUnit: `GATE_JUNIT=<ruta> bash bin/gate.sh` escribe el XML que lee la noche. Sin la variable, ni local ni CI generan XML.
+- CI (`.github/workflows/ci.yml`): checkout + `setup-uv` + `uv python install` (matriz 3.11/3.12) + `uv sync --locked` + shellcheck por apt + changelog check (solo PRs) + `bash bin/gate.sh` + notify Telegram. Un solo job: no duplicar pasos de lint/test/audit en el YAML.
 - Reglas: PR obligatorio, CODEOWNERS `@pelukron`, PR asignado a `@pelukron`, CHANGELOG.md intacto (PSR lo genera al mergear), sin `--force` ni `--amend` tras push, merge-commit (no squash), el agente no mergea.
 - Releases: `python-semantic-release` al mergear (bump + tag + notas desde commits; `infra` suma patch). `CHANGELOG.md` congelado como histórico.
 
