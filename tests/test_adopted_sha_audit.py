@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import platform
 import subprocess
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -213,3 +215,66 @@ def test_la_excepcion_del_audit_vive_en_el_makefile():
     makefile = (REPO / "Makefile").read_text(encoding="utf-8")
     assert "PIP_AUDIT_IGNORES := --ignore-vuln PYSEC-2026-2132" in makefile
     assert "$(PIP_AUDIT_IGNORES)" in makefile
+
+
+def test_lock_hash_acorta_y_sigue_al_contenido(tmp_path):
+    """El hash de la noche es corto y cambia con el lock, no con la ruta (#267)."""
+    (tmp_path / audit.LOCK_NAME).write_text("version = 1\n", encoding="utf-8")
+    primero = audit.lock_hash(tmp_path)
+    assert len(primero) == 12
+    assert all(c in "0123456789abcdef" for c in primero)
+    (tmp_path / audit.LOCK_NAME).write_text("version = 2\n", encoding="utf-8")
+    assert audit.lock_hash(tmp_path) != primero
+
+
+def test_lock_hash_sin_lock_es_vacio(tmp_path):
+    """Sin archivo el registro no inventa un hash que no midió (#267)."""
+    assert audit.lock_hash(tmp_path) == ""
+
+
+def test_uv_version_lee_uv_con_la_ruta_resuelta(monkeypatch):
+    """`uv_bin()`, no `"uv"` (#254): en cron el nombre relativo no resuelve."""
+    visto = {}
+
+    def run(argv, **_k):
+        visto["argv"] = argv
+        return subprocess.CompletedProcess(args=[], returncode=0, stdout="uv 0.12.7\n", stderr="")
+
+    monkeypatch.setattr(audit, "uv_bin", lambda: "/ruta/absoluta/uv")
+    monkeypatch.setattr(audit.subprocess, "run", run)
+    assert audit.uv_version() == "uv 0.12.7"
+    assert visto["argv"] == ["/ruta/absoluta/uv", "--version"]
+
+
+def test_uv_version_no_se_cae_si_uv_falla(monkeypatch):
+    """El registro de la corrida no se pierde porque `uv` no esté (#267)."""
+
+    def sin_uv(*_a, **_k):
+        raise OSError("uv no está")
+
+    monkeypatch.setattr(audit.subprocess, "run", sin_uv)
+    assert audit.uv_version() == ""
+
+    def rc1(*_a, **_k):
+        return subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="boom")
+
+    monkeypatch.setattr(audit.subprocess, "run", rc1)
+    assert audit.uv_version() == ""
+
+
+def test_entorno_afirma_uv_python_y_hash_del_lock(monkeypatch, tmp_path):
+    """La historia guarda con qué se corrió (#267), no sólo `tmpdir`/`sys.executable`."""
+    monkeypatch.setattr(audit, "state_dir", lambda: tmp_path)
+    monkeypatch.setattr(audit, "adopted_sha", lambda _r: "deadbeef" * 5)
+    monkeypatch.setattr(audit, "run_gate", lambda *_a, **_k: [])
+    monkeypatch.setattr(audit, "load_ping_url", lambda: "https://hc-ping.com/u")
+    monkeypatch.setattr(audit, "ping", lambda url, suffix="": None)
+    monkeypatch.setattr(audit, "uv_version", lambda: "uv 9.9.9")
+    assert audit.main([]) == 0
+    hist = json.loads((tmp_path / audit.HISTORY_NAME).read_text(encoding="utf-8"))
+    entorno = hist[-1]["entorno"]
+    assert entorno["uv"] == "uv 9.9.9"
+    assert entorno["python"] == sys.executable
+    assert entorno["python_version"] == platform.python_version()
+    assert entorno["lock"] == audit.lock_hash(REPO)
+    assert len(entorno["lock"]) == 12

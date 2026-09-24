@@ -1,4 +1,4 @@
-.PHONY: test lint format format-check typecheck security audit shellcheck run sync lock clean
+.PHONY: test lint format format-check typecheck security audit shellcheck lock-check run sync lock clean
 
 ## Instalar dependencias del lock file
 sync:
@@ -7,6 +7,13 @@ sync:
 ## Generar/actualizar lock file
 lock:
 	uv lock
+
+## Afirmar que uv.lock corresponde a los pins de pyproject.toml (no lo reescribe)
+# Entra al gate (#267): un `pyproject.toml` editado sin re-lock rompe aqui, en local y
+# en la noche. `--check` no muta uv.lock (a diferencia de `lock`), asi que es seguro
+# dejarlo en el comando que corre tres veces al dia.
+lock-check:
+	uv lock --check
 
 ## Ejecutar tests con pytest + cobertura mínima (piso: 80 %)
 # GATE_JUNIT=<ruta> escribe el XML que lee `adopted_sha_audit` (#265): la noche llama a
@@ -61,5 +68,5 @@ clean:
 	find . -type d -name __pycache__ -delete
 
 ## Correr todos los checks (CI local)
-check: lint format-check shellcheck typecheck security audit test
+check: lock-check lint format-check shellcheck typecheck security audit test
 	@echo "✅ Todos los checks pasaron"
