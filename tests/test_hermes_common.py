@@ -15,6 +15,7 @@ from hermes_common import (
     PayloadTooLargeError,
     filter_by_max_age,
     get_repo_version,
+    gh_bin,
     is_within_max_age,
     parse_published,
     retry_request,
@@ -478,19 +479,20 @@ class TestVersionFooter:
             assert "version_footer" in texto, name
 
 
-def _uv_ejecutable(tmp_path, subdir=""):
-    """Crea un `uv` falso ejecutable y devuelve su ruta."""
+def _uv_ejecutable(tmp_path, subdir="", nombre="uv"):
+    """Crea un ejecutable falso y devuelve su ruta."""
     carpeta = tmp_path / subdir if subdir else tmp_path
     carpeta.mkdir(parents=True, exist_ok=True)
-    uv = carpeta / "uv"
-    uv.write_text("#!/bin/sh\n", encoding="utf-8")
-    uv.chmod(0o755)
-    return str(uv)
+    exe = carpeta / nombre
+    exe.write_text("#!/bin/sh\n", encoding="utf-8")
+    exe.chmod(0o755)
+    return str(exe)
 
 
 def _entorno_tipo_cron(tmp_path, monkeypatch):
     """PATH mínimo y HOME aislado: la condición que tumbaba los jobs (#254)."""
     monkeypatch.delenv("UV", raising=False)
+    monkeypatch.delenv("GH", raising=False)
     monkeypatch.setenv("PATH", "/usr/bin:/bin")
     monkeypatch.setenv("HOME", str(tmp_path))
 
@@ -526,3 +528,37 @@ def test_uv_bin_ignora_una_ruta_no_ejecutable(tmp_path, monkeypatch):
     monkeypatch.setenv("UV", str(no_ejecutable))
 
     assert uv_bin() == "uv"
+
+
+def test_gh_bin_prioriza_la_variable_entorno(tmp_path, monkeypatch):
+    falso = _uv_ejecutable(tmp_path, "otro", nombre="gh")
+    monkeypatch.setenv("GH", falso)
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    assert gh_bin() == falso
+
+
+def test_gh_bin_cae_a_local_bin_con_path_minimo(tmp_path, monkeypatch):
+    """`gh` vive en `~/.local/bin`, que el PATH del cron no incluye (#256)."""
+    _entorno_tipo_cron(tmp_path, monkeypatch)
+    esperado = _uv_ejecutable(tmp_path, ".local/bin", nombre="gh")
+
+    resuelto = gh_bin()
+
+    assert resuelto == esperado
+    assert os.path.isabs(resuelto)
+    assert os.access(resuelto, os.X_OK)
+
+
+def test_gh_bin_sin_gh_en_ningun_sitio_devuelve_el_nombre(tmp_path, monkeypatch):
+    _entorno_tipo_cron(tmp_path, monkeypatch)
+    assert gh_bin() == "gh"
+
+
+def test_gh_bin_ignora_una_ruta_no_ejecutable(tmp_path, monkeypatch):
+    _entorno_tipo_cron(tmp_path, monkeypatch)
+    no_ejecutable = tmp_path / "gh"
+    no_ejecutable.write_text("nada\n", encoding="utf-8")
+    no_ejecutable.chmod(0o644)
+    monkeypatch.setenv("GH", str(no_ejecutable))
+
+    assert gh_bin() == "gh"
