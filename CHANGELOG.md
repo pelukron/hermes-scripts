@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.14 (2026-09-24)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`692d3ee`](https://github.com/pelukron/hermes-scripts/commit/692d3eebeddb87e57248bb73c4d6655823f75ebf))
+
+### 🔧 Infra
+
+- El gate es un solo comando en local, CI y la noche (#265)
+  ([#290](https://github.com/pelukron/hermes-scripts/pull/290),
+  [`8b035c2`](https://github.com/pelukron/hermes-scripts/commit/8b035c25fd81cba401d3cfb3a077f040d0f7722f))
+
+
 ## v0.16.13 (2026-09-24)
 
 ### 🐛 Fixes
