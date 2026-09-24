@@ -15,7 +15,6 @@ Uso:
 """
 
 import logging
-import os
 import re
 import sys
 import time
@@ -27,6 +26,7 @@ from hermes_common import (
     news_utils,
     retry_request,
     setup_logging,
+    uv_bin,
     version_footer,
 )
 
@@ -37,12 +37,9 @@ try:
     import feedparser  # noqa: F401 — re-exportado en __all__ (target de mocks en tests)
     from bs4 import BeautifulSoup
 except ModuleNotFoundError:
-    import shutil
     import subprocess
 
-    uv = os.environ.get("UV") or shutil.which("uv") or os.path.expanduser("~/.hermes/bin/uv")
-    if not os.path.isfile(uv):
-        uv = "uv"  # fallback to system PATH
+    uv = uv_bin()  # #254/#256: ruta absoluta; `"uv"` por nombre no resuelve en cron
     try:
         subprocess.check_call(
             [
