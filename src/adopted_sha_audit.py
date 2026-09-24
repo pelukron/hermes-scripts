@@ -6,8 +6,10 @@ deja una línea de historia por noche y calla si está verde.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import platform
 import subprocess
 import sys
 import tempfile
@@ -18,11 +20,14 @@ from typing import Any, Callable
 import defusedxml.ElementTree as ET  # noqa: N817
 
 from healthcheck import load_ping_url, ping
-from hermes_common import report_failure, state_dir
+from hermes_common import report_failure, state_dir, uv_bin
 
 HISTORY_NAME = "adopted-sha-history.json"
 STEP_TIMEOUT = 600
 SCHEDULE = "0 5 * * *"
+
+# El lock desplegado: la noche afirma con qué resolución corrió el gate (#267).
+LOCK_NAME = "uv.lock"
 
 # El gate es **un** comando (#265): el mismo de local y CI. Las excepciones de
 # pip-audit (#287) y el shellcheck viven en el Makefile, donde se juzga el riesgo;
@@ -64,6 +69,41 @@ def gate_env(base: dict[str, str] | None = None) -> dict[str, str]:
     env["TEMP"] = tmp
     env["TMP"] = tmp
     return env
+
+
+def lock_hash(repo: Path) -> str:
+    """Hash corto (12 hex) de `uv.lock` en el árbol desplegado (#267).
+
+    La noche afirma con qué resolución corrió: si el lock cambia entre corridas, la
+    historia lo muestra sin tener que leer `uv.lock`. Sin archivo devuelve la cadena
+    vacía (el registro no inventa un hash que no midió).
+    """
+    try:
+        data = (repo / LOCK_NAME).read_bytes()
+    except OSError:
+        return ""
+    return hashlib.sha256(data).hexdigest()[:12]
+
+
+def uv_version() -> str:
+    """`uv --version` con la ruta resuelta (#254): en cron `uv` no está en el PATH.
+
+    Un `uv` distinto del de CI es la anomalía de entorno de #267; la primera prueba
+    es esta cadena en el registro. Si no se puede invocar, devuelve la cadena vacía y
+    sigue: el registro de la corrida no se cae porque falte `uv`.
+    """
+    try:
+        proc = subprocess.run(
+            [uv_bin(), "--version"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except OSError:
+        return ""
+    if proc.returncode != 0:
+        return ""
+    return (proc.stdout or "").strip()
 
 
 def classify(paso: str, output: str) -> str:
@@ -206,7 +246,16 @@ def _audit(run: RunStep | None = None) -> int:
         "sha_adoptado": sha,
         "veredicto": "rojo" if fallos else "verde",
         "fallos": fallos,
-        "entorno": {"tmpdir": env.get("TMPDIR", ""), "python": sys.executable},
+        # `entorno` afirma con qué se corrió, no sólo dónde (#267): la versión de `uv`,
+        # la de Python y el hash corto del lock. `python` (la ruta del intérprete) se
+        # conserva: es lo que ya leía la historia.
+        "entorno": {
+            "tmpdir": env.get("TMPDIR", ""),
+            "python": sys.executable,
+            "python_version": platform.python_version(),
+            "uv": uv_version(),
+            "lock": lock_hash(repo),
+        },
     }
     append_history(home / HISTORY_NAME, record)
     if fallos:

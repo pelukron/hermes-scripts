@@ -40,7 +40,11 @@ jobs:
       - name: Install shellcheck
         # Requisito del comando: `make check` corre shellcheck (#265). El paso se queda
         # aquí porque el runner no lo trae; lo que se fue es el shellcheck suelto.
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+        # Versión del paquete del runner (ubuntu-latest = 24.04 -> shellcheck 0.9.0-1,
+        # medido el 2026-09-24 en actions/runner-images Ubuntu2404-Readme.md, #267): si
+        # ubuntu-latest migra de base, esto falla ruidoso en vez de cambiar el gate en
+        # silencio. Subir el pin es un acto deliberado, igual que las actions por SHA.
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck=0.9.0-1
 
       - name: Changelog check (PSR lo genera al mergear)
         if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]' && !startsWith(github.head_ref, 'dependabot/') && !startsWith(github.head_ref, 'github-actions/')

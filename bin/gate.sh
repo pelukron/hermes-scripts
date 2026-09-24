@@ -2,7 +2,7 @@
 # gate.sh — entrypoint único del quality-gate (alias de `make check`).
 #
 # Uso:
-#   bash bin/gate.sh   # corre lint + format + typecheck + security + test
+#   bash bin/gate.sh   # lock --check + lint + format + shellcheck + typecheck + security + audit + test
 #
 # Local y CI ejecutan exactamente lo mismo. No dupliques los pasos en ci.yml.
 set -euo pipefail
