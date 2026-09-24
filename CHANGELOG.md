@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.15 (2026-09-24)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`6f010c3`](https://github.com/pelukron/hermes-scripts/commit/6f010c36b4fe7a9267be62391c951471bbd82762))
+
+### 📝 Docs
+
+- La skill del flujo pelukron aprende que el ruleset fija los nombres de los checks (#291)
+  ([#292](https://github.com/pelukron/hermes-scripts/pull/292),
+  [`bce19eb`](https://github.com/pelukron/hermes-scripts/commit/bce19ebca8e7d2b78b29a469a605cbecae921f9c))
+
+
 ## v0.16.14 (2026-09-24)
 
 ### 📦 Chores
