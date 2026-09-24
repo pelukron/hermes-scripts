@@ -204,3 +204,10 @@ def test_los_pasos_del_gate_usan_uv_absoluto(tmp_path, monkeypatch):
     for nombre, argv in pasos:
         assert Path(argv[0]).is_absolute(), f"{nombre}: {argv[0]} no es absoluto"
         assert Path(argv[0]).exists(), f"{nombre}: {argv[0]} no existe"
+
+
+def test_audit_exceptua_los_ids_documentados(tmp_path):
+    """Sin `--ignore-vuln` el e2e nocturno entregaria rojo por click todas las noches (#287)."""
+    argv = dict(audit.gate_steps(tmp_path / "junit.xml"))["audit"]
+    exceptuados = [argv[i + 1] for i, arg in enumerate(argv) if arg == "--ignore-vuln"]
+    assert exceptuados == list(audit.AUDIT_IGNORES)
