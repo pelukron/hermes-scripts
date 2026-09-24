@@ -6,10 +6,8 @@ Links Markdown [etiqueta](url) + variables libres escapadas (parse_mode=Markdown
 
 import importlib.util
 import os
-import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, SCRIPT_DIR)
 
 spec = importlib.util.spec_from_file_location(
     "notify_render",

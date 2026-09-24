@@ -75,6 +75,19 @@ insertion_flag = "## [0.5.5] - 2026-09-15"
 source = ["."]
 omit = ["tests/*", "*/__pycache__/*", ".venv/*"]
 
+# Los tests importan sin armarse su propio sys.path (#265).
+#
+# Medido dentro de pytest (tests/ es un paquete, así que pytest mete la raíz del
+# repo la primera): sys.path queda [raíz, src, raíz, …]. Importa menos quién gana
+# que el hecho de que gane **siempre el mismo**: `hermes_common` resuelve al shim,
+# `cron_canary` / `install_cron` / `healthcheck` a `src/`. Tener las dos identidades
+# de `hermes_common` vivas en la misma sesión es el fallo de #251 (test_cron_canary
+# metía `REPO/src` al frente y dejaba un `hermes_common` duplicado cacheado en
+# sys.modules con su propio `_DEFAULT_SESSION`, y rompía tests ajenos según el orden
+# de colección: 5 rojos en un orden y 0 en el inverso).
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+
 [tool.coverage.report]
 show_missing = true
 

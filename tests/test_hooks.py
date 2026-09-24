@@ -2,10 +2,8 @@
 
 import importlib.util
 import os
-import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, SCRIPT_DIR)
 
 HOOK_DIR = os.path.join(SCRIPT_DIR, "hooks", "gateway-back-online")
 

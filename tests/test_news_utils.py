@@ -1,10 +1,8 @@
 """Tests para src/hermes_common/news_utils.py (issue #70)."""
 
-import sys
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-sys.path.insert(0, ".")
 from hermes_common import news_utils
 
 NewsItem = news_utils.NewsItem
