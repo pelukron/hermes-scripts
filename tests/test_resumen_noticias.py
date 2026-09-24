@@ -2,14 +2,12 @@
 
 import importlib.util  # noqa: E402
 import os
-import sys
 import threading
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 # Add script dir to path para importar
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, SCRIPT_DIR)
 
 # Import functions under test
 # Usamos import directo del script (sin .py)

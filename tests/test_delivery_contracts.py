@@ -6,7 +6,6 @@ import importlib.util
 import json
 import os
 import re
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,7 +17,6 @@ from hermes_common import (
 )
 
 REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO))
 
 from src import install_cron as ic  # noqa: E402
 

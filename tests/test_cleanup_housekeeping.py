@@ -7,7 +7,6 @@ import sys
 import time
 
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, SCRIPT_DIR)
 
 spec = importlib.util.spec_from_file_location(
     "cleanup_housekeeping",

@@ -4,12 +4,10 @@ Fixtures inline con la forma de los registros de `collect()`.
 """
 
 import subprocess as _subprocess
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
 REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO))
 
 from src import gate_audit as ga  # noqa: E402
 

@@ -1,4 +1,4 @@
-.PHONY: test lint format format-check typecheck security audit run sync lock clean
+.PHONY: test lint format format-check typecheck security audit shellcheck run sync lock clean
 
 ## Instalar dependencias del lock file
 sync:
@@ -9,8 +9,10 @@ lock:
 	uv lock
 
 ## Ejecutar tests con pytest + cobertura mínima (piso: 80 %)
+# GATE_JUNIT=<ruta> escribe el XML que lee `adopted_sha_audit` (#265): la noche llama a
+# este mismo comando con la variable puesta, no a una lista de pasos propia.
 test:
-	uv run pytest -v --cov --cov-report=term-missing --cov-fail-under=80
+	uv run pytest -v --cov --cov-report=term-missing --cov-fail-under=80 $(if $(GATE_JUNIT),--junitxml=$(GATE_JUNIT),)
 
 ## Lint con ruff
 lint:
@@ -23,6 +25,15 @@ format:
 ## Verificar formato con ruff (no muta: lo que corre el gate/CI)
 format-check:
 	uv run ruff format --check .
+
+## Shellcheck de los scripts bash (mismo alcance que CI)
+# Entra al comando (#265): local y CI corren el mismo paso. Requiere `shellcheck` en
+# el PATH; en CI llega por apt, en local `sudo apt-fast install -y shellcheck`.
+shellcheck:
+	@command -v shellcheck >/dev/null 2>&1 || { \
+		echo "❌ falta shellcheck en el PATH: sudo apt-fast install -y shellcheck"; \
+		exit 1; }
+	shellcheck bin/*.sh .githooks/pre-push
 
 ## Type check con mypy
 typecheck:
@@ -50,5 +61,5 @@ clean:
 	find . -type d -name __pycache__ -delete
 
 ## Correr todos los checks (CI local)
-check: lint format-check typecheck security audit test
+check: lint format-check shellcheck typecheck security audit test
 	@echo "✅ Todos los checks pasaron"

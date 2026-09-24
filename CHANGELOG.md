@@ -4,6 +4,45 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.14 (2026-09-24)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`692d3ee`](https://github.com/pelukron/hermes-scripts/commit/692d3eebeddb87e57248bb73c4d6655823f75ebf))
+
+### 🔧 Infra
+
+- El gate es un solo comando en local, CI y la noche (#265)
+  ([#290](https://github.com/pelukron/hermes-scripts/pull/290),
+  [`8b035c2`](https://github.com/pelukron/hermes-scripts/commit/8b035c25fd81cba401d3cfb3a077f040d0f7722f))
+
+
+## v0.16.13 (2026-09-24)
+
+### 🐛 Fixes
+
+- Gh y uv se resuelven por ruta absoluta, no por nombre relativo
+  ([`ea9ef9e`](https://github.com/pelukron/hermes-scripts/commit/ea9ef9e7a821a1f52c93395b4de3488490587081))
+
+- Gh y uv se resuelven por ruta absoluta, y un guard lo sostiene (#256)
+  ([#289](https://github.com/pelukron/hermes-scripts/pull/289),
+  [`9fd740b`](https://github.com/pelukron/hermes-scripts/commit/9fd740b0920e6d1646068644512b23d053c591a2))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`19d6b64`](https://github.com/pelukron/hermes-scripts/commit/19d6b645e34873a9ab85bbf12b5458fff1794223))
+
+### ✅ Tests
+
+- El PATH de las pruebas de resolutores no puede ser /usr/bin:/bin
+  ([`6a0c445`](https://github.com/pelukron/hermes-scripts/commit/6a0c44511c2219445946781d8a086eb053931572))
+
+- Guard para que src/ no invoque herramientas externas por nombre relativo
+  ([`1c89316`](https://github.com/pelukron/hermes-scripts/commit/1c89316961ba004dc7e1b42d1ed4c58dd2a846c3))
+
+
 ## v0.16.12 (2026-09-24)
 
 ### 📦 Chores

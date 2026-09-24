@@ -6,7 +6,6 @@ import sys
 from unittest.mock import patch
 
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, SCRIPT_DIR)
 
 spec = importlib.util.spec_from_file_location(
     "monitor_ram", os.path.join(SCRIPT_DIR, "src", "scripts", "monitor_ram_mexico.py")
