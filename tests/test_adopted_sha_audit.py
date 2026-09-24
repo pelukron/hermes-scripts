@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO))
 
 from src import adopted_sha_audit as audit  # noqa: E402
 
@@ -33,9 +31,9 @@ def test_gate_env_sanea_tmpdir_y_virtual_env(tmp_path, monkeypatch):
     assert env["TMPDIR"] != str(scratch)
 
 
-def test_classify_audit_sin_red_es_entorno():
+def test_classify_sin_red_es_entorno():
     out = "pip-audit: ConnectionRefusedError: [Errno 111] Connection refused"
-    assert audit.classify("audit", out) == "entorno"
+    assert audit.classify("gate", out) == "entorno"
 
 
 def test_classify_assertion_es_codigo():
@@ -157,21 +155,22 @@ def test_excepcion_hace_ping_fail(monkeypatch, tmp_path):
     assert pings == ["start", "fail"]
 
 
-def test_run_gate_clasifica_audit_sin_red(tmp_path):
+def test_run_gate_clasifica_rojo_de_entorno(tmp_path):
+    """pip-audit sin red dentro del comando único: entorno, no código (#265)."""
+
     def run(paso, argv, repo, env):
         del argv, repo, env
-        if paso == "audit":
-            return subprocess.CompletedProcess(
-                args=[],
-                returncode=2,
-                stdout="",
-                stderr="ConnectionRefusedError: [Errno 111]",
-            )
-        return _ok()
+        assert paso == "gate", "el gate ya no se parte en pasos"
+        return subprocess.CompletedProcess(
+            args=[],
+            returncode=2,
+            stdout="",
+            stderr="ConnectionRefusedError: [Errno 111]",
+        )
 
     fallos = audit.run_gate(REPO, audit.gate_env(), tmp_path / "j.xml", run=run)
     assert fallos == [
-        {"paso": "audit", "tipo": "entorno", "detalle": "ConnectionRefusedError: [Errno 111]"}
+        {"paso": "gate", "tipo": "entorno", "detalle": "ConnectionRefusedError: [Errno 111]"}
     ]
 
 
@@ -188,26 +187,29 @@ def test_manifiesto_declara_el_job():
     assert job.schedule != sync.schedule
 
 
-def test_los_pasos_del_gate_usan_uv_absoluto(tmp_path, monkeypatch):
-    """En cron el PATH es mínimo: `uv` por nombre no resuelve (#254)."""
-    monkeypatch.delenv("UV", raising=False)
-    monkeypatch.setenv("PATH", "/usr/bin:/bin")
-    monkeypatch.setenv("HOME", str(tmp_path))
-    uv = tmp_path / ".hermes" / "bin" / "uv"
-    uv.parent.mkdir(parents=True)
-    uv.write_text("#!/bin/sh\n", encoding="utf-8")
-    uv.chmod(0o755)
+def test_el_gate_es_un_solo_comando(tmp_path):
+    """La noche corre el mismo comando que local y CI, con el JUnit en el entorno (#265)."""
+    visto = {}
 
-    pasos = audit.gate_steps(tmp_path / "junit.xml")
+    def run(paso, argv, repo, env):
+        visto["paso"], visto["argv"], visto["env"] = paso, argv, env
+        return _ok()
 
-    assert pasos, "el gate debe declarar pasos"
-    for nombre, argv in pasos:
-        assert Path(argv[0]).is_absolute(), f"{nombre}: {argv[0]} no es absoluto"
-        assert Path(argv[0]).exists(), f"{nombre}: {argv[0]} no existe"
+    junit = tmp_path / "junit.xml"
+    assert audit.run_gate(REPO, audit.gate_env(), junit, run=run) == []
+
+    assert visto["argv"] == ["bash", "bin/gate.sh"]
+    assert visto["env"]["GATE_JUNIT"] == str(junit)
+    assert visto["env"]["TMPDIR"] == "/tmp"
+    assert "VIRTUAL_ENV" not in visto["env"]
 
 
-def test_audit_exceptua_los_ids_documentados(tmp_path):
-    """Sin `--ignore-vuln` el e2e nocturno entregaria rojo por click todas las noches (#287)."""
-    argv = dict(audit.gate_steps(tmp_path / "junit.xml"))["audit"]
-    exceptuados = [argv[i + 1] for i, arg in enumerate(argv) if arg == "--ignore-vuln"]
-    assert exceptuados == list(audit.AUDIT_IGNORES)
+def test_la_excepcion_del_audit_vive_en_el_makefile():
+    """`--ignore-vuln` se mudó al target del Makefile (#265/#287).
+
+    Sin la excepción, el e2e nocturno entregaría rojo por click todas las noches y ya
+    no hay una copia en este módulo que la sostenga.
+    """
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    assert "PIP_AUDIT_IGNORES := --ignore-vuln PYSEC-2026-2132" in makefile
+    assert "$(PIP_AUDIT_IGNORES)" in makefile

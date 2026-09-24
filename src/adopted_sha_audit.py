@@ -18,17 +18,16 @@ from typing import Any, Callable
 import defusedxml.ElementTree as ET  # noqa: N817
 
 from healthcheck import load_ping_url, ping
-from hermes_common import report_failure, state_dir, uv_bin
+from hermes_common import report_failure, state_dir
 
 HISTORY_NAME = "adopted-sha-history.json"
 STEP_TIMEOUT = 600
 SCHEDULE = "0 5 * * *"
 
-# Excepciones del audit, las mismas que el target `audit` del Makefile (#287):
-# PYSEC-2026-2132 (click.edit(), fix en 8.3.3) con click presente solo como CLI de
-# python-semantic-release. Si alli cambia la lista, aqui tambien: sin esto el e2e
-# nocturno entregaria rojo todas las noches.
-AUDIT_IGNORES = ("PYSEC-2026-2132",)
+# El gate es **un** comando (#265): el mismo de local y CI. Las excepciones de
+# pip-audit (#287) y el shellcheck viven en el Makefile, donde se juzga el riesgo;
+# aquí ya no hay una tercera copia de la lista de pasos que pueda discrepar.
+GATE_COMMAND = ("bash", "bin/gate.sh")
 
 # Palabras que el spike midió como rojo de entorno, no de código.
 _ENTORNO_MARKERS = (
@@ -68,11 +67,16 @@ def gate_env(base: dict[str, str] | None = None) -> dict[str, str]:
 
 
 def classify(paso: str, output: str) -> str:
-    """`codigo` vs `entorno`. pip-audit sin red y TMPDIR heredado son entorno."""
+    """`codigo` vs `entorno`. pip-audit sin red y TMPDIR heredado son entorno.
+
+    `paso` se conserva por compatibilidad de firma: con un solo comando (#265) no
+    distingue la causa, la distingue el texto.
+    """
+    del paso
     blob = output or ""
     if any(marker in blob for marker in _ENTORNO_MARKERS):
         return "entorno"
-    if paso == "audit" and "pip-audit" in blob.lower() and "error" in blob.lower():
+    if "pip-audit" in blob.lower() and "error" in blob.lower():
         if "Connection" in blob or "timeout" in blob.lower() or "Max retries" in blob:
             return "entorno"
     return "codigo"
@@ -136,57 +140,35 @@ def _default_run(
     )
 
 
-def audit_args(uv: str) -> list[str]:
-    """`pip-audit` con las excepciones de AUDIT_IGNORES, una bandera por id."""
-    argv = [uv, "run", "pip-audit"]
-    for vuln in AUDIT_IGNORES:
-        argv += ["--ignore-vuln", vuln]
-    return argv
-
-
-def gate_steps(junit: Path) -> list[tuple[str, list[str]]]:
-    """Los mismos pasos que `make check`, tests con JUnit XML."""
-    uv = uv_bin()
-    return [
-        ("lint", [uv, "run", "ruff", "check", "."]),
-        ("format-check", [uv, "run", "ruff", "format", "--check", "."]),
-        ("typecheck", [uv, "run", "mypy", "."]),
-        (
-            "security",
-            [uv, "run", "bandit", "-c", "pyproject.toml", "-r", ".", "-x", ".venv,tests", "-ll"],
-        ),
-        ("audit", audit_args(uv)),
-        ("test", [uv, "run", "pytest", "-q", f"--junitxml={junit}"]),
-    ]
-
-
 def run_gate(
     repo: Path,
     env: dict[str, str],
     junit: Path,
     run: RunStep | None = None,
 ) -> list[dict[str, str]]:
-    """Ejecuta el gate. Cada paso rojo entra en fallos, clasificado."""
+    """El gate entero en un comando (#265). Un rojo entra clasificado.
+
+    `GATE_JUNIT` viaja en el entorno: el Makefile escribe ahí el XML de pytest, que es
+    la única parte del gate con detalle por prueba. Si el rojo no es de tests (lint,
+    shellcheck, mypy, bandit, pip-audit) no hay XML y se reporta el comando con su
+    salida clasificada.
+    """
     runner = run or _default_run
-    fallos: list[dict[str, str]] = []
-    for paso, argv in gate_steps(junit):
-        proc = runner(paso, argv, repo, env)
-        if proc.returncode == 0:
-            continue
-        output = f"{proc.stdout or ''}\n{proc.stderr or ''}"
-        if paso == "test":
-            parsed = parse_junit(junit)
-            if parsed:
-                fallos.extend(parsed)
-                continue
-        fallos.append(
-            {
-                "paso": paso,
-                "tipo": classify(paso, output),
-                "detalle": (proc.stderr or proc.stdout or f"rc={proc.returncode}").strip()[:200],
-            }
-        )
-    return fallos
+    env = {**env, "GATE_JUNIT": str(junit)}
+    proc = runner("gate", list(GATE_COMMAND), repo, env)
+    if proc.returncode == 0:
+        return []
+    output = f"{proc.stdout or ''}\n{proc.stderr or ''}"
+    parsed = parse_junit(junit)
+    if parsed:
+        return parsed
+    return [
+        {
+            "paso": "gate",
+            "tipo": classify("gate", output),
+            "detalle": (proc.stderr or proc.stdout or f"rc={proc.returncode}").strip()[:200],
+        }
+    ]
 
 
 def main(argv: list[str] | None = None, run: RunStep | None = None) -> int:

@@ -13,14 +13,12 @@ import json
 import re
 import shutil
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO))
 
 from src import install_cron as ic  # noqa: E402
 

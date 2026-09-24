@@ -6,10 +6,8 @@ Links Markdown [etiqueta](url) + variables libres escapadas (parse_mode=Markdown
 
 import importlib.util
 import os
-import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, SCRIPT_DIR)
 
 spec = importlib.util.spec_from_file_location(
     "notify_render",
@@ -22,7 +20,6 @@ TEMPLATES = mod.load_templates()
 
 BASE_ENV = {
     "STATUS_TEST": "success",
-    "STATUS_AUDIT": "success",
     "PR_NUMBER": "168",
     "PR_TITLE": "ci: gate honesto",
     "PR_URL": "https://github.com/pelukron/hermes-scripts/pull/168",
@@ -39,7 +36,7 @@ class TestCiGoldens:
             "✅ PR [#168](https://github.com/pelukron/hermes-scripts/pull/168)"
             " listo para review\n"
             "ci: gate honesto\n"
-            "CI en verde (test=success audit=success)\n"
+            "CI en verde (gate=success)\n"
             "Commit: [abcdef1](https://github.com/pelukron/hermes-scripts/commit/abcdef123456)"
         )
 
@@ -47,7 +44,7 @@ class TestCiGoldens:
         env = dict(BASE_ENV, STATUS_TEST="failure")
         assert mod.render_ci(env, TEMPLATES) == (
             "❌ PR [#168](https://github.com/pelukron/hermes-scripts/pull/168)"
-            " fallo el CI (test=failure audit=success)\n"
+            " fallo el CI (gate=failure)\n"
             "ci: gate honesto\n"
             "Run: [ver run](https://github.com/pelukron/hermes-scripts/actions/runs/1)\n"
             "Commit: [abcdef1](https://github.com/pelukron/hermes-scripts/commit/abcdef123456)"
@@ -58,17 +55,17 @@ class TestCiGoldens:
         assert mod.render_ci(env, TEMPLATES) == (
             "✅ CI paso: pelukron/hermes-scripts\n"
             "main: [abcdef1](https://github.com/pelukron/hermes-scripts/commit/abcdef123456)\n"
-            "test=success audit=success"
+            "gate=success"
         )
 
     def test_main_fail(self):
         env = {k: v for k, v in BASE_ENV.items() if k != "PR_NUMBER"}
-        env["STATUS_AUDIT"] = "failure"
+        env["STATUS_TEST"] = "failure"
         assert mod.render_ci(env, TEMPLATES) == (
             "❌ CI fallo: pelukron/hermes-scripts\n"
             "main: [abcdef1](https://github.com/pelukron/hermes-scripts/commit/abcdef123456)\n"
             "Run: [ver run](https://github.com/pelukron/hermes-scripts/actions/runs/1)\n"
-            "test=success audit=failure"
+            "gate=failure"
         )
 
     def test_titulo_con_markdown_se_escapa(self):
