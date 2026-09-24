@@ -33,15 +33,13 @@ dev = [
     "ruff==0.15.21",
     "mypy==2.2.0",
     "bandit==1.9.4",
-    "python-semantic-release==10.6.1",
+    "python-semantic-release==10.6.2",
     "pip-audit==2.10.1",
 ]
 
-[tool.uv]
-# Guarda de auditoria: click 8.1.x arrastra PYSEC-2026-2132 (arreglado en 8.3.3).
-# python-semantic-release 10.6.2 lo fijaba a `~=8.1.0`, asi que el resolver baja a
-# 10.6.1 (que admite click<9.0.0) en vez de quedarse con la version vulnerable.
-constraint-dependencies = ["click>=8.3.3"]
+# Sin guarda de resolver para click (#287): python-semantic-release fija `click~=8.1.0`
+# y la excepcion de PYSEC-2026-2132 vive en el target `audit` del Makefile, que es
+# donde se juzga el riesgo. El resolver vuelve a seguir a PSR.
 
 [build-system]
 requires = ["hatchling"]
