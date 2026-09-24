@@ -74,7 +74,7 @@ jobs:
         run: uv sync --locked --python 3.11
 
       - name: pip-audit
-        run: uv run pip-audit
+        run: make audit
 
   notify:
     needs: [test, audit]

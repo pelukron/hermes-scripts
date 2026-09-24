@@ -33,8 +33,12 @@ security:
 	uv run bandit -c pyproject.toml -r . -x .venv,tests -ll
 
 ## Auditoria de dependencias con pip-audit
+# PYSEC-2026-2132 (click.edit(), fix en 8.3.3) va exceptuado y fechado (#287): click llega
+# solo como framework de CLI de python-semantic-release (dev), este repo no lo importa y
+# PSR no llama a click.edit(). Reabrir si algun script importa click o PSR usa edit().
+PIP_AUDIT_IGNORES := --ignore-vuln PYSEC-2026-2132
 audit:
-	uv run pip-audit
+	uv run pip-audit $(PIP_AUDIT_IGNORES)
 
 ## Ejecutar script principal
 run:

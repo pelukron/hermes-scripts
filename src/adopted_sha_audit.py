@@ -24,6 +24,12 @@ HISTORY_NAME = "adopted-sha-history.json"
 STEP_TIMEOUT = 600
 SCHEDULE = "0 5 * * *"
 
+# Excepciones del audit, las mismas que el target `audit` del Makefile (#287):
+# PYSEC-2026-2132 (click.edit(), fix en 8.3.3) con click presente solo como CLI de
+# python-semantic-release. Si alli cambia la lista, aqui tambien: sin esto el e2e
+# nocturno entregaria rojo todas las noches.
+AUDIT_IGNORES = ("PYSEC-2026-2132",)
+
 # Palabras que el spike midió como rojo de entorno, no de código.
 _ENTORNO_MARKERS = (
     "ConnectionRefusedError",
@@ -130,6 +136,14 @@ def _default_run(
     )
 
 
+def audit_args(uv: str) -> list[str]:
+    """`pip-audit` con las excepciones de AUDIT_IGNORES, una bandera por id."""
+    argv = [uv, "run", "pip-audit"]
+    for vuln in AUDIT_IGNORES:
+        argv += ["--ignore-vuln", vuln]
+    return argv
+
+
 def gate_steps(junit: Path) -> list[tuple[str, list[str]]]:
     """Los mismos pasos que `make check`, tests con JUnit XML."""
     uv = uv_bin()
@@ -141,7 +155,7 @@ def gate_steps(junit: Path) -> list[tuple[str, list[str]]]:
             "security",
             [uv, "run", "bandit", "-c", "pyproject.toml", "-r", ".", "-x", ".venv,tests", "-ll"],
         ),
-        ("audit", [uv, "run", "pip-audit"]),
+        ("audit", audit_args(uv)),
         ("test", [uv, "run", "pytest", "-q", f"--junitxml={junit}"]),
     ]
 
