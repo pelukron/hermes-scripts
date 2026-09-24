@@ -19,6 +19,8 @@ from __future__ import annotations
 import subprocess
 from typing import Any
 
+from hermes_common import gh_bin
+
 DEFAULT_OWNER = "pelukron"
 BACKLOG_REPOS = [
     "hermes-scripts",
@@ -142,7 +144,9 @@ def render_digest(records: list[dict[str, Any]], summary: dict[str, Any], date_s
 def _gh(*args: str) -> tuple[bool, Any]:
     """Corre `gh api ...`. Devuelve (ok, json). Nunca lanza."""
     try:
-        result = subprocess.run(["gh", "api", *args], capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            [gh_bin(), "api", *args], capture_output=True, text=True, check=False
+        )
     except (OSError, subprocess.SubprocessError):
         return False, None
     if result.returncode != 0:
@@ -176,7 +180,7 @@ def repo_visibility(owner: str, repo: str) -> str:
     """
     try:
         result = subprocess.run(
-            ["gh", "api", f"repos/{owner}/{repo}", "--jq", ".visibility"],
+            [gh_bin(), "api", f"repos/{owner}/{repo}", "--jq", ".visibility"],
             capture_output=True,
             text=True,
             check=False,
