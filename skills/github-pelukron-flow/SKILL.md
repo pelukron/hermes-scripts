@@ -1,7 +1,7 @@
 ---
 name: github-pelukron-flow
 description: Flujo de trabajo GitHub para repos pelukron (Hermes scripts). Maneja auth, bump-and-pr, limpieza de ramas, pushes con token temporal, y ajustes de CI.
-version: 1.0.0
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 platforms: [linux]
@@ -38,8 +38,16 @@ gh issue view <N> -R pelukron/REPO --json state,title
 - **Validar el contenido, no el CI verde**: leer el diff y comprobar la promesa (¿el test mide el artefacto real o
   solo constantes?, ¿el helper existe?, ¿la deny-list cubre lo declarado?, ¿el ADR registra la decisión o narra?).
   Marcarlo explícitamente como validado en contenido cuando así sea.
-- **Ruleset**: `gh api repos/pelukron/REPO/rulesets` — si el único es `no direct push`, **no** exige ramas al día y
-  los PRs `BEHIND` se mergean tal cual. No meter `main` dentro de ramas de PR ajenos sin que haga falta.
+- **Ruleset**: `gh api repos/pelukron/REPO/rulesets` — el nombre («… no direct push») **no** dice qué exige: hay que
+  leer sus reglas. Medido en `hermes-scripts` (ruleset 18811339): exige los contextos `test (3.11)`, `test (3.12)` y
+  `closes`, con `strict_required_status_checks_policy: true`, así que **sí** pide ramas al día y un PR `BEHIND` no se
+  mergea tal cual. En otros repos puede no exigir contextos: se comprueba, no se asume. No meter `main` dentro de
+  ramas de PR ajenos sin que haga falta.
+- **`BLOCKED` sin ningún rojo**: `mergeable=MERGEABLE` + todos los checks en `SUCCESS` + `mergeStateStatus: BLOCKED`
+  significa que el ruleset exige un contexto que ya nadie produce (típico: se borró o renombró un job del CI). No
+  hay log que leer. Se diagnostica comparando un PR `CLEAN` de la misma cuenta contra el `BLOCKED` y leyendo los
+  contextos exigidos; se arregla en el ruleset, no en el PR. Medido: PR #290, contexto `audit` borrado al mover
+  pip-audit dentro del gate (#265).
 - **WIP huérfano**: respaldarlo antes de opinar (`git -C <worktree> diff > /tmp/wip/cambios.patch` + copiar archivos
   nuevos) y **no borrarlo** (el usuario prohíbe comandos destructivos). Antes de proponer revivirlo, comprobar si su
   decisión ya está en `main` (medido: un ADR «propuesto» sin commitear repetía algo que `CONTEXT.md` ya decidía por
@@ -346,6 +354,39 @@ gh api repos/pelukron/react-stack-roadmap/rulesets/18932270 -X PUT --input /tmp/
 ```
 
 Pitfall: intentar pasar `-F conditions='{...}' -F rules='[...]'` produce 422 porque GitHub espera object/array, no strings.
+
+Pitfall mayor: **`PUT` reemplaza el ruleset entero.** Si mandas sólo la parte que quieres cambiar (p. ej. la lista de
+checks), borras las demás reglas — y con ellas la protección. Receta leer-modificar-escribir, medida al quitar un
+contexto obsoleto (#291):
+
+```bash
+gh api repos/pelukron/REPO/rulesets/<id> > /tmp/ruleset.json
+python3 - <<'PY'
+import json
+d = json.load(open("/tmp/ruleset.json"))
+for r in d["rules"]:
+    if r["type"] == "required_status_checks":
+        r["parameters"]["required_status_checks"] = [
+            c for c in r["parameters"]["required_status_checks"] if c["context"] != "audit"
+        ]
+# Campos de solo lectura: el PUT los rechaza o los ignora.
+for k in ("id", "source", "created_at", "updated_at",
+          "current_user_can_bypass", "bypass_actors", "_links"):
+    d.pop(k, None)
+json.dump(d, open("/tmp/ruleset-nuevo.json", "w"), ensure_ascii=False, indent=2)
+PY
+gh api repos/pelukron/REPO/rulesets/<id> -X PUT --input /tmp/ruleset-nuevo.json
+```
+
+Verificar **releyendo del servidor**, no con la respuesta del `PUT` (el eco puede venir de la petición):
+
+```bash
+gh api repos/pelukron/REPO/rulesets/<id> \
+  --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'
+```
+
+Al tocar jobs del CI (borrar, renombrar, fusionar) hay que revisar en el **mismo cambio** los contextos exigidos: un
+job que desaparece deja todos los PRs en `BLOCKED` sin ningún rojo, y el que lo descubre suele ser el siguiente PR.
 
 ## GitHub CLI helper scripts
 
