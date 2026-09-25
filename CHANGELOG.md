@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.18.1 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9d246bb`](https://github.com/pelukron/hermes-scripts/commit/9d246bbf2f037c24b18ce5436ccec4769b46d3e4))
+
+### 🔧 Infra
+
+- Guard de contextos huerfanos del ruleset en gate-audit
+  ([#315](https://github.com/pelukron/hermes-scripts/pull/315),
+  [`8b94285`](https://github.com/pelukron/hermes-scripts/commit/8b94285c3a1667885ce8680eb14ea8901385494e))
+
+
 ## v0.18.0 (2026-09-25)
 
 ### 📦 Chores
