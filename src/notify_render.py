@@ -4,6 +4,8 @@
 Patron hermes-empleo: el mensaje vive en dato (config/notify-messages.json)
 + codigo testeable; el workflow YAML solo orquesta y envia.
 Solo stdlib para correr con `python3` en CI sin venv.
+Contrato (ADR 0006): texto plano, layout unico (etiqueta + separador +
+titulo + enlaces), sin parse_mode.
 
 Uso:
     TEXT="$(python3 src/notify_render.py --ci)"       # lee STATUS_*, PR_*, SHA, ...
@@ -30,20 +32,14 @@ def _checks(env):
     return f"gate={env.get('STATUS_TEST', '?')}"
 
 
-def md_escape(text):
-    """Escapa variables libres para parse_mode=Markdown (links van aparte).
+def _repo_label(repo, templates):
+    """Etiqueta corta del repo desde el mapa del dato; fallback al nombre completo."""
+    return templates.get("repo_labels", {}).get(repo, repo)
 
-    Solo titulos y textos no controlados; repo/SHA/urls tienen charset seguro.
-    """
-    return (
-        str(text)
-        .replace("\\", "\\\\")
-        .replace("_", "\\_")
-        .replace("*", "\\*")
-        .replace("[", "\\[")
-        .replace("]", "\\]")
-        .replace("`", "\\`")
-    )
+
+def _separator(templates):
+    """Separador del layout unico; vive en el dato (clave `separator`)."""
+    return templates.get("separator", "─" * 20)
 
 
 def render_ci(env, templates):
@@ -51,37 +47,40 @@ def render_ci(env, templates):
     checks = _checks(env)
     short = env.get("SHA", "")[:7]
     pr = env.get("PR_NUMBER", "")
+    repo = env.get("GITHUB_REPOSITORY", "")
+    repo_label = _repo_label(repo, templates)
+    separator = _separator(templates)
+    title = env.get("PR_TITLE", "")
     ok = env.get("STATUS_TEST") == "success"
     if ok:
         if pr:
             return templates["ci_pr_ok"].format(
+                repo_label=repo_label,
+                separator=separator,
                 pr=pr,
-                title=md_escape(env.get("PR_TITLE", "")),
+                title=title,
                 url=env.get("PR_URL", ""),
-                checks=checks,
-                short=short,
-                commit_url=env.get("COMMIT_URL", ""),
             )
         return templates["ci_main_ok"].format(
-            repo=env.get("GITHUB_REPOSITORY", ""),
+            repo_label=repo_label,
+            separator=separator,
             short=short,
             commit_url=env.get("COMMIT_URL", ""),
-            checks=checks,
         )
     if pr:
         return templates["ci_pr_fail"].format(
+            repo_label=repo_label,
+            separator=separator,
             pr=pr,
-            title=md_escape(env.get("PR_TITLE", "")),
+            title=title,
             url=env.get("PR_URL", ""),
             checks=checks,
             run_url=env.get("RUN_URL", ""),
-            short=short,
-            commit_url=env.get("COMMIT_URL", ""),
         )
     return templates["ci_main_fail"].format(
-        repo=env.get("GITHUB_REPOSITORY", ""),
+        repo_label=repo_label,
+        separator=separator,
         short=short,
-        commit_url=env.get("COMMIT_URL", ""),
         run_url=env.get("RUN_URL", ""),
         checks=checks,
     )
@@ -92,7 +91,12 @@ def render_release(env, templates):
     repo = env.get("GITHUB_REPOSITORY", "")
     tag = env.get("TAG", "")
     release_url = env.get("RELEASE_URL", f"https://github.com/{repo}/releases/tag/{tag}")
-    return templates["release"].format(repo=repo, tag=tag, release_url=release_url)
+    return templates["release"].format(
+        repo_label=_repo_label(repo, templates),
+        separator=_separator(templates),
+        tag=tag,
+        release_url=release_url,
+    )
 
 
 def main(argv=None):
