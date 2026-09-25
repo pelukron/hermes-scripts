@@ -32,7 +32,7 @@ from hermes_common import gh_bin, state_dir
 
 LEDGER_NAME = "regression-anomalies.json"
 ISSUE_LABEL = "🐛 bug"
-ENTORNO_UMBRAL = 3
+ENVIRONMENT_THRESHOLD = 3
 
 _SHA_RE = re.compile(r"\b[0-9a-f]{7,40}\b", re.IGNORECASE)
 _ABS_RE = re.compile(r"/[^\s:'\"]+")
@@ -41,25 +41,25 @@ _LINE_RE = re.compile(r"(:)\d{1,5}\b")
 _HOME_RE = re.compile(r"/home/[^\s:'\"]+|C:[\\\/][^\s:'\"]+|~(/[^\s:'\"]*)?")
 
 
-def normalize_detail(detalle: str) -> str:
+def normalize_detail(detail: str) -> str:
     """Detalle sin partes que cambian cada noche (rutas, SHA, tiempos, líneas)."""
-    texto = detalle or ""
-    texto = _HOME_RE.sub("<path>", texto)
-    texto = _ABS_RE.sub("<path>", texto)
-    texto = _SHA_RE.sub("<sha>", texto)
-    texto = _TS_RE.sub("<ts>", texto)
-    texto = _LINE_RE.sub(r"\1<n>", texto)
-    return " ".join(texto.split())[:200]
+    text = detail or ""
+    text = _HOME_RE.sub("<path>", text)
+    text = _ABS_RE.sub("<path>", text)
+    text = _SHA_RE.sub("<sha>", text)
+    text = _TS_RE.sub("<ts>", text)
+    text = _LINE_RE.sub(r"\1<n>", text)
+    return " ".join(text.split())[:200]
 
 
-def signature(job: str, paso: str, tipo: str, detalle: str) -> str:
+def signature(job: str, step: str, kind: str, detail: str) -> str:
     """Clave estable de dedup: job + paso + tipo + detalle normalizado."""
-    return f"{job}|{paso}|{tipo}|{normalize_detail(detalle)}"
+    return f"{job}|{step}|{kind}|{normalize_detail(detail)}"
 
 
-def short_signature(firma: str) -> str:
+def short_signature(key: str) -> str:
     """Firma corta para el título del issue (una línea, sin ruido)."""
-    return " ".join(firma.split("|"))[:80]
+    return " ".join(key.split("|"))[:80]
 
 
 def ledger_path(home: Path | None = None) -> Path:
@@ -79,18 +79,18 @@ def load_ledger(path: Path) -> dict[str, dict[str, Any]]:
     if isinstance(data, dict):
         return {str(k): v for k, v in data.items() if isinstance(v, dict)}
     if isinstance(data, list):
-        filas: dict[str, dict[str, Any]] = {}
-        for fila in data:
-            if isinstance(fila, dict) and fila.get("firma"):
-                filas[str(fila["firma"])] = fila
-        return filas
+        rows: dict[str, dict[str, Any]] = {}
+        for row in data:
+            if isinstance(row, dict) and row.get("signature"):
+                rows[str(row["signature"])] = row
+        return rows
     return {}
 
 
-def save_ledger(path: Path, filas: dict[str, dict[str, Any]]) -> None:
+def save_ledger(path: Path, rows: dict[str, dict[str, Any]]) -> None:
     """Escribe el ledger aunque no haya ``gh`` (la noche siguiente reintenta)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(filas, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 RunGh = Callable[..., subprocess.CompletedProcess]
@@ -106,10 +106,10 @@ def _gh(args: list[str], run: RunGh | None = None) -> subprocess.CompletedProces
     )
 
 
-def issue_is_open(numero: int, run: RunGh | None = None) -> bool | None:
+def issue_is_open(number: int, run: RunGh | None = None) -> bool | None:
     """True si el issue sigue abierto, False si cerrado, None si no se pudo saber."""
     try:
-        proc = _gh(["issue", "view", str(numero), "--json", "state"], run=run)
+        proc = _gh(["issue", "view", str(number), "--json", "state"], run=run)
     except (OSError, subprocess.SubprocessError):
         return None
     if proc.returncode != 0:
@@ -122,33 +122,33 @@ def issue_is_open(numero: int, run: RunGh | None = None) -> bool | None:
 
 def create_issue(
     job: str,
-    firma: str,
-    muestra: str,
+    key: str,
+    sample: str,
     sha: str,
-    cita: int | None = None,
+    reopened_from: int | None = None,
     run: RunGh | None = None,
 ) -> int | None:
     """Crea ``regression: <firma corta>``. None si no hay gh/token (reintenta mañana)."""
     if not os.environ.get("GH_TOKEN") and not os.environ.get("GITHUB_TOKEN"):
         return None
-    cuerpo = (
+    body = (
         f"Job: {job}\n"
-        f"Firma: {firma}\n"
-        f"Muestra: {muestra}\n"
+        f"Firma: {key}\n"
+        f"Muestra: {sample}\n"
         f"SHA adoptado: {sha}\n"
         "Repro: bash bin/gate.sh\n"
     )
-    if cita:
-        cuerpo += f"\nVuelve tras cerrar #{cita}.\n"
+    if reopened_from:
+        body += f"\nVuelve tras cerrar #{reopened_from}.\n"
     try:
         proc = _gh(
             [
                 "issue",
                 "create",
                 "--title",
-                f"regression: {short_signature(firma)}",
+                f"regression: {short_signature(key)}",
                 "--body",
-                cuerpo,
+                body,
                 "--label",
                 ISSUE_LABEL,
             ],
@@ -158,106 +158,110 @@ def create_issue(
         return None
     if proc.returncode != 0:
         return None
-    texto = (proc.stdout or "") + (proc.stderr or "")
-    match = re.search(r"/issues/(\d+)", texto)
+    text = (proc.stdout or "") + (proc.stderr or "")
+    match = re.search(r"/issues/(\d+)", text)
     if match:
         return int(match.group(1))
-    match = re.search(r"#(\d+)", texto)
+    match = re.search(r"#(\d+)", text)
     return int(match.group(1)) if match else None
 
 
-def _hoy() -> str:
+def _today() -> str:
     return date.today().isoformat()
 
 
 def record(
     job: str,
-    paso: str,
-    tipo: str,
-    detalle: str,
+    step: str,
+    kind: str,
+    detail: str,
     sha: str,
     home: Path | None = None,
     run: RunGh | None = None,
-    hoy: str | None = None,
+    today: str | None = None,
 ) -> dict[str, Any]:
     """Registra una anomalía y abre ticket solo cuando toca. Nunca lanza por gh."""
-    firma = signature(job, paso, tipo, detalle)
+    key = signature(job, step, kind, detail)
     path = ledger_path(home)
-    filas = load_ledger(path)
-    dia = hoy or _hoy()
-    fila = filas.get(firma, {})
-    muestra = (detalle or "")[:200]
+    rows = load_ledger(path)
+    day = today or _today()
+    row = rows.get(key, {})
+    sample = (detail or "")[:200]
 
-    if fila:
-        fila["last_seen"] = dia
-        fila["count"] = int(fila.get("count", 0)) + 1
-        fila["last_sha"] = sha
-        fila.setdefault("muestra", muestra)
+    if row:
+        row["last_seen"] = day
+        row["count"] = int(row.get("count", 0)) + 1
+        row["last_sha"] = sha
+        row.setdefault("sample", sample)
     else:
-        fila = {
-            "firma": firma,
-            "first_seen": dia,
-            "last_seen": dia,
+        row = {
+            "signature": key,
+            "first_seen": day,
+            "last_seen": day,
             "count": 1,
             "last_sha": sha,
-            "muestra": muestra,
+            "sample": sample,
             "issue": None,
-            "entorno_streak": 0,
+            "environment_streak": 0,
         }
 
-    numero = fila.get("issue")
-    if tipo == "entorno":
-        racha = int(fila.get("entorno_streak", 0)) + 1
-        fila["entorno_streak"] = racha
-        if racha >= ENTORNO_UMBRAL and not numero:
-            nuevo = create_issue(job, firma, muestra, sha, run=run)
-            if nuevo:
-                fila["issue"] = nuevo
-        elif numero:
-            abierto = issue_is_open(int(numero), run=run)
-            if abierto is False:
-                nuevo = create_issue(job, firma, muestra, sha, cita=int(numero), run=run)
-                if nuevo:
-                    fila["issue"] = nuevo
-        filas[firma] = fila
-        save_ledger(path, filas)
-        return fila
+    issue_number = row.get("issue")
+    if kind == "entorno":
+        streak = int(row.get("environment_streak", 0)) + 1
+        row["environment_streak"] = streak
+        if streak >= ENVIRONMENT_THRESHOLD and not issue_number:
+            new_issue = create_issue(job, key, sample, sha, run=run)
+            if new_issue:
+                row["issue"] = new_issue
+        elif issue_number:
+            is_open = issue_is_open(int(issue_number), run=run)
+            if is_open is False:
+                new_issue = create_issue(
+                    job, key, sample, sha, reopened_from=int(issue_number), run=run
+                )
+                if new_issue:
+                    row["issue"] = new_issue
+        rows[key] = row
+        save_ledger(path, rows)
+        return row
 
-    if numero:
-        abierto = issue_is_open(int(numero), run=run)
-        if abierto is False:
-            nuevo = create_issue(job, firma, muestra, sha, cita=int(numero), run=run)
-            if nuevo:
-                fila["issue"] = nuevo
-        filas[firma] = fila
-        save_ledger(path, filas)
-        return fila
+    if issue_number:
+        is_open = issue_is_open(int(issue_number), run=run)
+        if is_open is False:
+            new_issue = create_issue(
+                job, key, sample, sha, reopened_from=int(issue_number), run=run
+            )
+            if new_issue:
+                row["issue"] = new_issue
+        rows[key] = row
+        save_ledger(path, rows)
+        return row
 
-    nuevo = create_issue(job, firma, muestra, sha, run=run)
-    if nuevo:
-        fila["issue"] = nuevo
-    filas[firma] = fila
-    save_ledger(path, filas)
-    return fila
+    new_issue = create_issue(job, key, sample, sha, run=run)
+    if new_issue:
+        row["issue"] = new_issue
+    rows[key] = row
+    save_ledger(path, rows)
+    return row
 
 
 def record_batch(
     job: str,
     sha: str,
-    fallos: list[dict[str, str]],
+    failures: list[dict[str, str]],
     home: Path | None = None,
     run: RunGh | None = None,
 ) -> list[dict[str, Any]]:
     """Un solo seam para los tres jobs. Un fallo del ledger no rompe la noche."""
-    filas: list[dict[str, Any]] = []
-    for fallo in fallos or []:
+    rows: list[dict[str, Any]] = []
+    for failure in failures or []:
         try:
-            filas.append(
+            rows.append(
                 record(
                     job,
-                    str(fallo.get("paso", "")),
-                    str(fallo.get("tipo", "")),
-                    str(fallo.get("detalle", "")),
+                    str(failure.get("paso", "")),
+                    str(failure.get("tipo", "")),
+                    str(failure.get("detalle", "")),
                     sha,
                     home=home,
                     run=run,
@@ -265,4 +269,4 @@ def record_batch(
             )
         except Exception:
             continue
-    return filas
+    return rows

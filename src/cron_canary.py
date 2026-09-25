@@ -279,11 +279,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if failed:
         try:
-            tipo = "huella" if ("huella" in failed or "mutó" in failed) else "codigo"
+            kind = "huella" if ("huella" in failed or "mutó" in failed) else "codigo"
             _ledger.record_batch(
                 "cron-canary",
                 before,
-                [{"paso": "canary", "tipo": tipo, "detalle": failed}],
+                [{"paso": "canary", "tipo": kind, "detalle": failed}],
                 home=real,
             )
         except Exception:
