@@ -233,3 +233,42 @@ def test_render_una_linea_por_commit():
 def test_render_scope_inline():
     out = _render([("features", [_fake_commit("job nuevo", "feat", scope="cron")])])
     assert "**cron**:" in out
+
+
+def test_render_no_repite_el_mismo_cambio():
+    """El merge commit y el commit de rama del mismo asunto entran a la misma seccion: la nota
+    listaba el cambio dos veces, una con enlace al PR y otra sin el (#246). El `unique` de la
+    plantilla no los colapsa porque compara la linea completa y una trae el enlace.
+
+    La identidad es (scope, descripcion), no el sha: son dos commits distintos del mismo cambio.
+    """
+    for orden in ("merge primero", "rama primero"):
+        con_pr = _fake_commit("la rama toca algo", "fix", mr="#999", sha="bbbbbbb0000001")
+        sin_pr = _fake_commit("la rama toca algo", "fix", sha="bbbbbbb0000002")
+        commits = [con_pr, sin_pr] if orden == "merge primero" else [sin_pr, con_pr]
+        out = _render([("bug fixes", commits)])
+        assert out.count("La rama toca algo") == 1, (
+            f"{orden}: el cambio sale listado dos veces:\n{out}"
+        )
+        assert "[#999]" in out, f"{orden}: se conservo la linea sin enlace al PR"
+        assert "bbbbbbb0000001" in out and "bbbbbbb0000002" not in out, (
+            f"{orden}: se conservo la linea del commit de rama en vez de la del merge"
+        )
+
+
+def test_render_no_colapsa_cambios_distintos():
+    """El dedup es por (scope, descripcion): mismo texto con scope distinto son dos cambios."""
+    out = _render(
+        [
+            (
+                "features",
+                [
+                    _fake_commit("primera parte", "feat", scope="cron", sha="aaaaaaa0000001"),
+                    _fake_commit("primera parte", "feat", scope="otro", sha="aaaaaaa0000003"),
+                    _fake_commit("segunda parte", "feat", scope="cron", sha="aaaaaaa0000002"),
+                ],
+            )
+        ]
+    )
+    assert out.count("Primera parte") == 2
+    assert "Segunda parte" in out
