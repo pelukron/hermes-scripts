@@ -1,6 +1,7 @@
 {%    from 'macros.md.j2' import apply_alphabetical_ordering_by_brk_descriptions
 %}{%  from 'macros.md.j2' import apply_alphabetical_ordering_by_descriptions
 %}{%  from 'macros.md.j2' import apply_alphabetical_ordering_by_release_notices
+%}{%  from 'macros.md.j2' import deduplicate_commits_by_description
 %}{%  from 'macros.md.j2' import format_breaking_changes_description, format_commit_summary_line
 %}{%  from 'macros.md.j2' import format_release_notice
 %}{#
@@ -54,6 +55,7 @@ EXAMPLE:
 %}{#    PREPROCESS COMMITS (order by description & format description line)
 #}{%    set ns = namespace(commits=commits)
 %}{%    set _ = apply_alphabetical_ordering_by_descriptions(ns)
+%}{%    set _ = deduplicate_commits_by_description(ns)
 %}{#
 #}{%    set commit_descriptions = []
 %}{#

@@ -197,3 +197,38 @@
 %}{%    set _ = order_commits_alphabetically_by_scope_and_attr(ns, 'release_notices.0')
 %}{%  endmacro
 %}
+
+
+{#  MACRO: descarta los commits que repiten un cambio ya listado en la misma seccion
+  - El merge commit de un PR y su commit de rama llevan el mismo asunto (#245 hizo
+    visibles a los dos) y ambos caen en la misma seccion, asi que la nota listaba el
+    mismo cambio dos veces (#246). `unique` no puede colapsar el par: la linea del
+    merge trae el enlace al PR y la del commit de rama no.
+  - La identidad es (scope, primera linea de la descripcion), no el sha del commit:
+    son dos commits distintos que describen el mismo cambio.
+  - Conserva la entrada informativa: la que enlaza el PR, cuando solo una lo hace.
+  - parameter: ns (namespace) object with a commits list
+  - returns None but modifies the ns.commits list in place
+#}{%  macro deduplicate_commits_by_description(ns)
+%}{%    set representative = namespace(by_key={}) %}
+%}{%    for commit in ns.commits %}
+%}{%      set key = (commit.scope, commit.descriptions[0] | trim) %}
+%}{#        # `linked_merge_request` vacio = la linea sin enlace al PR
+#}{%      if key not in representative.by_key
+            or (commit.linked_merge_request != ""
+                and representative.by_key[key].linked_merge_request == "")
+%}{%        set _ = representative.by_key.update({key: commit}) %}
+%}{%      endif %}
+%}{%    endfor %}
+%}{#      # Una entrada por clave, en el orden en que aparece cada clave (la lista ya viene ordenada)
+#}{%    set deduped = namespace(commits=[], keys=[]) %}
+%}{%    for commit in ns.commits %}
+%}{%      set key = (commit.scope, commit.descriptions[0] | trim) %}
+%}{%      if key not in deduped.keys %}
+%}{%        set _ = deduped.keys.append(key) %}
+%}{%        set _ = deduped.commits.append(representative.by_key[key]) %}
+%}{%      endif %}
+%}{%    endfor %}
+%}{%    set ns.commits = deduped.commits %}
+%}{%  endmacro
+%}
