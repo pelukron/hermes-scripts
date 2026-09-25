@@ -4,6 +4,19 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.17.2 (2026-09-25)
+
+### 🐛 Fixes
+
+- Sello de version en italica con asteriscos para evitar guiones visibles
+  ([`cd1cc3d`](https://github.com/pelukron/hermes-scripts/commit/cd1cc3d2b6385f5ba375916d7b5a683f24f53db8))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`acd13ad`](https://github.com/pelukron/hermes-scripts/commit/acd13ad11fe96db8b2b9e65842a719a97fd785f7))
+
+
 ## v0.17.1 (2026-09-25)
 
 ### 🐛 Fixes
