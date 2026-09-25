@@ -429,7 +429,10 @@ contextos exigidos: un job que desaparece deja todos los PRs en `BLOCKED` sin ni
 ser el siguiente PR. El A/B que aísla la causa, medido en el PR #313: con el contexto huérfano el PR queda
 `mergeStateStatus: BLOCKED` (con `test (3.11)` y `closes` en verde); tras quitar el huérfano, el **mismo** commit pasa
 a `UNSTABLE` (sólo rojo en checks no exigidos, como `notify`). Lectura de los estados, sin invertirlos: `BLOCKED` =
-falta un contexto exigido (o la review de code owner); `UNSTABLE` = los rojos son sólo de checks **no** exigidos.
+falta un contexto exigido que nadie produce; `UNSTABLE` = los rojos son sólo de checks **no** exigidos. Medido en
+#315: con todos los checks en verde y `reviewDecision: null`, el PR queda `CLEAN` pese a que el ruleset tiene
+`require_code_owner_review: true` con `required_approving_review_count: 0` — **la review de code owner no bloquea**
+(y el `CLEAN` descarta que el `BLOCKED` de #313 fuera por eso: era sólo el contexto huérfano).
 
 ## GitHub CLI helper scripts
 
