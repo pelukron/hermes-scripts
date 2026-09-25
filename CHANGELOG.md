@@ -4,6 +4,19 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.17.4 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`dc799e0`](https://github.com/pelukron/hermes-scripts/commit/dc799e06e8e09eedb31686059e9be888d938cc52))
+
+### 📝 Docs
+
+- Diagrama de arquitectura con archify ([#302](https://github.com/pelukron/hermes-scripts/pull/302),
+  [`ffcae49`](https://github.com/pelukron/hermes-scripts/commit/ffcae4996e35a605efad4de9ff80343e9d380380))
+
+
 ## v0.17.3 (2026-09-25)
 
 ### 📦 Chores
