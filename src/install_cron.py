@@ -867,6 +867,19 @@ def run_expectations(hermes_home: Path) -> int:
     lineas = doctor_digest(jobs, read_runs(hermes_home, inicio), ahora)
     if not lineas:
         return 0
+    try:
+        from src import regression_ledger as _ledger
+    except ImportError:  # pragma: no cover
+        import regression_ledger as _ledger  # type: ignore[no-redef]
+    try:
+        _ledger.record_batch(
+            "cron-doctor-daily",
+            "",
+            [{"paso": "expectations", "tipo": "codigo", "detalle": linea} for linea in lineas],
+            home=hermes_home,
+        )
+    except Exception:
+        pass
     print(f"🩺 Cron doctor — {ahora:%Y-%m-%d %H:%M}")
     for linea in lineas:
         print(linea)
