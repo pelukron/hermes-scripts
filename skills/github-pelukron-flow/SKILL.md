@@ -54,6 +54,18 @@ gh issue view <N> -R pelukron/REPO --json state,title
   #152) y si su número de ADR colisiona (medido: `0003` ya existía, y el PR abierto introducía `0004`).
 - **DoD de higiene**: tras mergear, el worktree y su rama local se borran (`git worktree remove ../w<N>-<slug>` +
   `git branch -d`); una rama ya contenida en `main` se borra con `-d` sin miedo.
+- **El push va ANTES del merge, o no va.** Con `delete_branch_on_merge: true` (los repos pelukron lo tienen),
+  empujar una rama cuyo PR ya se mergeó la **resucita**: medido en #293, el merge (23:38Z) borró la rama y el push
+  de tres minutos después salió `* [new branch]` y la volvió a crear. Se des-resucita con
+  `gh api -X DELETE repos/pelukron/REPO/git/refs/heads/<rama>` y se confirma con
+  `gh api repos/pelukron/REPO/branches --paginate --jq '.[].name'` (sano = sólo `main`). Antes de cualquier push,
+  `gh pr view <N> --json state`.
+- **`git merge-base --is-ancestor <rama-local> origin/main` no prueba el merge en estos repos.** Si GitHub creó su
+  propio merge commit (`Update branch` en la UI, o el merge hecho desde ahí), existen **dos** commits con los mismos
+  padres y el mismo mensaje y SHAs distintos: medido, el local `f59cf10` vs el que quedó en `main` `3369c42`, ambos
+  `padres=9335418 3af8299` ⇒ el ancestor da rc=1 con el PR **MERGED**, y `git branch -d` avisa «merged to
+  origin/<rama>, but not yet merged to HEAD». La prueba del merge es `gh pr view <N> --json state,mergedAt`, y el
+  contenido se verifica en el árbol (`git show origin/main:<archivo>`), no por la rama.
 
 ## Tras mergear un PR que toca `cron/jobs.json`: el job NO se instala solo
 
@@ -99,6 +111,21 @@ bin/install-cron.sh --check     # sólo deben quedar los extras como info
   clone contesta `Aborting` y `runtime-sync` reporta `pull fallo` para un clon que estaba bien. El trabajo va en
   worktree; si ya pasó, `git stash push uv.lock -m "..."` (recuperable) y `git pull --ff-only`. Comprobación de un
   segundo antes de dejarlo: `git -C ~/hermes-scripts status --porcelain` tiene que salir **vacío**.
+
+## Cortes en paralelo (dos repos a la vez)
+
+El techo en la laptop del operador (2c/4t, 5.2 GB) son **dos** cortes simultáneos, y conviene que uno sea de docs:
+los gates de pytest en paralelo se comen la RAM aunque no fallen. Un **subagente por corte**, y en su contexto va:
+repo, clon exacto, **worktree y nombre de rama** ya decididos (para que dos hijos no elijan el mismo slug), el comando
+**literal** del gate con su `PATH`/`PYTHONPATH`/`PY`/`TMPDIR`, y la prohibición explícita de `git commit`/`push`/
+`gh pr create`/`gh issue comment` — el hijo implementa, corre los greps de aceptación y el gate, y **se detiene**.
+El padre re-corre los gates antes de publicar (el reporte del hijo es un auto-reporte, no evidencia) y después
+commitea, empuja y abre el PR.
+
+Cortes que **no** se paralelizan aunque sean issues distintos: los que comparten archivo (`src/adopted_sha_audit.py`
+entre el pinneo del gate y el ledger de anomalías), los que comparten `memory-bank/activeContext.md` (cada corte lo
+reescribe al cerrar) y los que deciden el mismo dialecto/formato. Antes de declararlos paralelos, mide el solape de
+archivos contra el árbol real (`git grep -n ... origin/main -- <rutas>`), no contra el título del issue.
 
 ## Auth
 
