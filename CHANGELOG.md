@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.17.5 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`e37bb8a`](https://github.com/pelukron/hermes-scripts/commit/e37bb8adba09b7ebd92b08fa02a194a182d19fc1))
+
+### 🔧 Infra
+
+- Matriz CI con python 3.13 y .python-version pinneado
+  ([#304](https://github.com/pelukron/hermes-scripts/pull/304),
+  [`898aa56`](https://github.com/pelukron/hermes-scripts/commit/898aa568ef1c0033657261849b400d37f2af6084))
+
+
 ## v0.17.4 (2026-09-25)
 
 ### 📦 Chores
