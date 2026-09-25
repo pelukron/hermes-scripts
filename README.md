@@ -72,6 +72,8 @@ config/skills.json           # skills independientes: se declaran y se vigilan, 
   `tests/test_skills_del_repo.py` falla si una skill versionada lleva un id de canal.
 - **Chequeo a mano:** `bin/check-skills.sh` (¿están las declaradas?) y `bin/check-drift.sh`
   (manifiesto de cron + skills; `--quiet` para el digest de un mensaje).
+- **Restaurar:** primero el clon y después `~/.hermes` (el tar guarda los enlaces, no el
+  contenido; ver «Restaurar un backup» en [`docs/INSTALL.md`](docs/INSTALL.md)).
 - Si falta una skill independiente, reinstalarla es trabajo del operador (clonar o copiar su origen en
   `~/.hermes/skills`): el repo sólo avisa, nunca la descarga ni la copia.
 

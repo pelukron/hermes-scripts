@@ -2,11 +2,14 @@
 
 import gzip
 import importlib.util
+import shutil
 import sqlite3
 import sys
 import tarfile
 import time
 from pathlib import Path
+
+import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 
@@ -305,3 +308,72 @@ class TestChangelogPath:
         assert _mod.CHANGELOG.is_file(), _mod.CHANGELOG
         assert _mod.CHANGELOG.parent == _mod.repo_root()
         assert "## [Unreleased]" in _mod.CHANGELOG.read_text(encoding="utf-8")
+
+
+class TestBackupConfigSymlinks:
+    """Las skills enlazadas viajan como enlaces, no como contenido (#260).
+
+    `backup_config` usa `tar.add` sin `dereference`: el tar guarda el enlace.
+    Por eso la restauración exige primero el clon y después `~/.hermes`
+    (ver "Restaurar un backup" en docs/INSTALL.md).
+    """
+
+    def _linked_hermes(self, tmp_path):
+        """Clon falso + `.hermes` falso con un enlace como los del despliegue."""
+        clone_skill = tmp_path / "fake-clon" / "skills" / "github-pelukron-flow"
+        clone_skill.mkdir(parents=True)
+        (clone_skill / "SKILL.md").write_text(
+            "---\nname: github-pelukron-flow\n---\n", encoding="utf-8"
+        )
+        hermes_dir = tmp_path / ".hermes"
+        link = hermes_dir / "skills" / "github" / "github-pelukron-flow"
+        link.parent.mkdir(parents=True)
+        try:
+            link.symlink_to(clone_skill, target_is_directory=True)
+        except OSError:
+            pytest.skip("crear symlinks exige privilegio en este sistema")
+        return hermes_dir, clone_skill, link
+
+    def test_guarda_enlaces_como_enlaces(self, tmp_path):
+        hermes_dir, clone_skill, _link = self._linked_hermes(tmp_path)
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+        result = _mod.backup_config(hermes_dir, backup_dir, "2026-09-25")
+
+        with tarfile.open(result, "r:gz") as tar:
+            names = tar.getnames()
+            member = tar.getmember(".hermes/skills/github/github-pelukron-flow")
+
+        assert member.issym()
+        assert member.linkname == str(clone_skill)
+        assert ".hermes/skills/github/github-pelukron-flow/SKILL.md" not in names
+
+    def test_restaurado_sin_clon_cuelga_y_con_clon_resuelve(self, tmp_path):
+        hermes_dir, clone_skill, _link = self._linked_hermes(tmp_path)
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+        result = _mod.backup_config(hermes_dir, backup_dir, "2026-09-25")
+
+        # Sin el clon en su ruta: el escenario de restaurar solo `~/.hermes`.
+        shutil.rmtree(tmp_path / "fake-clon")
+        restore = tmp_path / "restore"
+        restore.mkdir()
+        with tarfile.open(result, "r:gz") as tar:
+            try:
+                # fully_trusted: la restauración es `tar -xzf` del operador sobre
+                # su propio backup; `data` rechazaría estos enlaces porque el
+                # destino absoluto vive fuera del directorio de extracción.
+                tar.extractall(restore, filter="fully_trusted")
+            except OSError:
+                pytest.skip("extraer symlinks exige privilegio en este sistema")
+        restored = restore / ".hermes" / "skills" / "github" / "github-pelukron-flow"
+        assert restored.is_symlink()
+        assert not restored.exists()
+
+        # Con el clon primero (el orden que documenta INSTALL.md), resuelve.
+        clone_skill.mkdir(parents=True)
+        (clone_skill / "SKILL.md").write_text(
+            "---\nname: github-pelukron-flow\n---\n", encoding="utf-8"
+        )
+        assert restored.exists()
+        assert "github-pelukron-flow" in restored.joinpath("SKILL.md").read_text(encoding="utf-8")

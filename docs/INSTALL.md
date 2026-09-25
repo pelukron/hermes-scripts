@@ -99,6 +99,32 @@ hermes cron remove <job_id>            # por job (id en hermes cron list / jobs.
 rm ~/.hermes/scripts/<wrapper>.sh      # opcional: los wrappers generados
 ```
 
+## Restaurar un backup (primero el clon, después `~/.hermes`)
+
+El tar del backup diario (`hermes_<fecha>.tar.gz`, función `backup_config` en
+`src/scripts/backup_diario.py`) guarda los symlinks **como enlaces** (`tar.add`
+sin `dereference`): el contenido de las skills enlazadas **no viaja en el tar**.
+Hoy son las declaradas en `links` de `config/runtime-clones.json`
+(`skills/github/github-pelukron-flow` y `skills/devops/telegram-notify-config`,
+que apuntan dentro de `~/hermes-scripts`).
+
+Orden de restauración:
+
+1. Primero el clon, en la misma ruta que declara `path`
+   (`git clone https://github.com/pelukron/hermes-scripts.git ~/hermes-scripts`).
+2. Después `~/.hermes` desde el tar del backup.
+
+Si se invierte el orden, esas skills quedan colgando hasta que exista el clon.
+Es el comportamiento querido (la fuente de verdad es el repo público, no el tar;
+ver `docs/adr/0003-skills-contrato-vs-proceso.md`), y el vigilante lo detecta:
+`sync-runtime` sale con rc=1 («symlink … apunta a …» / «no existe o no es un
+enlace»); `bin/check-skills.sh` queda en verde cuando todo resolvió.
+
+Medido el 2026-09-25 (tar en `/tmp` con los enlaces del despliegue): extraído sin
+el clon, ambos enlaces cuelgan (`is_symlink` sí, `exists` no); con el clon
+presente, ambos resuelven y sus `SKILL.md` se leen. El escenario vive como test
+en `tests/test_backup_diario.py` (`TestBackupConfigSymlinks`).
+
 ## Hooks del gateway (back-online)
 
 `hooks/gateway-back-online/` avisa al canal personal cuando el gateway
