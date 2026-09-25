@@ -39,10 +39,18 @@ gh issue view <N> -R pelukron/REPO --json state,title
   solo constantes?, ¿el helper existe?, ¿la deny-list cubre lo declarado?, ¿el ADR registra la decisión o narra?).
   Marcarlo explícitamente como validado en contenido cuando así sea.
 - **Ruleset**: `gh api repos/pelukron/REPO/rulesets` — el nombre («… no direct push») **no** dice qué exige: hay que
-  leer sus reglas. Medido en `hermes-scripts` (ruleset 18811339): exige los contextos `test (3.11)`, `test (3.12)` y
+  leer sus reglas. Medido en `hermes-scripts` (ruleset 18811339): exige los contextos `test (3.11)`, `test (3.13)` y
   `closes`, con `strict_required_status_checks_policy: true`, así que **sí** pide ramas al día y un PR `BEHIND` no se
   mergea tal cual. En otros repos puede no exigir contextos: se comprueba, no se asume. No meter `main` dentro de
   ramas de PR ajenos sin que haga falta.
+- **Los contextos exigidos siguen a los jobs del CI, y eso se verifica contra el servidor.** Cruzar los contextos del
+  ruleset contra los nombres de job que el repo produce **de verdad** (`gh api repos/O/R/actions/runs?per_page=20` y de
+  cada run `.../runs/<id>/jobs --jq '.jobs[].name'`) antes de opinar de un PR `BLOCKED`. El mismo error ya se cometió
+  dos veces: el contexto `audit` murió al mover `pip-audit` dentro del gate (#290, documentado en la skill por #291) y
+  diez días después `test (3.12)` quedó huérfano al dejar la matriz en piso y techo (#304) — todos los PRs `BLOCKED`
+  sin ningún rojo, salvables sólo por bypass de admin. Documentarlo en prosa **no** lo evitó: la regla es actualizar
+  los contextos exigidos en el mismo cambio que toca los jobs o la matriz (issue #314, guard propuesto en
+  `src/gate_audit.py`).
 - **`BLOCKED` sin ningún rojo**: `mergeable=MERGEABLE` + todos los checks en `SUCCESS` + `mergeStateStatus: BLOCKED`
   significa que el ruleset exige un contexto que ya nadie produce (típico: se borró o renombró un job del CI). No
   hay log que leer. Se diagnostica comparando un PR `CLEAN` de la misma cuenta contra el `BLOCKED` y leyendo los
@@ -397,8 +405,12 @@ for r in d["rules"]:
             c for c in r["parameters"]["required_status_checks"] if c["context"] != "audit"
         ]
 # Campos de solo lectura: el PUT los rechaza o los ignora.
-for k in ("id", "source", "created_at", "updated_at",
-          "current_user_can_bypass", "bypass_actors", "_links"):
+# OJO: `bypass_actors` NO es de solo lectura: es parte del payload escribible. Si lo quitas, el ruleset
+# se queda sin el bypass de admin (`RepositoryRole 5`, `bypass_mode: always`) y el owner pierde el único
+# camino para mergear cuando el ruleset exige algo insatisfacible (p.ej. review de code owner en su
+# propio PR). Consérvalo tal como vino en el GET.
+for k in ("id", "source", "source_type", "created_at", "updated_at",
+          "current_user_can_bypass", "_links", "node_id"):
     d.pop(k, None)
 json.dump(d, open("/tmp/ruleset-nuevo.json", "w"), ensure_ascii=False, indent=2)
 PY
@@ -412,8 +424,12 @@ gh api repos/pelukron/REPO/rulesets/<id> \
   --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'
 ```
 
-Al tocar jobs del CI (borrar, renombrar, fusionar) hay que revisar en el **mismo cambio** los contextos exigidos: un
-job que desaparece deja todos los PRs en `BLOCKED` sin ningún rojo, y el que lo descubre suele ser el siguiente PR.
+Al tocar jobs del CI (borrar, renombrar, fusionar, cambiar la matriz) hay que revisar en el **mismo cambio** los
+contextos exigidos: un job que desaparece deja todos los PRs en `BLOCKED` sin ningún rojo, y el que lo descubre suele
+ser el siguiente PR. El A/B que aísla la causa, medido en el PR #313: con el contexto huérfano el PR queda
+`mergeStateStatus: BLOCKED` (con `test (3.11)` y `closes` en verde); tras quitar el huérfano, el **mismo** commit pasa
+a `UNSTABLE` (sólo rojo en checks no exigidos, como `notify`). Lectura de los estados, sin invertirlos: `BLOCKED` =
+falta un contexto exigido (o la review de code owner); `UNSTABLE` = los rojos son sólo de checks **no** exigidos.
 
 ## GitHub CLI helper scripts
 

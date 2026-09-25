@@ -118,19 +118,63 @@ cd - && git worktree remove ../w150-worktree-por-issue   # tras el merge
 
 ## CI
 
-Cada PR ejecuta:
+Cada PR ejecuta (nombres = los checks que ves en la UI):
 
-| Check | Qué valida |
-|---|---|
-| `gate` | `bash bin/gate.sh`: ruff + format + mypy + bandit + pytest |
-| `test (3.11)` / `test (3.12)` | Matriz de Python con `uv sync --locked` + gate |
-| `audit` | `pip-audit` sin vulnerabilidades conocidas |
-| `closes` | El PR referencia su issue con `Closes #N` |
-| `changelog check` | CHANGELOG.md intacto (PSR lo genera al mergear) |
-| `pr-assign` | PR asignado a @pelukron |
+| Check | Qué valida | ¿Exigido por el ruleset? |
+|---|---|---|
+| `test (3.11)` / `test (3.13)` | Matriz de Python: `uv sync --locked` + `bash bin/gate.sh` (ruff, format, shellcheck, mypy, bandit, pip-audit, pytest) y el `changelog check` de que `CHANGELOG.md` va intacto | ✅ sí |
+| `closes` | El body del PR referencia su issue con `Closes #N` (`hygiene.yml`) | ✅ sí |
+| `commitlint` | Título del PR en Conventional Commits (`hygiene.yml`) | no |
+| `notify` | Aviso a Telegram del resultado del CI | no |
+| `Analyze Python (python)` | CodeQL | no |
+| `review` | Pide review a `@pelukron` | no |
 
 Piso de cobertura: **70 %** (`--cov-fail-under=70` en `Makefile`), cumplido por el árbol actual
 (71.5 %). Subirlo hacia 80 % requiere tests nuevos, no solo cambiar el número.
+
+### Contextos exigidos por el ruleset
+
+El ruleset «Protect main — no direct push» (id `18811339`) exige por **nombre** los contextos
+`test (3.11)`, `test (3.13)` y `closes`, con `strict_required_status_checks_policy: true`: la rama
+tiene que estar al día con `main` (un PR `BEHIND` no mergea tal cual).
+
+Un contexto exigido que ya nadie produce **no se ve en ningún log**: el PR queda
+`mergeable: MERGEABLE` + `mergeStateStatus: BLOCKED` **sin ningún check requerido en rojo**, y solo
+mergea por el bypass de admin del ruleset. Medido el 2026-09-25: #304 quitó 3.12 de la matriz
+(`abd9477 infra: matriz solo piso y techo (3.11 y 3.13)`) y el ruleset siguió exigiendo
+`test (3.12)`, así que el PR #313 (todo verde en lo exigido) esperaba un check que nunca iba a
+reportar. Al quitar el contexto huérfano, el mismo PR pasó de `BLOCKED` a `UNSTABLE`.
+
+**Regla: al tocar los jobs del CI — borrar, renombrar, fusionar o cambiar la matriz de Python — se
+actualizan los contextos exigidos en el mismo cambio.**
+
+```bash
+# 1. Qué exige el ruleset (la fuente es el servidor, no este doc)
+gh api repos/pelukron/hermes-scripts/rulesets/18811339 \
+  --jq '.rules[] | select(.type=="required_status_checks")
+        | .parameters.required_status_checks[].context'
+
+# 2. Qué produce el CI de verdad (jobs de las últimas corridas, con el sufijo de matriz)
+gh api repos/pelukron/hermes-scripts/actions/runs?per_page=20 \
+  --jq '.workflow_runs[].id' |
+  while read -r r; do
+    gh api "repos/pelukron/hermes-scripts/actions/runs/$r/jobs" --jq '.jobs[].name'
+  done | sort -u
+
+# 3. Diagnóstico de un PR que no mergea
+gh api graphql -f query='
+  { repository(owner:"pelukron", name:"hermes-scripts")
+    { pullRequest(number:N) { mergeStateStatus mergeable } } }'
+# BLOCKED + todo verde entre los exigidos = contexto huérfano, no un test roto.
+```
+
+Para corregirlo: leer-modificar-escribir con `PUT` del ruleset **completo** (mandar solo la lista de
+checks borra las demás reglas: `deletion`, `non_fast_forward`, `pull_request`), conservar
+`bypass_actors` —si se omite, se pierde el bypass de admin— y quitar solo los campos de solo lectura
+(`id`, `source`, `source_type`, `created_at`, `updated_at`, `current_user_can_bypass`, `_links`,
+`node_id`). Verificar releyendo del servidor, nunca con el eco del `PUT`:
+`gh api repos/pelukron/hermes-scripts/rulesets/18811339 --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'`.
+Ver #314.
 
 ## Auto-release (PSR)
 

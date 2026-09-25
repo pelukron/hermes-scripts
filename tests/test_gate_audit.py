@@ -70,6 +70,44 @@ def test_render_digest_max_8_lineas_sin_tablas():
     assert lines[0].startswith("🛡️ Gate audit — 2026-09-15")
 
 
+def test_orphan_contexts_solo_los_que_nadie_produce():
+    exigidos = ["test (3.11)", "test (3.12)", "closes"]
+    producidos = ["test (3.11)", "test (3.13)", "closes", "notify"]
+    assert ga.orphan_contexts(exigidos, producidos) == ["test (3.12)"]
+
+
+def test_orphan_contexts_compara_literal():
+    # el nombre del check se compara exacto: el espacio cuenta
+    assert ga.orphan_contexts(["test (3.11)"], ["test(3.11)"]) == ["test (3.11)"]
+    assert ga.orphan_contexts(["closes"], ["closes"]) == []
+
+
+def test_huerfano_cuenta_como_hueco_y_va_primero():
+    records = fixture_records()
+    records[0]["contexts"] = ["test (3.11)", "test (3.12)"]
+    records[0]["orphans"] = ["test (3.12)"]
+    found = ga.gaps(records)
+    assert found["pelukron/hermes-scripts"][0] == "huérfano: test (3.12)"
+    assert "pelukron/hermes-scripts" in ga.summarize(records)["with_gaps"]
+
+
+def test_render_markdown_detalla_contextos_y_huerfanos():
+    records = fixture_records()
+    records[0]["contexts"] = ["test (3.11)", "test (3.12)"]
+    records[0]["orphans"] = ["test (3.12)"]
+    text = ga.render_markdown(records, ga.summarize(records))
+    assert "exigidos: test (3.11), test (3.12)" in text
+    assert "huérfano: `test (3.12)`" in text
+
+
+def test_render_digest_muestra_el_huerfano():
+    records = fixture_records()
+    records[0]["orphans"] = ["test (3.12)"]
+    text = ga.render_digest(records, ga.summarize(records), "2026-09-25")
+    assert "huérfano: test (3.12)" in text
+    assert len(text.splitlines()) <= 8
+
+
 # ═══════════════════════════════════════════
 # Capa red (fakes de subprocess, sin `gh` real)
 # ═══════════════════════════════════════════
@@ -136,6 +174,55 @@ class TestRepoHelpers:
         assert ga.ruleset_status("o", "r", "PRIVATE") == "no (privado Free)"
         assert ga.ruleset_status("o", "r", "PUBLIC") == "desconocido"
 
+    def test_required_contexts(self, monkeypatch):
+        def fake(path, *a):
+            if path.endswith("/rulesets"):
+                return True, [{"id": 1}, {"id": 2}]
+            if path.endswith("/rulesets/1"):
+                return True, {
+                    "rules": [
+                        {"type": "pull_request"},
+                        {
+                            "type": "required_status_checks",
+                            "parameters": {
+                                "required_status_checks": [
+                                    {"context": "closes"},
+                                    {"context": "audit"},
+                                ]
+                            },
+                        },
+                    ]
+                }
+            return False, None  # el ruleset 2 no se puede leer
+
+        monkeypatch.setattr(ga, "_gh", fake)
+        assert ga.required_contexts("o", "r") == ["closes", "audit"]
+
+    def test_required_contexts_vacio(self, monkeypatch):
+        monkeypatch.setattr(ga, "_gh", lambda *a: (False, None))
+        assert ga.required_contexts("o", "r") == []
+        monkeypatch.setattr(ga, "_gh", lambda *a: (True, {"no": "lista"}))
+        assert ga.required_contexts("o", "r") == []
+
+    def test_produced_checks(self, monkeypatch):
+        def fake(path, *a):
+            if path.endswith("/actions/workflows"):
+                return True, {"workflows": [{"id": 7}, {"id": 8}]}
+            if path.endswith("/workflows/7/runs?per_page=1"):
+                return True, {"workflow_runs": [{"id": 99}]}
+            if path.endswith("/runs/99/jobs"):
+                return True, {
+                    "jobs": [{"name": "test (3.11)"}, {"name": "notify"}, {"name": "test (3.11)"}]
+                }
+            return False, None  # workflow 8: corridas ilegibles
+
+        monkeypatch.setattr(ga, "_gh", fake)
+        assert ga.produced_checks("o", "r") == ["test (3.11)", "notify"]
+
+    def test_produced_checks_sin_workflows(self, monkeypatch):
+        monkeypatch.setattr(ga, "_gh", lambda *a: (True, []))
+        assert ga.produced_checks("o", "r") == []
+
     def test_detect_gate(self):
         assert ga.detect_gate({"gate_sh": True}, []) == "bin/gate.sh"
         assert ga.detect_gate({"gates_sh": True}, []) == "bin/gates.sh"
@@ -150,9 +237,28 @@ class TestRepoHelpers:
         monkeypatch.setattr(ga, "file_exists", lambda o, r, p: p == "AGENTS.md")
         monkeypatch.setattr(ga, "list_workflows", lambda o, r: ["ci.yml"])
         monkeypatch.setattr(ga, "ruleset_status", lambda o, r, v: "1 ruleset(s)")
+        monkeypatch.setattr(ga, "required_contexts", lambda o, r: ["closes", "test (3.12)"])
+        monkeypatch.setattr(ga, "produced_checks", lambda o, r: ["closes", "test (3.13)"])
         (rec,) = ga.collect("o", ["r"])
         assert rec["repo"] == "o/r"
         assert rec["gate"] == "ci.yml"
         assert rec["checks"]["agents"] is True
         assert rec["checks"]["ci"] is True
         assert rec["checks"]["dependabot"] is False
+        assert rec["contexts"] == ["closes", "test (3.12)"]
+        assert rec["orphans"] == ["test (3.12)"]
+
+    def test_collect_sin_contextos_no_consulta_corridas(self, monkeypatch):
+        monkeypatch.setattr(ga, "repo_visibility", lambda o, r: "PRIVATE")
+        monkeypatch.setattr(ga, "file_exists", lambda o, r, p: False)
+        monkeypatch.setattr(ga, "list_workflows", lambda o, r: [])
+        monkeypatch.setattr(ga, "ruleset_status", lambda o, r, v: "no (privado Free)")
+        monkeypatch.setattr(ga, "required_contexts", lambda o, r: [])
+
+        def boom(o, r):
+            raise AssertionError("sin contextos exigidos no se consultan las corridas")
+
+        monkeypatch.setattr(ga, "produced_checks", boom)
+        (rec,) = ga.collect("o", ["r"])
+        assert rec["contexts"] == []
+        assert rec["orphans"] == []
