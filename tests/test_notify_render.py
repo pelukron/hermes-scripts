@@ -100,6 +100,27 @@ class TestReleaseGolden:
         assert mod.render_release(env, TEMPLATES).endswith("\nhttps://example.com/r")
 
 
+class TestSinLegacy:
+    """#310: la plantilla legacy Markdown v1 no puede volver.
+
+    El contrato es texto plano sin parse_mode (ADR 0006): sin md_escape,
+    sin links [t](url) en el dato y sin parse_mode en el sender.
+    """
+
+    def test_sin_md_escape_en_el_renderer(self):
+        assert not hasattr(mod, "md_escape")
+
+    def test_plantillas_sin_links_markdown(self):
+        with_links = [k for k, v in TEMPLATES.items() if "](" in v]
+        assert with_links == [], f"plantillas con link Markdown: {with_links}"
+
+    def test_sender_sin_parse_mode(self):
+        sender = os.path.join(SCRIPT_DIR, "bin", "notify-telegram.sh")
+        with open(sender, encoding="utf-8") as f:
+            codigo = [ln for ln in f if not ln.lstrip().startswith("#")]
+        assert not any("parse_mode" in ln for ln in codigo)
+
+
 class TestCli:
     def test_ci_imprime(self, monkeypatch, capsys):
         for k, v in BASE_ENV.items():
