@@ -4,6 +4,24 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.17 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`da4d9ff`](https://github.com/pelukron/hermes-scripts/commit/da4d9ffd8d08448621e5a9218f8b63d13ad56849))
+
+### 📝 Docs
+
+- La skill del flujo pelukron registra que el push va antes del merge
+  ([#295](https://github.com/pelukron/hermes-scripts/pull/295),
+  [`6d4f976`](https://github.com/pelukron/hermes-scripts/commit/6d4f976f2d6e81c526fd7252586f5bb6befd7b5b))
+
+- La skill del flujo pelukron registra que el push va antes del merge
+  ([#294](https://github.com/pelukron/hermes-scripts/pull/294),
+  [`b6cf27b`](https://github.com/pelukron/hermes-scripts/commit/b6cf27b78a06f2e618212693c96955a4a7a876d2))
+
+
 ## v0.16.16 (2026-09-24)
 
 ### 📦 Chores
