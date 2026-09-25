@@ -40,8 +40,16 @@ el formato tiene que decir **de qué repo** es el aviso.
 - **El texto vive en dato + renderer testeable, no en el YAML**: `config/notify-messages.json` +
   `bin/notify-render.py --ci` (hermes-empleo) o `src/notify_render.py --ci/--release` (hermes-scripts), con goldens
   en `tests/`.
-- **Sin `parse_mode`**: un título con `<`, `&` o comillas rompería el HTML de Telegram y el aviso se perdería justo
-  cuando importa. Negritas = `parse_mode=HTML` + `escape()` en el renderer, con goldens, en un corte aparte.
+- **Sin `parse_mode`, siempre (decidido en #281, ADR 0006)**: texto plano. Un título con `<`, `&`, comillas,
+  `_` o `*` no puede romper el aviso ni perderlo justo cuando importa. Los enlaces van desnudos (no clicables):
+  se acepta a cambio de que ningún título rompa la entrega. Nada de `parse_mode=HTML`, Markdown ni MarkdownV2
+  en avisos de CI, ni siquiera con `escape()`: el camino con formato murió en #278/#279 sin que ningún gate se
+  pusiera rojo.
+- **Alcance: solo avisos de CI.** Los reportes de cron (`no_agent`) tienen su propio dialecto (Markdown vía
+  `format_message`, ADR 0005) y quedan fuera de este contrato.
+- **Renderer único de referencia**: `src/notify_render.py --ci/--release` con dato `config/notify-messages.json`
+  (claves `ci_pr_ok`, `ci_pr_fail`, `ci_main_ok`, `ci_main_fail`, `release`) y goldens en `tests/`. Los hermanos
+  convergen a este contrato en sus propios tickets.
 - **Aviso de release**: solo si el repo no corta release en cada merge (hermes-empleo publica en cada push a `main`
   ⇒ avisar sería ruido).
 

@@ -4,6 +4,48 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.18.1 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9d246bb`](https://github.com/pelukron/hermes-scripts/commit/9d246bbf2f037c24b18ce5436ccec4769b46d3e4))
+
+### 🔧 Infra
+
+- Guard de contextos huerfanos del ruleset en gate-audit
+  ([#315](https://github.com/pelukron/hermes-scripts/pull/315),
+  [`8b94285`](https://github.com/pelukron/hermes-scripts/commit/8b94285c3a1667885ce8680eb14ea8901385494e))
+
+
+## v0.18.0 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9d38c1e`](https://github.com/pelukron/hermes-scripts/commit/9d38c1e7f1ffcf452c4e136d7c00adff01bf0c4e))
+
+### ✨ Features
+
+- Layout unico de avisos CI en notify_render.py + goldens
+  ([#313](https://github.com/pelukron/hermes-scripts/pull/313),
+  [`b884db2`](https://github.com/pelukron/hermes-scripts/commit/b884db22326f7c85f90e0e427ae90c6a76666d0d))
+
+
+## v0.17.7 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`0629add`](https://github.com/pelukron/hermes-scripts/commit/0629addbb23e29cfc4668dc73f915b067e6229c1))
+
+### 📝 Docs
+
+- Contrato unico de avisos CI en SKILL.md + ADR
+  ([#311](https://github.com/pelukron/hermes-scripts/pull/311),
+  [`6d00404`](https://github.com/pelukron/hermes-scripts/commit/6d004046fcd29a0977f609f11d77c4c9040eb1ce))
+
+
 ## v0.17.6 (2026-09-25)
 
 ### 📦 Chores
