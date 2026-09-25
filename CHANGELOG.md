@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.17.7 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`0629add`](https://github.com/pelukron/hermes-scripts/commit/0629addbb23e29cfc4668dc73f915b067e6229c1))
+
+### 📝 Docs
+
+- Contrato unico de avisos CI en SKILL.md + ADR
+  ([#311](https://github.com/pelukron/hermes-scripts/pull/311),
+  [`6d00404`](https://github.com/pelukron/hermes-scripts/commit/6d004046fcd29a0977f609f11d77c4c9040eb1ce))
+
+
 ## v0.17.6 (2026-09-25)
 
 ### 📦 Chores
