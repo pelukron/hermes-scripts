@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.17.6 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`3e06e23`](https://github.com/pelukron/hermes-scripts/commit/3e06e23300d20e5eca897dcfa80a5be2d3c87a23))
+
+### ✅ Tests
+
+- Validacion de URL con componentes parseados en vez de prefijo
+  ([#305](https://github.com/pelukron/hermes-scripts/pull/305),
+  [`e482eea`](https://github.com/pelukron/hermes-scripts/commit/e482eea1d75c4c380fb526b4f52f85411cf45d0f))
+
+
 ## v0.17.5 (2026-09-25)
 
 ### 📦 Chores
