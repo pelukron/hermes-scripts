@@ -603,5 +603,5 @@ def get_repo_version(repo_root=None):
 
 
 def version_footer(repo_root=None):
-    """Linea de sello `_hermes-scripts <version>_` para headers de reportes."""
-    return f"_hermes-scripts {get_repo_version(repo_root)}_"
+    """Linea de sello `*hermes-scripts <version>*` para headers de reportes."""
+    return f"*hermes-scripts {get_repo_version(repo_root)}*"
