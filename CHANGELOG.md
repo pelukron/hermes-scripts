@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.18.2 (2026-09-25)
+
+### 🐛 Fixes
+
+- Sender de avisos sin parse_mode (texto plano)
+  ([#316](https://github.com/pelukron/hermes-scripts/pull/316),
+  [`191afa1`](https://github.com/pelukron/hermes-scripts/commit/191afa10362f522b1f0e490423c71a8847227b5e))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`706ac4f`](https://github.com/pelukron/hermes-scripts/commit/706ac4f752be1a4d46b78175294c19d04518ecde))
+
+
 ## v0.18.1 (2026-09-25)
 
 ### 📦 Chores
