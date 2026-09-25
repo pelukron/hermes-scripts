@@ -4,9 +4,10 @@
 # Uso: bin/notify-telegram.sh "texto"     (si no hay argumento, lee el texto de stdin)
 # Requiere TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID en el entorno.
 #
-# parse_mode=Markdown: el texto puede traer links [etiqueta](url). Quien genera
-# el texto (src/notify_render.py) escapa las variables libres (titulos); aqui
-# solo se envia. Sin parse_mode los links saldrian literales.
+# Contrato (ADR 0006, #281): texto plano, sin parse_mode. El texto ya viene
+# sin markup (src/notify_render.py + config/notify-messages.json); aqui solo
+# se envia. Sin parse_mode ningun titulo con _, *, <, & o comillas puede
+# romper el aviso.
 set -uo pipefail
 
 if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
@@ -26,7 +27,6 @@ fi
 RESPUESTA=$(curl -s -X POST \
   "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-  --data-urlencode "parse_mode=Markdown" \
   --data-urlencode "text=${TEXTO}")
 
 # curl sale 0 aunque Telegram rechace (401 por token invalido, 400 por chat_id mal): sin esta
