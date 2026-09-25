@@ -4,6 +4,19 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.17.1 (2026-09-25)
+
+### 🐛 Fixes
+
+- El digest de drift en --quiet calla ante extras informativos
+  ([`baa52db`](https://github.com/pelukron/hermes-scripts/commit/baa52db1d8a531d78ced0bb65bfac2f44e05f4f8))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9fde4fc`](https://github.com/pelukron/hermes-scripts/commit/9fde4fc6fdb46ee1ec3fe6d1aae3ee4c0d523280))
+
+
 ## v0.17.0 (2026-09-25)
 
 ### 📦 Chores
