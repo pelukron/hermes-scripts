@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Hermes Scripts — Arquitectura",
+    "quality_profile": "showcase",
+    "repository": { "url": "https://github.com/pelukron/hermes-scripts", "provider": "github", "link_mode": "web", "revision": "da4d9ffd8d08448621e5a9218f8b63d13ad56849" },
+    "views": [
+      { "id": "entrega", "label": "Entrega diaria", "focus": ["manifest", "wrappers", "hermesCron", "entrypoints", "telegram"], "note": "Del manifiesto al mensaje de Telegram." },
+      { "id": "drift-guardas", "label": "Drift y guardas", "focus": ["driftCheck", "manifest", "hermesCron", "telegram", "skillsDeclared"], "note": "Lo deseado contra lo real, con digest solo si hay drift." },
+      { "id": "calidad", "label": "Calidad y release", "focus": ["gate", "ci", "entrypoints"], "note": "Un solo gate en local, CI y la noche." }
+    ]
+  },
+  "components": [
+    { "id": "gate", "type": "security", "label": "Gate único", "sublabel": "bin/gate.sh", "pos": [40, 110], "size": [130, 64], "sources": [{ "path": "bin/gate.sh" }] },
+    { "id": "ci", "type": "cloud", "label": "CI + Release", "sublabel": "Actions + PSR", "pos": [250, 110], "size": [130, 64], "sources": [{ "path": ".github/workflows/ci.yml" }] },
+    { "id": "driftCheck", "type": "security", "label": "Drift check", "sublabel": "--quiet sin ruido", "pos": [460, 110], "size": [140, 64], "sources": [{ "path": "bin/check-drift.sh" }] },
+    { "id": "skillsDeclared", "type": "external", "label": "Skills declaradas", "sublabel": "config/skills.json", "pos": [670, 110], "size": [140, 64], "sources": [{ "path": "config/skills.json" }] },
+    { "id": "feeds", "type": "database", "label": "Feeds RSS", "sublabel": "config/feeds.json", "pos": [880, 110], "size": [130, 64], "sources": [{ "path": "config/feeds.json" }] },
+    { "id": "manifest", "type": "backend", "label": "Manifiesto cron", "sublabel": "cron/jobs.json", "pos": [40, 300], "size": [130, 60], "sources": [{ "path": "cron/jobs.json" }] },
+    { "id": "wrappers", "type": "backend", "label": "Wrappers", "sublabel": "portables + PATH uv", "pos": [250, 300], "size": [140, 60], "sources": [{ "path": "bin/install-cron.sh" }] },
+    { "id": "hermesCron", "type": "cloud", "label": "Hermes cron", "sublabel": "runtime real", "pos": [460, 300], "size": [130, 60], "sources": [{ "path": "bin/install-cron.sh" }] },
+    { "id": "entrypoints", "type": "backend", "label": "Entrypoints", "sublabel": "src/scripts/ (8 jobs)", "pos": [670, 300], "size": [140, 60], "sources": [{ "path": "src/scripts/resumen_noticias_diario.py" }] },
+    { "id": "telegram", "type": "external", "label": "Telegram", "sublabel": "destinos fuera del repo", "pos": [880, 300], "size": [130, 60], "sources": [{ "path": "cron/targets.example.json" }] },
+    { "id": "skillsSystem", "type": "backend", "label": "Skills del sistema", "sublabel": "skills/ versionadas", "pos": [250, 440], "size": [140, 60], "sources": [{ "path": "skills/github-pelukron-flow/SKILL.md" }] },
+    { "id": "runtimeClones", "type": "cloud", "label": "Clones runtime", "sublabel": "symlinks vigilados", "pos": [670, 440], "size": [140, 60], "sources": [{ "path": "config/runtime-clones.json" }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Repo hermes-scripts", "wraps": ["manifest", "wrappers", "entrypoints", "skillsSystem", "driftCheck", "gate", "feeds"] },
+    { "kind": "region", "label": "Runtime Hermes + CI", "wraps": ["hermesCron", "runtimeClones", "ci", "telegram"] }
+  ],
+  "connections": [
+    { "id": "manifiesto-a-wrappers", "from": "manifest", "to": "wrappers", "label": "genera" },
+    { "id": "wrappers-a-cron", "from": "wrappers", "to": "hermesCron", "label": "upsert", "variant": "emphasis" },
+    { "id": "cron-a-jobs", "from": "hermesCron", "to": "entrypoints", "label": "ejecuta" },
+    { "id": "jobs-a-telegram", "from": "entrypoints", "to": "telegram", "label": "entrega", "variant": "emphasis" },
+    { "id": "jobs-leen-feeds", "from": "entrypoints", "to": "feeds", "label": "lee RSS", "fromSide": "bottom", "toSide": "right", "via": [[740, 420], [1050, 420], [1050, 142]] },
+    { "id": "skills-a-clones", "from": "skillsSystem", "to": "runtimeClones", "label": "symlink" },
+    { "id": "clones-a-cron", "from": "runtimeClones", "to": "hermesCron", "label": "vigila runtime-sync", "variant": "dashed" },
+    { "id": "declaradas-a-drift", "from": "skillsDeclared", "to": "driftCheck", "label": "declara" },
+    { "id": "drift-a-cron", "from": "driftCheck", "to": "hermesCron", "label": "deseado vs real", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDx": -70 },
+    { "id": "drift-a-telegram", "from": "driftCheck", "to": "telegram", "label": "digest si hay drift", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "via": [[530, 280], [945, 280]] },
+    { "id": "gate-a-ci", "from": "gate", "to": "ci", "label": "mismo comando", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Entrega", "items": ["Manifiesto declara qué corre y a dónde entrega", "Wrappers portables hacen upsert en Hermes cron", "Entrypoints ejecutan y entregan en Telegram"] },
+    { "dot": "emerald", "title": "Guardas", "items": ["Drift compara deseado contra real sin ruido en --quiet", "Skills del sistema viajan por symlink dentro del clon", "Datos del despliegue nunca se versionan"] },
+    { "dot": "rose", "title": "Calidad", "items": ["Un solo gate en local, CI y la noche", "Release lo genera PSR al mergear", "CHANGELOG intacto en el PR"] }
+  ]
+}
