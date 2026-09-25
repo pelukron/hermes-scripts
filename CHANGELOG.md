@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.16.18 (2026-09-25)
+
+### 🐛 Fixes
+
+- Las notas del release ya no listan el mismo cambio dos veces
+  ([#296](https://github.com/pelukron/hermes-scripts/pull/296),
+  [`9df50ab`](https://github.com/pelukron/hermes-scripts/commit/9df50ab6fe8b0b154479c109aa12517e21aee6dd))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`17b16d6`](https://github.com/pelukron/hermes-scripts/commit/17b16d60f02bb0245030d3a8ade064f733e21258))
+
+
 ## v0.16.17 (2026-09-25)
 
 ### 📦 Chores
