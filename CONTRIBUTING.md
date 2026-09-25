@@ -145,6 +145,13 @@ mergea por el bypass de admin del ruleset. Medido el 2026-09-25: #304 quitó 3.1
 `test (3.12)`, así que el PR #313 (todo verde en lo exigido) esperaba un check que nunca iba a
 reportar. Al quitar el contexto huérfano, el mismo PR pasó de `BLOCKED` a `UNSTABLE`.
 
+Ojo con la distinción que importa, porque el falso positivo es fácil: un job **omitido** por un `if:`
+—el `closes` de `hygiene.yml` en PRs de Dependabot, por ejemplo— **sí** publica su check, con
+conclusión `SKIPPED`, y GitHub lo da por cumplido (#286 y #264 mergearon con `closes=SKIPPED`, y
+`commitlint=SKIPPED`). Lo que bloquea para siempre es un contexto que **ningún workflow publica**.
+Corolario para el guard: sin corridas que leer no se puede afirmar huérfano (`produced_checks` vacío
+⇒ no se acusa; 13 de los 20 repos de la cuenta no tienen runs).
+
 **Regla: al tocar los jobs del CI — borrar, renombrar, fusionar o cambiar la matriz de Python — se
 actualizan los contextos exigidos en el mismo cambio.**
 

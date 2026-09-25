@@ -284,7 +284,17 @@ def orphan_contexts(required: list[str], produced: list[str]) -> list[str]:
     """Contextos exigidos que ya nadie produce. Pura: sin red, se testea directo.
 
     La comparación es literal (los espacios cuentan): `test (3.11)` != `test(3.11)`.
+    Con `produced` vacío devuelve []: 'sin corridas que leer' no es lo mismo que 'sin job
+    que lo publique', y marcarlo sería un falso positivo (medido: 13 de los 20 repos de la
+    cuenta no tienen runs, y 3 workflows de otros repos jamás corrieron).
+
+    Ojo con la distinción que importa, medida en hermes-scripts: un job **omitido** por un
+    `if:` sí publica su check (conclusión `SKIPPED`) y no bloquea el merge (#286 y #264
+    mergearon con `closes=SKIPPED`); lo que bloquea para siempre es un contexto que
+    **ningún workflow publica**, como `test (3.12)` tras #304.
     """
+    if not produced:
+        return []
     return [ctx for ctx in required if ctx not in produced]
 
 

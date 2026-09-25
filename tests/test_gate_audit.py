@@ -76,6 +76,11 @@ def test_orphan_contexts_solo_los_que_nadie_produce():
     assert ga.orphan_contexts(exigidos, producidos) == ["test (3.12)"]
 
 
+def test_orphan_contexts_sin_evidencia_no_acusa():
+    # sin corridas que leer no se puede afirmar huérfano: sería un falso positivo
+    assert ga.orphan_contexts(["test (3.12)", "closes"], []) == []
+
+
 def test_orphan_contexts_compara_literal():
     # el nombre del check se compara exacto: el espacio cuenta
     assert ga.orphan_contexts(["test (3.11)"], ["test(3.11)"]) == ["test (3.11)"]

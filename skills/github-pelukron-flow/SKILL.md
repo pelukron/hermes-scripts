@@ -434,6 +434,11 @@ falta un contexto exigido que nadie produce; `UNSTABLE` = los rojos son sólo de
 `require_code_owner_review: true` con `required_approving_review_count: 0` — **la review de code owner no bloquea**
 (y el `CLEAN` descarta que el `BLOCKED` de #313 fuera por eso: era sólo el contexto huérfano).
 
+Distinción que evita falsos positivos, medida: un job **omitido** por un `if:` sí publica su check con conclusión
+`SKIPPED` y **no** bloquea (`closes=SKIPPED` en los PRs de Dependabot #286 y #264, ambos mergeados); lo que bloquea
+es un contexto que **ningún workflow publica**. Y sin corridas que leer (`produced_checks` vacío) no se puede
+afirmar huérfano: ahí no se acusa nadie.
+
 ## GitHub CLI helper scripts
 
 To keep issue/branch/PR creation consistent in repos without `bump-and-pr.sh`, create per-repo helpers under `bin/`. These helpers can auto-apply emoji labels based on branch type:
