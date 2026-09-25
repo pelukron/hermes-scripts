@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.18.0 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9d38c1e`](https://github.com/pelukron/hermes-scripts/commit/9d38c1e7f1ffcf452c4e136d7c00adff01bf0c4e))
+
+### ✨ Features
+
+- Layout unico de avisos CI en notify_render.py + goldens
+  ([#313](https://github.com/pelukron/hermes-scripts/pull/313),
+  [`b884db2`](https://github.com/pelukron/hermes-scripts/commit/b884db22326f7c85f90e0e427ae90c6a76666d0d))
+
+
 ## v0.17.7 (2026-09-25)
 
 ### 📦 Chores
