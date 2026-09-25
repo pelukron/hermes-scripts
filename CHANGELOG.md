@@ -4,6 +4,19 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.17.0 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`e0b3466`](https://github.com/pelukron/hermes-scripts/commit/e0b34666a16b2f915da1de0b246cbce237316a99))
+
+### ✨ Features
+
+- Ledger de anomalias nocturnas que abre un ticket deduplicado
+  ([`1e78f89`](https://github.com/pelukron/hermes-scripts/commit/1e78f8923a901fdf2093dcefdd0c56d89774370e))
+
+
 ## v0.16.18 (2026-09-25)
 
 ### 🐛 Fixes
