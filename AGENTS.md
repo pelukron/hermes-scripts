@@ -6,7 +6,9 @@
 - Gate único: `bash bin/gate.sh` en local y CI. Debe estar verde antes del PR. En local hay que pasarle
   el entorno: `PATH="$HOME/.hermes/bin:$PATH" TMPDIR=/tmp bash bin/gate.sh` — sin `TMPDIR=/tmp`, el
   `tmp_path` de pytest cae bajo `/home/…` y `test_install_cron` se pone rojo por la ruta de temporales,
-  no por lo que acabas de cambiar (pasa igual en `main` limpio).
+  no por lo que acabas de cambiar (pasa igual en `main` limpio). Si `/tmp` va por encima del 80 % (tmpfs de
+  2.6 GB), usa `TMPDIR=/var/tmp`: con el tmpfs lleno, `git init --bare` muere con `Disk quota exceeded` y
+  caen 3 tests de `test_sync_runtime.py` que no tienen nada que ver con el cambio.
 - El gate es **un comando**, no una lista de pasos que alguien mantiene en paralelo: lo corren local,
   CI y la noche (`adopted-sha-audit`) con `bash bin/gate.sh`. Incluye `shellcheck` (requiere el binario
   en el PATH; en CI entra por apt) y `pip-audit` con su excepción documentada en el Makefile.
@@ -15,6 +17,12 @@
   el cron (PATH mínimo) y el fallo aparece a la hora del job, no en CI. Usa `uv_bin()` / `gh_bin()` de
   `hermes_common` o una ruta absoluta; `tests/test_relpath_guard.py` lo hace cumplir (allow-list corta:
   `bash`, `sh`, `git`, `date`, que sí viven en `/usr/bin`).
+- **Ruleset ↔ jobs del CI**: el ruleset de `main` exige los checks **por nombre** (`test (3.11)`,
+  `test (3.13)`, `closes`). Al borrar, renombrar, fusionar o cambiar la matriz del CI, actualiza los
+  contextos exigidos **en el mismo cambio**: uno que ya nadie produce deja todos los PRs en `BLOCKED`
+  sin ningún check rojo y solo mergean por el bypass de admin (medido: #304 quitó 3.12 de la matriz y
+  #313 quedó esperando un contexto que nunca reporta). Receta, diagnóstico y comandos:
+  `CONTRIBUTING.md` §«Contextos exigidos por el ruleset».
 - Ramas `{tipo}/{N}-slug`. Push normal; nunca `--force` ni `--amend` tras push.
 - Regla de oro: **un issue = un worktree** (`git worktree add ../w<N>-<slug> -b {tipo}/{N}-slug`); si no
   existe, lo crea el agente. Dos issues en el mismo árbol mezclan cambios, pisan ramas y meten scope
