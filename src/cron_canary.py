@@ -18,6 +18,11 @@ from typing import Any
 
 from hermes_common import report_failure, state_dir, uv_bin
 
+try:
+    from src import regression_ledger as _ledger
+except ImportError:  # pragma: no cover
+    import regression_ledger as _ledger  # type: ignore[no-redef]
+
 # Mutan de verdad: tarball, borrados, clones. Su validación es el drift-check.
 DENY_LIST = {
     "backup-diario": "muta tarball de ~/.hermes",
@@ -273,6 +278,16 @@ def main(argv: list[str] | None = None) -> int:
         failed = send_canary(canary_payload())
 
     if failed:
+        try:
+            kind = "huella" if ("huella" in failed or "mutó" in failed) else "codigo"
+            _ledger.record_batch(
+                "cron-canary",
+                before,
+                [{"paso": "canary", "tipo": kind, "detalle": failed}],
+                home=real,
+            )
+        except Exception:
+            pass
         print(f"cron-canary: {failed}")
         return 1
     return 0

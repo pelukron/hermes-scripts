@@ -644,7 +644,7 @@ class TestFormatItemLine:
 
 class TestVersionEnEncabezado:
     def test_header_trae_version(self):
-        """El bloque 0 incluye _hermes-scripts <tag> (issue #91)."""
+        """El bloque 0 incluye *hermes-scripts <tag> (issue #91)."""
         with (
             patch("hermes_common.HistoryManager") as mock_hist_cls,
             patch.object(mod, "fetch_google_news", return_value=[]),
@@ -652,4 +652,4 @@ class TestVersionEnEncabezado:
         ):
             mock_hist_cls.return_value.exists.return_value = False
             blocks = mod.build_report_blocks()
-        assert any(line.startswith("_hermes-scripts ") for line in blocks[0].splitlines())
+        assert any(line.startswith("*hermes-scripts ") for line in blocks[0].splitlines())

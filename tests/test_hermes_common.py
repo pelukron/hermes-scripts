@@ -456,7 +456,8 @@ class TestVersionFooter:
 
         monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
         out = version_footer()
-        assert out.startswith("_hermes-scripts ") and out.endswith("_")
+        assert out.startswith("*hermes-scripts ") and out.endswith("*")
+        assert "_" not in out
 
     def test_todos_los_reportes_sellan(self):
 

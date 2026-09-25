@@ -4,6 +4,91 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.17.3 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`19e09ed`](https://github.com/pelukron/hermes-scripts/commit/19e09ede5e15fcfa8efdf551852fcddf6b260c6d))
+
+### 📝 Docs
+
+- Orden de restauración primero el clon y después ~/.hermes
+  ([#300](https://github.com/pelukron/hermes-scripts/pull/300),
+  [`20331cf`](https://github.com/pelukron/hermes-scripts/commit/20331cf49d39861239e31ff08a9dc4bb48ad3e08))
+
+
+## v0.17.2 (2026-09-25)
+
+### 🐛 Fixes
+
+- Sello de version en italica con asteriscos para evitar guiones visibles
+  ([`cd1cc3d`](https://github.com/pelukron/hermes-scripts/commit/cd1cc3d2b6385f5ba375916d7b5a683f24f53db8))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`acd13ad`](https://github.com/pelukron/hermes-scripts/commit/acd13ad11fe96db8b2b9e65842a719a97fd785f7))
+
+
+## v0.17.1 (2026-09-25)
+
+### 🐛 Fixes
+
+- El digest de drift en --quiet calla ante extras informativos
+  ([`baa52db`](https://github.com/pelukron/hermes-scripts/commit/baa52db1d8a531d78ced0bb65bfac2f44e05f4f8))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9fde4fc`](https://github.com/pelukron/hermes-scripts/commit/9fde4fc6fdb46ee1ec3fe6d1aae3ee4c0d523280))
+
+
+## v0.17.0 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`e0b3466`](https://github.com/pelukron/hermes-scripts/commit/e0b34666a16b2f915da1de0b246cbce237316a99))
+
+### ✨ Features
+
+- Ledger de anomalias nocturnas que abre un ticket deduplicado
+  ([`1e78f89`](https://github.com/pelukron/hermes-scripts/commit/1e78f8923a901fdf2093dcefdd0c56d89774370e))
+
+
+## v0.16.18 (2026-09-25)
+
+### 🐛 Fixes
+
+- Las notas del release ya no listan el mismo cambio dos veces
+  ([#296](https://github.com/pelukron/hermes-scripts/pull/296),
+  [`9df50ab`](https://github.com/pelukron/hermes-scripts/commit/9df50ab6fe8b0b154479c109aa12517e21aee6dd))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`17b16d6`](https://github.com/pelukron/hermes-scripts/commit/17b16d60f02bb0245030d3a8ade064f733e21258))
+
+
+## v0.16.17 (2026-09-25)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`da4d9ff`](https://github.com/pelukron/hermes-scripts/commit/da4d9ffd8d08448621e5a9218f8b63d13ad56849))
+
+### 📝 Docs
+
+- La skill del flujo pelukron registra que el push va antes del merge
+  ([#295](https://github.com/pelukron/hermes-scripts/pull/295),
+  [`6d4f976`](https://github.com/pelukron/hermes-scripts/commit/6d4f976f2d6e81c526fd7252586f5bb6befd7b5b))
+
+- La skill del flujo pelukron registra que el push va antes del merge
+  ([#294](https://github.com/pelukron/hermes-scripts/pull/294),
+  [`b6cf27b`](https://github.com/pelukron/hermes-scripts/commit/b6cf27b78a06f2e618212693c96955a4a7a876d2))
+
+
 ## v0.16.16 (2026-09-24)
 
 ### 📦 Chores

@@ -22,6 +22,11 @@ import defusedxml.ElementTree as ET  # noqa: N817
 from healthcheck import load_ping_url, ping
 from hermes_common import report_failure, state_dir, uv_bin
 
+try:
+    from src import regression_ledger as _ledger
+except ImportError:  # pragma: no cover - importado como top-level en tests
+    import regression_ledger as _ledger  # type: ignore[no-redef]
+
 HISTORY_NAME = "adopted-sha-history.json"
 STEP_TIMEOUT = 600
 SCHEDULE = "0 5 * * *"
@@ -259,6 +264,10 @@ def _audit(run: RunStep | None = None) -> int:
     }
     append_history(home / HISTORY_NAME, record)
     if fallos:
+        try:
+            _ledger.record_batch("adopted-sha-audit", sha, fallos, home=home)
+        except Exception:
+            pass
         print(digest(record))
         return 1
     return 0
