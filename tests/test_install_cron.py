@@ -682,7 +682,7 @@ class TestQuiet:
     def test_manifiesto_real_trae_cron_drift_check(self, tmp_path):
         manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
         jobs = ic.parse_jobs(manifest)
-        assert len(jobs) == 20
+        assert len(jobs) == 21
         found = [job for job in jobs if job.name == "cron-drift-check"]
         assert len(found) == 1
         job = found[0]
@@ -692,6 +692,24 @@ class TestQuiet:
         assert "--check --quiet" in job.command
         assert job.deliver == "${notify}"
         wrapper = tmp_path / "cron-check.sh"
+        wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
+        result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+
+    def test_manifiesto_real_trae_gate_audit(self, tmp_path):
+        """El guard de contextos huérfanos corre solo (#317): job semanal y silencioso si verde."""
+        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
+        jobs = ic.parse_jobs(manifest)
+        found = [job for job in jobs if job.name == "gate-audit"]
+        assert len(found) == 1
+        job = found[0]
+        assert job.schedule == "5 10 * * 1"
+        assert job.is_no_agent
+        assert job.wrapper == "gate-audit.sh"
+        assert "--alert" in job.command
+        assert job.deliver == "${notify}"
+        assert ic.validate_manifest(manifest, jobs) == []
+        wrapper = tmp_path / "gate-audit.sh"
         wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
         result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr

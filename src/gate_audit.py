@@ -159,6 +159,18 @@ def render_digest(records: list[dict[str, Any]], summary: dict[str, Any], date_s
     return "\n".join(lines)
 
 
+def render_alert(records: list[dict[str, Any]], summary: dict[str, Any], date_str: str) -> str:
+    """Digest **sólo** si hay algo que avisar: huecos en la matriz o contextos huérfanos.
+
+    Devuelve "" cuando todo está verde: el cron entrega stdout, así que vacío = sin mensaje,
+    igual que `bin/check-drift.sh --quiet`. Un contexto huérfano entra por `gaps()`, que ya
+    lo marca como hueco.
+    """
+    if not gaps(records):
+        return ""
+    return render_digest(records, summary, date_str)
+
+
 def _gh(*args: str) -> tuple[bool, Any]:
     """Corre `gh api ...`. Devuelve (ok, json). Nunca lanza."""
     try:

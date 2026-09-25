@@ -105,6 +105,45 @@ def test_render_markdown_detalla_contextos_y_huerfanos():
     assert "huérfano: `test (3.12)`" in text
 
 
+def test_render_alert_calla_si_todo_verde():
+    records = fixture_records()[:1]  # el repo verde
+    assert ga.render_alert(records, ga.summarize(records), "2026-09-25") == ""
+
+
+def test_render_alert_avisa_con_huerfano():
+    records = fixture_records()[:1]
+    records[0]["orphans"] = ["test (3.12)"]
+    texto = ga.render_alert(records, ga.summarize(records), "2026-09-25")
+    assert "huérfano: test (3.12)" in texto
+
+
+def test_render_alert_avisa_con_hueco_de_matriz():
+    records = fixture_records()  # el segundo repo pierde AGENTS/Dependabot/CODEOWNERS
+    texto = ga.render_alert(records, ga.summarize(records), "2026-09-25")
+    assert texto.startswith("🛡️ Gate audit — 2026-09-25")
+    assert "falta:" in texto
+
+
+def _cargar_cli():
+    """Carga `bin/gate-audit.py` (el guion en el nombre impide importarlo normal)."""
+    import importlib.util
+    import types
+
+    spec = importlib.util.spec_from_file_location("gate_audit_cli", REPO / "bin" / "gate-audit.py")
+    if spec is None or spec.loader is None:  # pragma: no cover - no pasa con un archivo real
+        raise AssertionError("no se pudo cargar bin/gate-audit.py")
+    modulo: types.ModuleType = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def test_cli_acepta_alert():
+    cli = _cargar_cli()
+    args = cli.parse_args(["--alert", "--no-write"])
+    assert args.alert is True
+    assert args.digest is False
+
+
 def test_render_digest_muestra_el_huerfano():
     records = fixture_records()
     records[0]["orphans"] = ["test (3.12)"]
