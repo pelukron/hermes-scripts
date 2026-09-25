@@ -5,6 +5,7 @@ import os
 import threading
 from pathlib import Path
 from unittest.mock import Mock, patch
+from urllib.parse import urlparse
 
 # Add script dir to path para importar
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -99,7 +100,9 @@ class TestEscapeLink:
         assert "oc=" not in result
         assert "utm_" not in result
         assert "ceid=" not in result
-        assert result.startswith("https://news.google.com")
+        parsed = urlparse(result)
+        assert parsed.scheme == "https"
+        assert parsed.hostname == "news.google.com"
 
 
 # ═══════════════════════════════════════════
