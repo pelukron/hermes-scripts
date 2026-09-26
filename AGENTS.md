@@ -9,6 +9,9 @@
   no por lo que acabas de cambiar (pasa igual en `main` limpio). Si `/tmp` va por encima del 80 % (tmpfs de
   2.6 GB), usa `TMPDIR=/var/tmp`: con el tmpfs lleno, `git init --bare` muere con `Disk quota exceeded` y
   caen 3 tests de `test_sync_runtime.py` que no tienen nada que ver con el cambio.
+  En Windows la consola es PowerShell y el gate completo no corre si falta `make`. Git Bash
+  (`C:\Program Files\Git\usr\bin\bash.exe`) sólo para scripts. Receta medida:
+  `skills/github-pelukron-flow/SKILL.md` §«Entorno por sistema».
 - El gate es **un comando**, no una lista de pasos que alguien mantiene en paralelo: lo corren local,
   CI y la noche (`adopted-sha-audit`) con `bash bin/gate.sh`. Incluye `shellcheck` (requiere el binario
   en el PATH; en CI entra por apt) y `pip-audit` con su excepción documentada en el Makefile.
