@@ -4,6 +4,24 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.18.3 (2026-09-26)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`c18800c`](https://github.com/pelukron/hermes-scripts/commit/c18800c3a7ebe0deaec2f874d8fc3b53ae6b799f))
+
+### 🔧 Infra
+
+- Job gate-audit para que el guard de contextos corra solo
+  ([#317](https://github.com/pelukron/hermes-scripts/pull/317),
+  [`e9a3118`](https://github.com/pelukron/hermes-scripts/commit/e9a311843b48c92248dadbb409a0ffc30f7a8ec4))
+
+- Job gate-audit para que el guard de contextos huerfanos corra solo
+  ([#318](https://github.com/pelukron/hermes-scripts/pull/318),
+  [`02832a8`](https://github.com/pelukron/hermes-scripts/commit/02832a8c2fec850caa75fadaa67c0e96ed446a4b))
+
+
 ## v0.18.2 (2026-09-25)
 
 ### 🐛 Fixes
