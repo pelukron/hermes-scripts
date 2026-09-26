@@ -36,6 +36,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--repos", nargs="*", default=BACKLOG_REPOS, help="repos a auditar")
     parser.add_argument("--markdown", action="store_true", help="imprime la matriz (default)")
     parser.add_argument("--digest", action="store_true", help="imprime el digest compacto")
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="modo job semanal: silencioso si verde (rc 0 sin salida); "
+        "con huecos imprime el digest y sale rc 1, como adopted-sha-audit",
+    )
     parser.add_argument("--out", default="out/gate-audit.md", help="archivo del reporte")
     parser.add_argument("--date", default=str(date.today()), help="fecha del digest")
     parser.add_argument("--no-write", action="store_true", help="no escribe el archivo")
@@ -58,9 +64,11 @@ def main(argv: list[str] | None = None) -> int:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(render_markdown(records, summary), encoding="utf-8")
     if args.digest:
+        if args.quiet and not summary["with_gaps"]:
+            return 0
         print(render_digest(records, summary, args.date))
-    else:
-        print(render_markdown(records, summary))
+        return 1 if args.quiet and summary["with_gaps"] else 0
+    print(render_markdown(records, summary))
     return 0
 
 

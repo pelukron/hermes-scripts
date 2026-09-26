@@ -158,6 +158,14 @@
       "deliver": "${notify}"
     },
     {
+      "name": "gate-audit",
+      "description": "Cruza contextos exigidos por el ruleset contra checks que el CI produce (caza huérfanos como el test (3.12) de #304); silencioso si verde",
+      "schedule": "0 10 * * 3",
+      "wrapper": "gate-audit.sh",
+      "command": "uv run python bin/gate-audit.py --digest --quiet",
+      "deliver": "${notify}"
+    },
+    {
       "name": "cron-canary",
       "description": "Canary sintético: allow-list de entrypoints en sandbox, huella de lo que los jobs poseen, payload de 1 mensaje. Silencioso si verde.",
       "schedule": "30 2 * * *",

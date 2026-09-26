@@ -155,6 +155,10 @@ Corolario para el guard: sin corridas que leer no se puede afirmar huérfano (`p
 **Regla: al tocar los jobs del CI — borrar, renombrar, fusionar o cambiar la matriz de Python — se
 actualizan los contextos exigidos en el mismo cambio.**
 
+El guard corre solo cada semana (job `gate-audit`, mié 10:00, `cron/jobs.json`): cruza lo exigido
+contra lo que el CI produce y entrega el digest solo si hay huecos; el reporte vive en
+`out/gate-audit.md`.
+
 ```bash
 # 1. Qué exige el ruleset (la fuente es el servidor, no este doc)
 gh api repos/pelukron/hermes-scripts/rulesets/18811339 \

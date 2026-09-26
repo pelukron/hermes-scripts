@@ -13,6 +13,8 @@
   CI y la noche (`adopted-sha-audit`) con `bash bin/gate.sh`. Incluye `shellcheck` (requiere el binario
   en el PATH; en CI entra por apt) y `pip-audit` con su excepción documentada en el Makefile.
   `GATE_JUNIT=<ruta>` escribe el XML que lee la noche; sin la variable no hay XML.
+- Auditoría semanal `gate-audit` (job `gate-audit`, mié 10:00): cruza contextos exigidos vs checks
+  producidos y caza huérfanos (#314); silenciosa si verde, reporte en `out/gate-audit.md`.
 - `src/` no invoca herramientas externas por nombre relativo: `["uv", …]` o `["gh", …]` no resuelven en
   el cron (PATH mínimo) y el fallo aparece a la hora del job, no en CI. Usa `uv_bin()` / `gh_bin()` de
   `hermes_common` o una ruta absoluta; `tests/test_relpath_guard.py` lo hace cumplir (allow-list corta:

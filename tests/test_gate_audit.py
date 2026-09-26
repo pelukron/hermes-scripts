@@ -3,6 +3,7 @@
 Fixtures inline con la forma de los registros de `collect()`.
 """
 
+import importlib.util
 import subprocess as _subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -10,6 +11,14 @@ from unittest.mock import MagicMock
 REPO = Path(__file__).resolve().parent.parent
 
 from src import gate_audit as ga  # noqa: E402
+
+
+def load_cli():
+    """bin/gate-audit.py como modulo (tiene guion, no es importable)."""
+    spec = importlib.util.spec_from_file_location("gate_audit_cli", REPO / "bin" / "gate-audit.py")
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    return cli
 
 
 def fixture_records():
@@ -267,3 +276,28 @@ class TestRepoHelpers:
         (rec,) = ga.collect("o", ["r"])
         assert rec["contexts"] == []
         assert rec["orphans"] == []
+
+
+class TestCliQuiet:
+    """Modo job semanal (#317): silencioso si verde, digest + rc 1 con huecos."""
+
+    def test_quiet_verde_no_imprime(self, monkeypatch, capsys):
+        cli = load_cli()
+        (verde,) = [r for r in fixture_records() if r["repo"] == "pelukron/hermes-scripts"]
+        monkeypatch.setattr(cli, "collect", lambda o, r: [verde])
+        assert cli.main(["--digest", "--quiet", "--no-write"]) == 0
+        assert capsys.readouterr().out == ""
+
+    def test_quiet_con_huecos_entrega_digest(self, monkeypatch, capsys):
+        cli = load_cli()
+        monkeypatch.setattr(cli, "collect", lambda o, r: fixture_records())
+        assert cli.main(["--digest", "--quiet", "--no-write"]) == 1
+        assert "hermes-empleo" in capsys.readouterr().out
+
+    def test_quiet_muestra_el_huerfano(self, monkeypatch, capsys):
+        cli = load_cli()
+        (verde,) = [r for r in fixture_records() if r["repo"] == "pelukron/hermes-scripts"]
+        verde = dict(verde, orphans=["test (3.99)"])
+        monkeypatch.setattr(cli, "collect", lambda o, r: [verde])
+        assert cli.main(["--digest", "--quiet", "--no-write"]) == 1
+        assert "huérfano: test (3.99)" in capsys.readouterr().out
