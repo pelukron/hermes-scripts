@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.19.0 (2026-09-26)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`c117c5b`](https://github.com/pelukron/hermes-scripts/commit/c117c5b52a33b174e4ea5d9833ec68a034e724c6))
+
+### ✨ Features
+
+- El contrato de jobs.json rechaza un manifiesto viejo
+  ([#334](https://github.com/pelukron/hermes-scripts/pull/334),
+  [`3b365f5`](https://github.com/pelukron/hermes-scripts/commit/3b365f59f7ca7124b38dd7fcde9aa5d1194ebea0))
+
+
 ## v0.18.8 (2026-09-26)
 
 ### 📦 Chores
