@@ -359,25 +359,25 @@ def _render(config: TeamConfig, confirmadas: list, rumores: list) -> list[str]:
     header = "\n".join(
         [
             config.header_title,
-            f"_Actualizado: {news_utils.now_str()}_",
+            f"*Actualizado: {news_utils.now_str()}*",
             hermes_common.version_footer(),
             config.sources_line,
         ]
     )
     confirmed = _section(
         "**✅ CONFIRMADO** ({count})",
-        "_Fuentes oficiales y medios establecidos_",
+        "*Fuentes oficiales y medios establecidos*",
         confirmadas,
         _tag_confirmada,
-        "_No se encontraron noticias confirmadas nuevas en las últimas 48h._\n",
+        "*No se encontraron noticias confirmadas nuevas en las últimas 48h.*\n",
         config,
     )
     rumors = _section(
         "**⚠️ RUMORES** ({count})",
-        "_No confirmado oficialmente. Tomar con discreción_",
+        "*No confirmado oficialmente. Tomar con discreción*",
         rumores,
         _tag_rumor,
-        "_No se encontraron rumores o filtraciones nuevos en las últimas 48h._\n",
+        "*No se encontraron rumores o filtraciones nuevos en las últimas 48h.*\n",
         config,
     )
     return [header, confirmed, rumors]
@@ -405,11 +405,135 @@ def build_report(
     )
 
 
+_REEXPORTS = (
+    "NewsItem",
+    "build_google_news_url",
+    "canonical_title",
+    "clean_title",
+    "clean_url",
+    "dedupe",
+    "dedupe_by_title",
+    "domain_of",
+    "enrich_from_detail",
+    "format_item_line",
+    "normalize",
+    "normalize_urls",
+    "now_str",
+    "parse_detail_page",
+    "parse_fecha_es",
+    "resolve_url",
+    "title_similar",
+)
+
+
+def expose(
+    ns: dict[str, Any],
+    config: TeamConfig,
+    *,
+    request: Request,
+    official_impl: Callable[[Request], list],
+    detail_label: str,
+    official_name: str,
+    detail_name: str,
+    enrich_name: str,
+) -> None:
+    """Cuelga en el script los nombres que los tests parchean, sin copiar el ensamble."""
+    ns["retry_request"] = request
+    ns["QUERIES"] = config.queries
+    ns["SITIOS_OFICIALES"] = config.sitios_oficiales
+    ns["SITIOS_CONFIABLES"] = config.sitios_confiables
+    ns["RUMOR_KEYWORDS"] = config.rumor_keywords
+    ns["TELEGRAM_MAX_CHARS"] = config.telegram_max_chars
+    ns["MAX_ITEMS_POR_SECCION"] = config.max_items
+    for name in _REEXPORTS:
+        ns[name] = getattr(news_utils, name)
+    ensure_news_deps()
+    import feedparser
+
+    ns["feedparser"] = feedparser
+
+    def is_oficial(url: str) -> bool:
+        return news_utils.is_oficial(url, config.sitios_oficiales)
+
+    def is_confiable_by_url(url: str) -> bool:
+        return news_utils.is_confiable_by_url(
+            url, config.sitios_oficiales, config.sitios_confiables
+        )
+
+    def is_confiable(source: str, url: str) -> bool:
+        return news_utils.is_confiable(
+            source, url, config.sitios_oficiales, config.sitios_confiables
+        )
+
+    def smells_like_rumor(title: str) -> bool:
+        return news_utils.smells_like_rumor(title, config.rumor_keywords)
+
+    def fetch_google_news(query: str, category: str) -> list:
+        return news_utils.fetch_google_news(
+            query,
+            category,
+            config.sitios_oficiales,
+            config.sitios_confiables,
+            config.rumor_keywords,
+        )
+
+    def fetch_official() -> list:
+        return official_impl(ns["retry_request"])
+
+    def fetch_one(link: str, timeout: int = 10) -> tuple:
+        return fetch_detail(link, timeout, ns["retry_request"], detail_label)
+
+    def enrich(items: list, max_details: int = 12) -> list:
+        return news_utils.enrich_from_detail(items, ns[detail_name], max_details)
+
+    def classify(all_items: list) -> tuple:
+        return news_utils.classify(all_items, config.sitios_oficiales, config.sitios_confiables)
+
+    def historial_path() -> str:
+        return str(hermes_common.state_dir() / config.history_name)
+
+    def build_report_blocks() -> list[str]:
+        return build_report(
+            config,
+            history_path=ns["historial_path"](),
+            fetch_google_news=ns["fetch_google_news"],
+            fetch_official=ns[official_name],
+            enrich_official=ns[enrich_name],
+        )
+
+    ns["is_oficial"] = is_oficial
+    ns["is_confiable_by_url"] = is_confiable_by_url
+    ns["is_confiable"] = is_confiable
+    ns["smells_like_rumor"] = smells_like_rumor
+    ns["fetch_google_news"] = fetch_google_news
+    ns[official_name] = fetch_official
+    ns[detail_name] = fetch_one
+    ns[enrich_name] = enrich
+    ns["classify"] = classify
+    ns["historial_path"] = historial_path
+    ns["build_report_blocks"] = build_report_blocks
+
+
+def fit_block(block: str, limit: int = TELEGRAM_MAX_CHARS) -> str:
+    """Recorta por línea entera. Un corte a media URL llega al chat como texto plano."""
+    if len(block) <= limit:
+        return block
+    kept: list[str] = []
+    size = 0
+    for line in block.splitlines():
+        extra = len(line) + (1 if kept else 0)
+        if size + extra > limit:
+            break
+        kept.append(line)
+        size += extra
+    return "\n".join(kept)
+
+
 def publish(blocks_fn: Callable[[], list[str]], limit: int = TELEGRAM_MAX_CHARS) -> None:
     """Imprime cada bloque separado por `---` para el gateway de Telegram."""
     hermes_common.setup_logging()
     for block in blocks_fn():
-        log.info(hermes_common.smart_truncate(block, limit=limit))
+        log.info(fit_block(block, limit))
         log.info("\n---\n")
         time.sleep(1.5)
 

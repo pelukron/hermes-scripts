@@ -75,13 +75,34 @@ def test_el_contador_de_rayados_cuenta_el_total(tmp_path):
     assert len(bullets) == 8
 
 
+def test_las_italicas_del_ensamble_usan_asteriscos(tmp_path):
+    blocks = _report(_config(history_name="vacio.json"), [], tmp_path)
+    texto = "\n".join(blocks)
+    assert "*Actualizado:" in blocks[0]
+    assert "_Actualizado" not in texto
+    assert "*No se encontraron noticias confirmadas" in _confirmado(blocks)
+    assert "_No se encontraron" not in texto
+
+
+def test_el_recorte_no_parte_una_url():
+    from scripts.team_pipeline import fit_block
+
+    url = "https://news.google.com/rss/articles/" + ("a" * 80)
+    line = f"- 📰 **Medio**: [{url}]({url})"
+    fitted = fit_block("\n".join([line, line]), limit=len(line) + 5)
+    assert fitted == line
+    assert url in fitted
+
+
 def test_las_listas_compartidas_viven_una_sola_vez():
     pipeline = (SCRIPTS / "team_pipeline.py").read_text(encoding="utf-8")
     assert pipeline.count('"milenio.com"') == 1
+    assert pipeline.count('"podría"') == 1
     for name in ("resumen_rayados_diario.py", "resumen_tigres_diario.py"):
         text = (SCRIPTS / name).read_text(encoding="utf-8")
         assert "HistoryManager" not in text
         assert "BeautifulSoup" not in text
         assert "milenio.com" not in text
-        assert "def build_report_blocks" in text
-        assert len(text.splitlines()) < 140
+        assert "expose(" in text
+        assert "podría" not in text
+        assert len(text.splitlines()) < 90
