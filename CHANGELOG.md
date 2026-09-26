@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.18.6 (2026-09-26)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`1b89881`](https://github.com/pelukron/hermes-scripts/commit/1b89881ef4fdfce725563ff62fffbf1ea5163484))
+
+### 📝 Docs
+
+- AGENTS.md registra gate-audit y la instalacion manual de jobs
+  ([#330](https://github.com/pelukron/hermes-scripts/pull/330),
+  [`2ace614`](https://github.com/pelukron/hermes-scripts/commit/2ace6141f78e31a43238e1491f384606c2e97fbf))
+
+
 ## v0.18.5 (2026-09-26)
 
 ### 📦 Chores
