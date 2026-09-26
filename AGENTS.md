@@ -17,6 +17,13 @@
   el cron (PATH mínimo) y el fallo aparece a la hora del job, no en CI. Usa `uv_bin()` / `gh_bin()` de
   `hermes_common` o una ruta absoluta; `tests/test_relpath_guard.py` lo hace cumplir (allow-list corta:
   `bash`, `sh`, `git`, `date`, que sí viven en `/usr/bin`).
+- Job nuevo en `cron/jobs.json`: hay que correr `bin/install-cron.sh` después del merge y verificar con
+  `--check` (rc=0). Mergear el manifiesto **no** instala el job y el `Closes #N` cierra el issue igual
+  (medido: #318 mergeó `gate-audit` y el job no existía en `~/.hermes/cron/jobs.json` hasta correrlo a
+  mano).
+- Auditoría semanal `gate-audit` (lunes 10:05, `no_agent`, cero tokens): `bin/gate-audit.py --alert` cruza
+  los contextos que el ruleset de `main` exige contra los checks que produce el CI y caza huérfanos
+  (#314); silenciosa si verde, matriz en `out/gate-audit.md`.
 - **Ruleset ↔ jobs del CI**: el ruleset de `main` exige los checks **por nombre** (`test (3.11)`,
   `test (3.13)`, `closes`). Al borrar, renombrar, fusionar o cambiar la matriz del CI, actualiza los
   contextos exigidos **en el mismo cambio**: uno que ya nadie produce deja todos los PRs en `BLOCKED`
