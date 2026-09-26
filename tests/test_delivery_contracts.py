@@ -134,11 +134,13 @@ class TestExitCodes:
             "resumen_tigres_diario",
             "sync_runtime",
         ]
+        pipeline = (scripts / "team_pipeline.py").read_text(encoding="utf-8")
         for name in esperados:
             texto = (scripts / f"{name}.py").read_text(encoding="utf-8")
-            assert "report_failure" in texto, name
-            assert re.search(r"except Exception as exc", texto), name
-            assert "raise SystemExit" in texto, name
+            efectivo = texto + pipeline if "enter(main)" in texto else texto
+            assert "report_failure" in efectivo, name
+            assert re.search(r"except Exception as exc", efectivo), name
+            assert "raise SystemExit" in efectivo, name
 
 
 class TestManifiestoEntrypoints:
