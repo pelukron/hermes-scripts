@@ -1,11 +1,8 @@
 """install_cron.py — aplica y verifica los cron jobs de Hermes declarados en cron/jobs.json.
 
-Fuente de verdad: ``cron/jobs.json``. Este modulo:
-
-1. valida el manifiesto (esquema, expresiones cron, rutas absolutas prohibidas),
-2. renderiza los wrappers portables que viven en ``$HERMES_HOME/scripts/``,
-3. hace upsert idempotente de los jobs con ``hermes cron create/edit``,
-4. re-lee el estado real y verifica job por job (read-back).
+Fuente de verdad: ``cron/jobs.json``. Este módulo es el adaptador: argparse, escritura
+en ``$HERMES_HOME`` y el binario ``hermes``. El contrato, el texto del wrapper y la
+lectura del estado vivo viven en ``cron_manifest``, ``cron_render`` y ``cron_monitor``.
 
 Modos::
 
@@ -16,6 +13,8 @@ Modos::
     python src/install_cron.py --smoke        # arranca cada no_agent en sandbox
     python src/install_cron.py --expectations # qué debía correr hoy y no corrió
 
+``bin/install-cron.sh`` sin modo ejecuta ``--apply``. Llamar al ``.py`` directo no muta.
+
 Los IDs de chat no se versionan: en el manifiesto las entregas son ``${nombre}``
 y se resuelven desde ``cron/targets.local.json`` (ignorado por git).
 """
@@ -23,56 +22,61 @@ y se resuelven desde ``cron/targets.local.json`` (ignorado por git).
 from __future__ import annotations
 
 import argparse
-import json
-import re
 import shutil
-import sqlite3
 import subprocess
 import sys
-import tempfile
-import tomllib
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 from cron_manifest import (
+    ABSOLUTE_HOME_RE,
     MANIFEST_DEFAULT,
     TARGETS_EXAMPLE_DEFAULT,
     TARGETS_LOCAL_DEFAULT,
     VALID_TARGET_RE,
     Job,
     ManifestError,
-    check_cron_expr,
     load_manifest,
     load_targets,
-    normalize_target,
-    parse_job_entry,
     parse_jobs,
-    repo_root,
-    repo_text_files,
     required_target_keys,
-    validate_job_commands,
-    validate_manifest,
-    validate_repo_texts,
+    validate,
 )
 from cron_monitor import (
-    DELIVERY_OK,
-    GRACE_MIN,
-    QUIET_DIGEST_MAX,
-    STATUS_OK,
-    VERDICT_FAILED,
-    VERDICT_OK,
-    delivery_verdict,
+    doctor,
     doctor_digest,
-    expected_runs,
-    occurrences_today,
+    drift,
+    extra_names,
+    read_live_jobs,
     read_runs,
     render_drift_digest,
-    run_doctor,
-    run_expectations,
+    signatures_differ,
+    smoke,
 )
-from cron_render import WRAPPER_MARKER, render_wrapper, sync_wrappers
+from cron_render import WRAPPER_MARKER, create_args, edit_args, render_wrapper
+from hermes_common import repo_root
+
+_MANIFEST_MODES = {"--apply", "--check", "--dry-run", "--smoke"}
+
+
+def validate_repo_texts(repo: Path) -> list[str]:
+    """Ningún archivo versionado del repo puede tener rutas /home/<usuario>."""
+    errors: list[str] = []
+    for path in _repo_text_files(repo):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if ABSOLUTE_HOME_RE.search(line):
+                errors.append(f"{path.relative_to(repo)}:{lineno}: ruta absoluta de home")
+    return errors
+
+
+def _repo_text_files(repo: Path) -> list[Path]:
+    files = [repo / MANIFEST_DEFAULT, *sorted((repo / "bin").glob("*.sh"))]
+    files += sorted(repo.glob("*.py"))
+    files += sorted((repo / "src").rglob("*.py"))
+    files += sorted((repo / "cron").glob("*.json"))
+    return [path for path in files if path.is_file()]
 
 
 def run_init_targets(args: argparse.Namespace, repo: Path) -> int:
@@ -104,95 +108,6 @@ def run_init_targets(args: argparse.Namespace, repo: Path) -> int:
         return 1
     print(f"targets OK: {len(targets)} destino(s) en {local}")
     return 0
-
-
-def live_extra_names(jobs: list[Job], hermes_home: Path) -> list[str]:
-    """Jobs reales que no están en el manifiesto (informativos, no drift)."""
-    wanted = {job.name for job in jobs if job.name}
-    live = {str(job.get("name") or "") for job in read_live_jobs(hermes_home)}
-    return sorted(name for name in live if name and name not in wanted)
-
-
-def read_live_jobs(hermes_home: Path) -> list[dict[str, Any]]:
-    """Lee el estado real de los jobs (~/.hermes/cron/jobs.json)."""
-    path = hermes_home / "cron" / "jobs.json"
-    if not path.is_file():
-        return []
-    data = json.loads(path.read_text(encoding="utf-8"))
-    jobs = data.get("jobs") if isinstance(data, dict) else None
-    if not isinstance(jobs, list):
-        return []
-    return [job for job in jobs if isinstance(job, dict)]
-
-
-def live_signature(job: dict[str, Any]) -> dict[str, Any]:
-    """Campos comparables de un job real contra el deseado."""
-    schedule = job.get("schedule")
-    expr = schedule.get("expr") if isinstance(schedule, dict) else ""
-    return {
-        "schedule": expr or "",
-        "script": job.get("script") or "",
-        "no_agent": bool(job.get("no_agent")),
-        "deliver": job.get("deliver") or "",
-        "enabled": bool(job.get("enabled", True)),
-        "model": job.get("model") or "",
-        "provider": job.get("provider") or "",
-    }
-
-
-def desired_signature(job: Job, targets: dict[str, str]) -> dict[str, Any]:
-    """Campos comparables del job deseado."""
-    return {
-        "schedule": job.schedule,
-        "script": job.wrapper if job.is_no_agent else "",
-        "no_agent": job.is_no_agent,
-        "deliver": normalize_target(job.deliver, targets),
-        "enabled": job.enabled,
-        "model": job.model,
-        "provider": job.provider,
-    }
-
-
-def diff_signatures(desired: dict[str, Any], actual: dict[str, Any]) -> list[str]:
-    """Diferencias legibles entre deseado y real."""
-    return [
-        f"{key}: deseado={desired[key]!r} real={actual.get(key)!r}"
-        for key in desired
-        if desired[key] != actual.get(key)
-    ]
-
-
-def check_wrappers(jobs: list[Job], scripts_dir: Path, repo: Path) -> list[str]:
-    """Drift de los wrappers instalados contra los renderizados."""
-    drift: list[str] = []
-    seen: set[str] = set()
-    for job in jobs:
-        if not job.is_no_agent or job.wrapper in seen:
-            continue
-        seen.add(job.wrapper)
-        target = scripts_dir / job.wrapper
-        if not target.is_file():
-            drift.append(f"{job.wrapper}: falta en {scripts_dir}")
-            continue
-        if target.read_text(encoding="utf-8") != render_wrapper(job, repo):
-            drift.append(f"{job.wrapper}: contenido distinto al renderizado")
-    return drift
-
-
-def check_all(jobs: list[Job], targets: dict[str, str], hermes_home: Path, repo: Path) -> list[str]:
-    """Drift completo: wrappers + jobs, con nombres reales."""
-    drift = check_wrappers(jobs, hermes_home / "scripts", repo)
-    live = {str(job.get("name") or ""): job for job in read_live_jobs(hermes_home)}
-    for job in jobs:
-        real = live.get(job.name)
-        if real is None:
-            drift.append(f"job '{job.name}': no existe en Hermes")
-            continue
-        drift += [
-            f"job '{job.name}': {line}"
-            for line in diff_signatures(desired_signature(job, targets), live_signature(real))
-        ]
-    return drift
 
 
 def hermes_cli() -> str:
@@ -232,6 +147,10 @@ def run_remove(args: argparse.Namespace, repo: Path, hermes_home: Path) -> int:
     except ManifestError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
+    return _remove_live(job, name, cli, hermes_home)
+
+
+def _remove_live(job: Job, name: str, cli: str, hermes_home: Path) -> int:
     live = {str(item.get("name") or ""): item for item in read_live_jobs(hermes_home)}
     real = live.get(name)
     job_id = real.get("id") if isinstance(real, dict) else None
@@ -244,55 +163,47 @@ def run_remove(args: argparse.Namespace, repo: Path, hermes_home: Path) -> int:
         print(f"job '{name}' eliminado de Hermes")
     else:
         print(f"aviso: job '{name}' no existe en Hermes (solo wrapper)")
-    if job.is_no_agent and job.wrapper:
-        target = hermes_home / "scripts" / job.wrapper
-        if target.is_file():
-            if WRAPPER_MARKER not in target.read_text(encoding="utf-8"):
-                print(f"aviso: {target} sin marca generada, no se toca")
-                return 0
-            target.unlink()
-            print(f"wrapper {job.wrapper} eliminado")
-    else:
+    return _remove_wrapper(job, hermes_home)
+
+
+def _remove_wrapper(job: Job, hermes_home: Path) -> int:
+    if not (job.is_no_agent and job.wrapper):
         print("(job agent: sin wrapper que borrar)")
+        return 0
+    target = hermes_home / "scripts" / job.wrapper
+    if not target.is_file():
+        return 0
+    if WRAPPER_MARKER not in target.read_text(encoding="utf-8"):
+        print(f"aviso: {target} sin marca generada, no se toca")
+        return 0
+    target.unlink()
+    print(f"wrapper {job.wrapper} eliminado")
     return 0
 
 
-def job_flags(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
-    """Flags compartidos por `hermes cron create` y `hermes cron edit`.
-
-    El schedule y el prompt NO van aqui: `create` los recibe posicionales y `edit` como flags
-    (ver create_args/edit_args). Un flag fuera del contrato del CLI aborta el apply con rc=2.
-    """
-    args = [
-        "--name",
-        job.name,
-        "--deliver",
-        normalize_target(job.deliver, targets),
-    ]
-    if job.is_no_agent:
-        args += ["--script", wrapper_path, "--no-agent"]
-    else:
-        for skill in job.skills:
-            args += ["--skill", skill]
-    if job.model:
-        args += ["--model", job.model]
-    if job.provider:
-        args += ["--provider", job.provider]
-    return args
-
-
-def create_args(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
-    """argv de `hermes cron create`: `<schedule> [prompt]` son POSICIONALES."""
-    head = [job.schedule] if job.is_no_agent else [job.schedule, job.prompt]
-    return [*head, *job_flags(job, targets, wrapper_path)]
-
-
-def edit_args(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
-    """argv de `hermes cron edit`: el schedule (y el prompt) si van como flags."""
-    head = ["--schedule", job.schedule]
-    if not job.is_no_agent:
-        head += ["--prompt", job.prompt]
-    return [*head, *job_flags(job, targets, wrapper_path)]
+def sync_wrappers(jobs: list[Job], repo: Path, scripts_dir: Path, force: bool = False) -> list[str]:
+    """Escribe wrappers generados (crea/actualiza, respeta existentes sin marca)."""
+    log: list[str] = []
+    rendered: dict[str, str] = {}
+    for job in jobs:
+        if job.is_no_agent:
+            rendered.setdefault(job.wrapper, render_wrapper(job, repo))
+    for name, content in sorted(rendered.items()):
+        target = scripts_dir / name
+        current = target.read_text(encoding="utf-8") if target.is_file() else None
+        if current == content:
+            log.append(f"wrapper {name}: sin cambios")
+            continue
+        if current is not None and WRAPPER_MARKER not in current and not force:
+            log.append(
+                f"wrapper {name}: OMITIDO (existente sin marca generada; "
+                "usa --force para reemplazarlo)"
+            )
+            continue
+        target.write_text(content, encoding="utf-8")
+        target.chmod(0o755)
+        log.append(f"wrapper {name}: {'actualizado' if current else 'creado'}")
+    return log
 
 
 def sync_job_state(job: Job, actual: dict[str, Any], cli: str) -> str | None:
@@ -318,7 +229,7 @@ def sync_jobs(jobs: list[Job], targets: dict[str, str], hermes_home: Path, cli: 
         else:
             run([cli, "cron", "edit", str(real.get("id")), *edit_args(job, targets, job.wrapper)])
             log.append(f"job {job.name}: editado")
-        refreshed = {str(j.get("name") or ""): j for j in read_live_jobs(hermes_home)}
+        refreshed = {str(item.get("name") or ""): item for item in read_live_jobs(hermes_home)}
         actual = refreshed.get(job.name) or {}
         line = sync_job_state(job, actual, cli)
         if line is not None:
@@ -329,7 +240,7 @@ def sync_jobs(jobs: list[Job], targets: dict[str, str], hermes_home: Path, cli: 
 def apply_plan(
     jobs: list[Job], targets: dict[str, str], hermes_home: Path, repo: Path, force: bool = False
 ) -> list[str]:
-    """Aplica wrappers + jobs. Devuelve las lineas de registro."""
+    """Aplica wrappers + jobs. Devuelve las líneas de registro."""
     scripts_dir = hermes_home / "scripts"
     scripts_dir.mkdir(parents=True, exist_ok=True)
     log = sync_wrappers(jobs, repo, scripts_dir, force)
@@ -346,10 +257,7 @@ def verify(jobs: list[Job], targets: dict[str, str], hermes_home: Path) -> list[
         if real is None:
             problems.append(f"job '{job.name}': no quedo registrado")
             continue
-        problems += [
-            f"job '{job.name}': {line}"
-            for line in diff_signatures(desired_signature(job, targets), live_signature(real))
-        ]
+        problems += [f"job '{job.name}': {line}" for line in signatures_differ(job, targets, real)]
     return problems
 
 
@@ -365,6 +273,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--only", default="", help="limita a un job por nombre")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="escribe wrappers y hace upsert en Hermes; sin este flag no muta",
+    )
     parser.add_argument(
         "--quiet",
         action="store_true",
@@ -402,14 +315,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="corre cada job no_agent en un sandbox; no escribe en el estado real",
     )
     return parser
-
-
-# ── Expectativas del día (#217) ───────────────────────────────────────────────
-#
-# El doctor semanal pregunta "¿qué está mal ahora?"; esto pregunta "¿qué debía
-# haber corrido hoy y no corrió?". Las cuatro reglas de abajo salen del spike del
-# 2026-09-18: el chequeo ingenuo daba 356 falsos positivos y no veía las
-# entregas fallidas (la clase de fallo silencioso que costó el diario de #212).
 
 
 class _AbortError(Exception):
@@ -456,11 +361,7 @@ def prepare_run(args: argparse.Namespace) -> RunContext:
         if not jobs:
             print(f"ERROR: no hay job llamado {args.only!r}", file=sys.stderr)
             raise _AbortError(2)
-    errors = (
-        validate_manifest(manifest, jobs)
-        + validate_repo_texts(repo)
-        + validate_job_commands(jobs, repo)
-    )
+    errors = validate(manifest, jobs, repo) + validate_repo_texts(repo)
     errors = [error for error in errors if error]
     if errors:
         print("Manifiesto invalido:", file=sys.stderr)
@@ -473,18 +374,15 @@ def prepare_run(args: argparse.Namespace) -> RunContext:
 def run_check(ctx: RunContext) -> int:
     """Modo --check: compara real vs manifiesto. 0 OK, 1 con drift."""
     args, jobs = ctx.args, ctx.jobs
-    targets, hermes_home, repo = ctx.targets, ctx.hermes_home, ctx.repo
-    drift = check_all(jobs, targets, hermes_home, repo)
-    extra = live_extra_names(jobs, hermes_home)
-    # Los extras son informativos (jobs del agente fuera del manifiesto): salen
-    # como `info:` en el chequeo manual y nunca disparan el digest de --quiet.
+    found = drift(jobs, ctx.targets, ctx.hermes_home, ctx.repo, read_jobs=read_live_jobs)
+    extra = extra_names(jobs, ctx.hermes_home, read_jobs=read_live_jobs)
     if args.quiet:
-        if drift:
-            print(render_drift_digest(drift, date.today().isoformat()))
+        if found:
+            print(render_drift_digest(found, date.today().isoformat()))
         return 0
-    if drift:
+    if found:
         print("Drift detectado:")
-        for line in drift:
+        for line in found:
             print(f"  - {line}")
         for name in extra:
             print(f"info: job '{name}' existe en Hermes pero no en el manifiesto")
@@ -495,90 +393,17 @@ def run_check(ctx: RunContext) -> int:
     return 0
 
 
-# Mutan de verdad. Mismo criterio que la deny-list del canary (#257).
-SMOKE_DENY = frozenset(
-    {
-        "backup-diario",
-        "cleanup-housekeeping",
-        "runtime-sync",
-        "sync-runtime",
-    }
-)
-SMOKE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-SMOKE_MAX_LINES = 8
-SMOKE_TIMEOUT = 300
-
-
-def smoke_env(repo: Path, sandbox: Path, home: Path) -> dict[str, str]:
-    """Entorno mínimo de cron: HOME real (ahí está uv), estado y repo explícitos."""
-    return {
-        "HOME": str(home),
-        "PATH": SMOKE_PATH,
-        "HERMES_HOME": str(sandbox),
-        "HERMES_SCRIPTS_DIR": str(repo),
-        # B108: el sandbox del cron necesita un TMPDIR real y estable.
-        "TMPDIR": "/tmp",  # nosec B108
-    }
-
-
-def _smoke_subprocess(argv: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        argv,
-        cwd=env.get("HERMES_SCRIPTS_DIR") or None,
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=SMOKE_TIMEOUT,
-    )
-
-
 def run_smoke(ctx: RunContext, runner=None) -> int:
-    """Arranca cada no_agent en un sandbox. 1 si alguno sale distinto de 0.
-
-    No toca ``ctx.hermes_home``: el estado va a un temporal. HOME sigue siendo
-    el del operador para resolver ``~/.hermes/bin/uv``. Sin el flag, nada de esto corre.
-    """
-    ejecutar = runner or _smoke_subprocess
-    sandbox = Path(tempfile.mkdtemp(prefix="install-cron-smoke-"))
-    scripts = sandbox / "scripts"
-    scripts.mkdir()
-    env = smoke_env(ctx.repo, sandbox, Path.home())
-    fallos = 0
-    try:
-        for job in ctx.jobs:
-            if not job.is_no_agent:
-                print(f"{job.name}: omitido (agent)")
-                continue
-            if job.name in SMOKE_DENY:
-                print(f"{job.name}: omitido (muta)")
-                continue
-            if not job.enabled:
-                print(f"{job.name}: omitido (pausado)")
-                continue
-            wrapper = scripts / (job.wrapper or f"{job.name}.sh")
-            wrapper.write_text(render_wrapper(job, ctx.repo), encoding="utf-8")
-            try:
-                proc = ejecutar(["bash", str(wrapper)], env)
-            except (OSError, subprocess.SubprocessError) as exc:
-                print(f"{job.name}: rc=1")
-                print(f"  {exc}")
-                fallos += 1
-                continue
-            print(f"{job.name}: rc={proc.returncode}")
-            texto = "\n".join(parte for parte in (proc.stdout, proc.stderr) if parte)
-            for linea in texto.splitlines()[:SMOKE_MAX_LINES]:
-                print(f"  {linea}")
-            if proc.returncode != 0:
-                fallos += 1
-    finally:
-        shutil.rmtree(sandbox, ignore_errors=True)
-    return 1 if fallos else 0
+    """Imprime el smoke. El sandbox y el runner viven en cron_monitor.smoke."""
+    code, lines = smoke(ctx.jobs, ctx.repo, runner)
+    for line in lines:
+        print(line)
+    return int(code)
 
 
 def run_apply(ctx: RunContext) -> int:
-    """Modo por defecto (+ --dry-run): avisa requires, planea o aplica."""
+    """Modo --apply o --dry-run: avisa requires, planea o aplica."""
     args, jobs = ctx.args, ctx.jobs
-    targets, hermes_home, repo = ctx.targets, ctx.hermes_home, ctx.repo
     for job in jobs:
         for path in job.requires:
             expanded = Path(path.replace("$HOME", str(Path.home())))
@@ -591,9 +416,9 @@ def run_apply(ctx: RunContext) -> int:
         print("Dry-run: no se escribio nada")
         return 0
     try:
-        for line in apply_plan(jobs, targets, hermes_home, repo, force=args.force):
+        for line in apply_plan(jobs, ctx.targets, ctx.hermes_home, ctx.repo, force=args.force):
             print(f"  {line}")
-        problems = verify(jobs, targets, hermes_home)
+        problems = verify(jobs, ctx.targets, ctx.hermes_home)
     except ManifestError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
@@ -606,15 +431,119 @@ def run_apply(ctx: RunContext) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Entrada: valida el manifiesto y ejecuta el modo pedido."""
-    args = build_parser().parse_args(argv)
+def _run_hermes_doctor() -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [hermes_cli(), "cron", "doctor"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+
+def run_doctor() -> int:
+    """Modo --doctor. Silencio si todo OK. El texto lo imprime este adaptador."""
+    rc, text = doctor(_run_hermes_doctor)
+    rc_int = int(rc)
+    if not text:
+        return rc_int
+    print(text, file=sys.stderr if str(text).startswith("ERROR:") else sys.stdout)
+    return rc_int
+
+
+def run_expectations(hermes_home: Path) -> int:
+    """Modo --expectations. Silencio si está sano. Con hallazgos, rc 0 y digest.
+
+    La anomalía es el mensaje, no un error del propio job (#165). El ledger
+    lo escribe este adaptador; el monitor solo calcula el digest.
+    """
+    ahora = datetime.now()
+    jobs = read_live_jobs(hermes_home)
+    if not jobs:
+        print(f"ERROR: sin jobs en {hermes_home / 'cron' / 'jobs.json'}", file=sys.stderr)
+        return 2
+    inicio = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+    try:
+        runs = read_runs(hermes_home, inicio)
+    except ManifestError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        runs = {}
+    lineas = _expectations_digest(jobs, runs, ahora, hermes_home)
+    if not lineas:
+        return 0
+    print(f"🩺 Cron doctor — {ahora:%Y-%m-%d %H:%M}")
+    for linea in lineas:
+        print(linea)
+    print("remedio: hermes cron runs <job_id> · bin/install-cron.sh --check")
+    return 0
+
+
+def _expectations_digest(
+    jobs: list[dict[str, Any]],
+    runs: dict[str, list[dict[str, Any]]],
+    ahora: datetime,
+    hermes_home: Path,
+) -> list[str]:
+    lineas = list(doctor_digest(jobs, runs, ahora))
+    if not lineas:
+        return []
+    _record_expectations(lineas, hermes_home)
+    return lineas
+
+
+def _record_expectations(lineas: list[str], hermes_home: Path) -> None:
+    try:
+        from src import regression_ledger as _ledger
+    except ImportError:  # pragma: no cover
+        import regression_ledger as _ledger  # type: ignore[no-redef]
+    try:
+        _ledger.record_batch(
+            "cron-doctor-daily",
+            "",
+            [{"paso": "expectations", "tipo": "codigo", "detalle": linea} for linea in lineas],
+            home=hermes_home,
+        )
+    except Exception:
+        pass
+
+
+def _selected_modes(args: argparse.Namespace) -> list[str]:
+    flags = (
+        ("--apply", args.apply),
+        ("--check", args.check),
+        ("--dry-run", args.dry_run),
+        ("--smoke", args.smoke),
+        ("--doctor", args.doctor),
+        ("--expectations", args.expectations),
+        ("--init-targets", args.init_targets),
+        ("--remove", bool(args.remove)),
+    )
+    return [name for name, on in flags if on]
+
+
+def _usage_error(args: argparse.Namespace) -> str | None:
+    modes = _selected_modes(args)
+    if len(modes) > 1:
+        return "ERROR: un solo modo por invocacion (" + ", ".join(modes) + ")"
+    if args.quiet and not args.check:
+        return "ERROR: --quiet solo es válido con --check"
+    if args.force and not args.apply:
+        return "ERROR: --force solo es válido con --apply"
+    modo = modes[0] if modes else "--check"
+    if args.only and modo not in _MANIFEST_MODES:
+        return "ERROR: --only solo vale con --apply, --check, --dry-run o --smoke"
+    return None
+
+
+def _reconfigure_stdout() -> None:
     try:
         reconfigure = getattr(sys.stdout, "reconfigure", None)
-        if callable(reconfigure):  # consolas Windows (cp1252)
+        if callable(reconfigure):
             reconfigure(encoding="utf-8")
     except ValueError:
         pass
+
+
+def _run_mode(args: argparse.Namespace) -> int:
     if args.init_targets:
         repo = Path(args.repo).resolve() if args.repo else repo_root()
         return run_init_targets(args, repo)
@@ -631,9 +560,6 @@ def main(argv: list[str] | None = None) -> int:
         return run_expectations(hermes_home)
     if args.doctor:
         return run_doctor()
-    if args.quiet and not args.check:
-        print("ERROR: --quiet solo es válido con --check", file=sys.stderr)
-        return 2
     try:
         ctx = prepare_run(args)
     except _AbortError as exc:
@@ -642,9 +568,20 @@ def main(argv: list[str] | None = None) -> int:
         return run_smoke(ctx)
     if not args.quiet:
         print(f"Manifiesto OK: {len(ctx.jobs)} job(s) ({ctx.repo})")
-    if args.check:
-        return run_check(ctx)
-    return run_apply(ctx)
+    if args.dry_run or args.apply:
+        return run_apply(ctx)
+    return run_check(ctx)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Entrada: sin modo, chequea. ``--apply`` es el único camino que muta."""
+    args = build_parser().parse_args(argv)
+    _reconfigure_stdout()
+    error = _usage_error(args)
+    if error:
+        print(error, file=sys.stderr)
+        return 2
+    return _run_mode(args)
 
 
 if __name__ == "__main__":

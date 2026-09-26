@@ -1,16 +1,14 @@
-"""Wrappers que el instalador escribe en $HERMES_HOME/scripts.
-
-La resolución de `uv` del wrapper es la misma que `hermes_common.uv_bin`:
-`$UV`, después `command -v uv`, después `~/.hermes/bin/uv`.
-"""
+"""Texto del wrapper y argv de `hermes cron create/edit`. No escribe nada."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from cron_manifest import Job
+from cron_manifest import Job, normalize_target
+from hermes_common import uv_shell
 
 WRAPPER_MARKER = "GENERADO por bin/install-cron.sh"
+
 
 def render_wrapper(job: Job, repo: Path) -> str:
     """Genera el wrapper portable que se instala en $HERMES_HOME/scripts/."""
@@ -30,35 +28,44 @@ def render_wrapper(job: Job, repo: Path) -> str:
         '  echo "install-cron: repo no encontrado en $REPO_DIR" >&2\n'
         "  exit 1\n"
         "fi\n"
-        'UV_BIN="${UV:-$(command -v uv || true)}"\n'
-        'if [ -z "$UV_BIN" ] || [ ! -x "$UV_BIN" ]; then UV_BIN="$HOME/.hermes/bin/uv"; fi\n'
-        # El smoke de un clon corre con `bash -lc`: sin export, un `uv` a secas no existe
-        # bajo el PATH minimo del cron (#270, rc=127).
-        'export PATH="$(dirname "$UV_BIN"):$PATH"\n'
+        f"{uv_shell()}"
         'cd "$REPO_DIR" || exit 1\n'
         f"{prefix}{command} 2>&1\n"
     )
 
-def sync_wrappers(jobs: list[Job], repo: Path, scripts_dir: Path, force: bool = False) -> list[str]:
-    """Escribe wrappers generados (crea/actualiza, respeta existentes sin marca)."""
-    log: list[str] = []
-    rendered: dict[str, str] = {}
-    for job in jobs:
-        if job.is_no_agent:
-            rendered.setdefault(job.wrapper, render_wrapper(job, repo))
-    for name, content in sorted(rendered.items()):
-        target = scripts_dir / name
-        current = target.read_text(encoding="utf-8") if target.is_file() else None
-        if current == content:
-            log.append(f"wrapper {name}: sin cambios")
-            continue
-        if current is not None and WRAPPER_MARKER not in current and not force:
-            log.append(
-                f"wrapper {name}: OMITIDO (existente sin marca generada; "
-                "usa --force para reemplazarlo)"
-            )
-            continue
-        target.write_text(content, encoding="utf-8")
-        target.chmod(0o755)
-        log.append(f"wrapper {name}: {'actualizado' if current else 'creado'}")
-    return log
+
+def job_flags(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
+    """Flags compartidos por `hermes cron create` y `hermes cron edit`.
+
+    El schedule y el prompt no van aquí: `create` los recibe posicionales y `edit` como flags.
+    """
+    args = [
+        "--name",
+        job.name,
+        "--deliver",
+        normalize_target(job.deliver, targets),
+    ]
+    if job.is_no_agent:
+        args += ["--script", wrapper_path, "--no-agent"]
+    else:
+        for skill in job.skills:
+            args += ["--skill", skill]
+    if job.model:
+        args += ["--model", job.model]
+    if job.provider:
+        args += ["--provider", job.provider]
+    return args
+
+
+def create_args(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
+    """argv de `hermes cron create`: `<schedule> [prompt]` son posicionales."""
+    head = [job.schedule] if job.is_no_agent else [job.schedule, job.prompt]
+    return [*head, *job_flags(job, targets, wrapper_path)]
+
+
+def edit_args(job: Job, targets: dict[str, str], wrapper_path: str) -> list[str]:
+    """argv de `hermes cron edit`: el schedule (y el prompt) van como flags."""
+    head = ["--schedule", job.schedule]
+    if not job.is_no_agent:
+        head += ["--prompt", job.prompt]
+    return [*head, *job_flags(job, targets, wrapper_path)]

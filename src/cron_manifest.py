@@ -27,8 +27,6 @@ ABSOLUTE_HOME_RE = re.compile(r"/(?:home|Users)/[A-Za-z0-9._-]+")
 
 TARGET_REF_RE = re.compile(r"^\$\{([A-Za-z0-9_-]+)\}$")
 
-CRON_RANGES = ((0, 59), (0, 23), (1, 31), (1, 12), (0, 7))
-
 SCHEMA_VERSION = 1
 
 MANIFEST_KEYS = frozenset({"version", "doc", "defaults", "jobs"})
@@ -51,8 +49,10 @@ JOB_KEYS = frozenset(
     }
 )
 
+
 class ManifestError(Exception):
     """Manifiesto invalido."""
+
 
 @dataclass
 class Job:
@@ -76,9 +76,6 @@ class Job:
     def is_no_agent(self) -> bool:
         return self.mode == "no_agent"
 
-def repo_root() -> Path:
-    """Directorio del repo (src/install_cron.py -> raiz)."""
-    return Path(__file__).resolve().parent.parent
 
 def load_manifest(path: Path) -> dict[str, Any]:
     """Lee el manifiesto JSON."""
@@ -92,6 +89,7 @@ def load_manifest(path: Path) -> dict[str, Any]:
         raise ManifestError(f"{path}: el manifiesto debe ser un objeto JSON")
     return dict(data)
 
+
 def load_targets(path: Path) -> dict[str, str]:
     """Lee cron/targets.local.json (IDs de chat reales, no versionados)."""
     if not path.is_file():
@@ -100,6 +98,7 @@ def load_targets(path: Path) -> dict[str, str]:
     if not isinstance(data, dict):
         raise ManifestError(f"{path}: se esperaba un objeto {{nombre: destino}}")
     return {str(k): str(v) for k, v in data.items()}
+
 
 def normalize_target(value: str, targets: dict[str, str]) -> str:
     """Resuelve ``${nombre}`` contra targets.local.json; deja literales tal cual."""
@@ -114,6 +113,7 @@ def normalize_target(value: str, targets: dict[str, str]) -> str:
         )
     return targets[key]
 
+
 def required_target_keys(jobs: list[Job]) -> list[str]:
     """Nombres ${...} usados en deliver, en orden de aparicion."""
     keys: list[str] = []
@@ -122,6 +122,7 @@ def required_target_keys(jobs: list[Job]) -> list[str]:
         if match and match.group(1) not in keys:
             keys.append(match.group(1))
     return keys
+
 
 def check_cron_expr(expr: str) -> str | None:
     """Devuelve el error de una expresion cron de 5 campos, o None si es valida.
@@ -134,9 +135,10 @@ def check_cron_expr(expr: str) -> str | None:
         return f"se esperaban 5 campos, hay {len(parts)}"
     try:
         croniter(expr)
-    except (ValueError, KeyError) as exc:
-        return f"cron invalido: {exc}"
+    except (ValueError, KeyError):
+        return "expresion cron invalida"
     return None
+
 
 def parse_job_entry(raw: Any, defaults: dict[str, Any]) -> Job:
     """Normaliza una entrada del manifiesto aplicando ``defaults``."""
@@ -163,6 +165,7 @@ def parse_job_entry(raw: Any, defaults: dict[str, Any]) -> Job:
         requires=[str(r) for r in (merged.get("requires") or [])],
     )
 
+
 def parse_jobs(manifest: dict[str, Any]) -> list[Job]:
     """Normaliza las entradas del manifiesto aplicando ``defaults``."""
     defaults = manifest.get("defaults") or {}
@@ -170,6 +173,7 @@ def parse_jobs(manifest: dict[str, Any]) -> list[Job]:
     if not isinstance(raw_jobs, list) or not raw_jobs:
         raise ManifestError("el manifiesto no tiene 'jobs'")
     return [parse_job_entry(raw, defaults) for raw in raw_jobs]
+
 
 def validate_no_agent(job: Job, label: str, wrappers: dict[str, str]) -> list[str]:
     """Reglas del modo no_agent (command/wrapper unicos, sin prompt)."""
@@ -186,6 +190,7 @@ def validate_no_agent(job: Job, label: str, wrappers: dict[str, str]) -> list[st
     if job.prompt:
         errors.append(f"{label}: mode no_agent no usa 'prompt'")
     return errors
+
 
 def validate_job(job: Job, wrappers: dict[str, str]) -> list[str]:
     """Reglas de un job. Devuelve errores (vacio = OK)."""
@@ -209,6 +214,7 @@ def validate_job(job: Job, wrappers: dict[str, str]) -> list[str]:
         errors.append(f"{label}: ruta absoluta de home prohibida (usa $HOME)")
     return errors
 
+
 def load_project_scripts(repo: Path) -> set[str]:
     """Nombres de ``[project.scripts]`` en el pyproject del repo."""
     pyproject = repo / "pyproject.toml"
@@ -216,6 +222,7 @@ def load_project_scripts(repo: Path) -> set[str]:
         return set()
     data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     return set((data.get("project") or {}).get("scripts") or {})
+
 
 def command_entrypoint_error(job: Job, scripts: set[str], repo: Path) -> str | None:
     """None si el command de un no_agent resuelve a un entrypoint o script del repo."""
@@ -243,6 +250,7 @@ def command_entrypoint_error(job: Job, scripts: set[str], repo: Path) -> str | N
         return None
     return None
 
+
 def validate_job_commands(jobs: list[Job], repo: Path) -> list[str]:
     """Cada no_agent apunta a un entrypoint o a un script que existe (#216)."""
     scripts = load_project_scripts(repo)
@@ -255,6 +263,7 @@ def validate_job_commands(jobs: list[Job], repo: Path) -> list[str]:
             errors.append(f"{job.name}: {problem}")
     return errors
 
+
 def version_error(got: Any) -> str:
     """Un manifiesto de otra versión no sigue en silencio: dice cómo migrar."""
     return (
@@ -263,6 +272,7 @@ def version_error(got: Any) -> str:
         "Una clave fuera de este contrato se rechaza, "
         "para que un esquema nuevo no pase en silencio en el resto del backlog."
     )
+
 
 def unknown_key_errors(manifest: dict[str, Any]) -> list[str]:
     """Claves que este contrato no lista. Un typo o un campo nuevo no se traga."""
@@ -287,8 +297,9 @@ def unknown_key_errors(manifest: dict[str, Any]) -> list[str]:
             errors.append(f"{label}: claves desconocidas: {', '.join(extra_job)}")
     return errors
 
+
 def validate_manifest(manifest: dict[str, Any], jobs: list[Job]) -> list[str]:
-    """Reglas de validacion. Devuelve la lista de errores (vacia = OK)."""
+    """Reglas de esquema. Devuelve la lista de errores (vacia = OK)."""
     errors: list[str] = []
     if manifest.get("version") != SCHEMA_VERSION:
         errors.append(version_error(manifest.get("version")))
@@ -302,19 +313,7 @@ def validate_manifest(manifest: dict[str, Any], jobs: list[Job]) -> list[str]:
         errors += validate_job(job, wrappers)
     return errors
 
-def repo_text_files(repo: Path) -> list[Path]:
-    """Archivos versionados donde no se permiten rutas absolutas de home."""
-    files = [repo / MANIFEST_DEFAULT, *sorted((repo / "bin").glob("*.sh"))]
-    files += sorted(repo.glob("*.py"))
-    files += sorted((repo / "src").rglob("*.py"))
-    files += sorted((repo / "cron").glob("*.json"))
-    return [path for path in files if path.is_file()]
 
-def validate_repo_texts(repo: Path) -> list[str]:
-    """Ningun archivo versionado del repo puede tener rutas /home/<usuario>."""
-    errors: list[str] = []
-    for path in repo_text_files(repo):
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if ABSOLUTE_HOME_RE.search(line):
-                errors.append(f"{path.relative_to(repo)}:{lineno}: ruta absoluta de home")
-    return errors
+def validate(manifest: dict[str, Any], jobs: list[Job], repo: Path) -> list[str]:
+    """Esquema del manifiesto más entrypoints que el command declara."""
+    return validate_manifest(manifest, jobs) + validate_job_commands(jobs, repo)

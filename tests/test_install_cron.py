@@ -20,6 +20,10 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 
+import cron_manifest as mf  # noqa: E402
+import cron_monitor as mo  # noqa: E402
+import cron_render as rd  # noqa: E402
+from hermes_common import uv_shell  # noqa: E402
 from src import install_cron as ic  # noqa: E402
 
 
@@ -56,28 +60,28 @@ class TestCronExpr:
         ["0 9 * * *", "*/30 * * * *", "55 18 * * 0-4", "5 8 * * 1,3,5", "0 3 * * 0"],
     )
     def test_validas(self, expr):
-        assert ic.check_cron_expr(expr) is None
+        assert mf.check_cron_expr(expr) is None
 
     @pytest.mark.parametrize(
         "expr",
         ["0 9 * *", "0 99 * * *", "0 9 * * 9", "cada hora", "0 9 * * */x"],
     )
     def test_invalidas(self, expr):
-        assert ic.check_cron_expr(expr) is not None
+        assert mf.check_cron_expr(expr) is not None
 
 
 class TestTargets:
     r"""Resolucion de destinos (${nombre} -> chat real)."""
 
     def test_resuelve_placeholder(self):
-        assert ic.normalize_target("${reports}", {"reports": "telegram:-100"}) == "telegram:-100"
+        assert mf.normalize_target("${reports}", {"reports": "telegram:-100"}) == "telegram:-100"
 
     def test_literal_pasa_tal_cual(self):
-        assert ic.normalize_target("origin", {}) == "origin"
+        assert mf.normalize_target("origin", {}) == "origin"
 
     def test_placeholder_sin_definir_falla(self):
-        with pytest.raises(ic.ManifestError) as exc:
-            ic.normalize_target("${reports}", {})
+        with pytest.raises(mf.ManifestError) as exc:
+            mf.normalize_target("${reports}", {})
         assert "targets.local.json" in str(exc.value)
 
 
@@ -85,7 +89,7 @@ class TestRenderWrapper:
     """Wrappers portables: sin rutas absolutas, con fallbacks."""
 
     def test_uv_se_convierte_a_uv_bin(self, tmp_path):
-        job = ic.Job(
+        job = mf.Job(
             name="demo",
             description="demo",
             schedule="0 9 * * *",
@@ -95,9 +99,10 @@ class TestRenderWrapper:
             wrapper="demo.sh",
             command="uv run python demo.py",
         )
-        content = ic.render_wrapper(job, tmp_path)
+        content = rd.render_wrapper(job, tmp_path)
         assert '"$UV_BIN" run python demo.py 2>&1' in content
-        assert ic.WRAPPER_MARKER in content
+        assert rd.WRAPPER_MARKER in content
+        assert uv_shell() in content
         assert "/home/" not in content
 
     def test_command_con_exec_no_se_duplica(self, tmp_path):
@@ -106,7 +111,7 @@ class TestRenderWrapper:
         `job-scout daily run` traia `exec "$HOME/empleo/bin/cron-run.sh"` en el manifiesto: el
         prefijo ciego dejaba el wrapper en `exec exec ...` (rc=127) y el job no corria.
         """
-        job = ic.Job(
+        job = mf.Job(
             name="demo",
             description="demo",
             schedule="0 9 * * *",
@@ -116,12 +121,12 @@ class TestRenderWrapper:
             wrapper="demo.sh",
             command='exec "$HOME/demo/bin/run.sh"',
         )
-        content = ic.render_wrapper(job, tmp_path)
+        content = rd.render_wrapper(job, tmp_path)
         assert "exec exec" not in content
         assert 'exec "$HOME/demo/bin/run.sh" 2>&1' in content
 
     def test_repo_por_env_con_fallback(self, tmp_path):
-        job = ic.Job(
+        job = mf.Job(
             name="demo",
             description="demo",
             schedule="0 9 * * *",
@@ -131,7 +136,7 @@ class TestRenderWrapper:
             wrapper="demo.sh",
             command="bash bin/demo.sh",
         )
-        content = ic.render_wrapper(job, tmp_path)
+        content = rd.render_wrapper(job, tmp_path)
         assert f"HERMES_SCRIPTS_DIR:-{tmp_path}" in content
         assert 'UV_BIN="$HOME/.hermes/bin/uv"' in content
         assert 'export PATH="$(dirname "$UV_BIN"):$PATH"' in content
@@ -149,7 +154,7 @@ class TestRenderWrapper:
         fake_uv = fake_bin / "uv"
         fake_uv.write_text('#!/usr/bin/env bash\necho "uv resuelto: $*"\n', encoding="utf-8")
         fake_uv.chmod(0o755)
-        job = ic.Job(
+        job = mf.Job(
             name="demo",
             description="demo",
             schedule="0 9 * * *",
@@ -160,7 +165,7 @@ class TestRenderWrapper:
             command="env -u VIRTUAL_ENV uv run python -m demo --help",
         )
         wrapper = tmp_path / "demo.sh"
-        wrapper.write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        wrapper.write_text(rd.render_wrapper(job, repo), encoding="utf-8")
         proc = subprocess.run(
             ["bash", str(wrapper)],
             env={
@@ -177,7 +182,7 @@ class TestRenderWrapper:
 
     def test_exporta_el_path_del_uv(self, tmp_path):
         """El hijo hereda el directorio de UV_BIN: si no, `uv` por nombre no existe (#257)."""
-        content = ic.render_wrapper(no_agent_job(), tmp_path)
+        content = rd.render_wrapper(no_agent_job(), tmp_path)
         assert 'export PATH="$(dirname "$UV_BIN"):$PATH"' in content
 
     def test_el_hijo_encuentra_uv_aunque_el_path_no_lo_traiga(self, tmp_path):
@@ -194,7 +199,7 @@ class TestRenderWrapper:
         (repo / "child.sh").write_text("#!/bin/sh\nuv\n", encoding="utf-8")
         wrapper = tmp_path / "demo.sh"
         wrapper.write_text(
-            ic.render_wrapper(no_agent_job(command="bash child.sh"), repo),
+            rd.render_wrapper(no_agent_job(command="bash child.sh"), repo),
             encoding="utf-8",
         )
         proc = subprocess.run(
@@ -238,7 +243,7 @@ class TestValidateManifest:
         return {"version": 1, "defaults": {"deliver": "origin"}, "jobs": jobs}
 
     def test_manifiesto_valido_no_reporta(self):
-        jobs = ic.parse_jobs(
+        jobs = mf.parse_jobs(
             self.manifest(
                 [
                     {
@@ -249,10 +254,10 @@ class TestValidateManifest:
                 ]
             )
         )
-        assert ic.validate_manifest(self.manifest([]), jobs) == []
+        assert mf.validate(self.manifest([]), jobs, REPO) == []
 
     def test_detecta_duplicados_y_faltantes(self):
-        jobs = ic.parse_jobs(
+        jobs = mf.parse_jobs(
             self.manifest(
                 [
                     {"name": "demo", "schedule": "0 9 * * *", "command": "bash x.sh"},
@@ -260,11 +265,11 @@ class TestValidateManifest:
                 ]
             )
         )
-        errors = ic.validate_manifest(self.manifest([]), jobs)
+        errors = mf.validate(self.manifest([]), jobs, REPO)
         assert any("sin 'schedule'" in e or "mode no_agent requiere 'command'" in e for e in errors)
 
     def test_no_agent_con_prompt_es_error(self):
-        jobs = ic.parse_jobs(
+        jobs = mf.parse_jobs(
             self.manifest(
                 [
                     {
@@ -276,10 +281,10 @@ class TestValidateManifest:
                 ]
             )
         )
-        assert any("no usa 'prompt'" in e for e in ic.validate_manifest({}, jobs))
+        assert any("no usa 'prompt'" in e for e in mf.validate({}, jobs, REPO))
 
     def test_ruta_absoluta_de_home_es_error(self):
-        jobs = ic.parse_jobs(
+        jobs = mf.parse_jobs(
             self.manifest(
                 [
                     {
@@ -290,13 +295,13 @@ class TestValidateManifest:
                 ]
             )
         )
-        assert any("ruta absoluta" in e for e in ic.validate_manifest({}, jobs))
+        assert any("ruta absoluta" in e for e in mf.validate({}, jobs, REPO))
 
     def test_version_incorrecta(self):
-        jobs = ic.parse_jobs(
+        jobs = mf.parse_jobs(
             self.manifest([{"name": "demo", "schedule": "0 9 * * *", "command": "bash x.sh"}])
         )
-        assert any("version" in e for e in ic.validate_manifest({"version": 99}, jobs))
+        assert any("version" in e for e in mf.validate({"version": 99}, jobs, REPO))
 
     def test_manifiesto_viejo_pide_migracion(self):
         """Sin `version` (contrato previo) no valida: el error dice cómo migrar."""
@@ -304,8 +309,8 @@ class TestValidateManifest:
             "defaults": {"deliver": "origin"},
             "jobs": [{"name": "demo", "schedule": "0 9 * * *", "command": "bash x.sh"}],
         }
-        jobs = ic.parse_jobs(viejo)
-        errors = ic.validate_manifest(viejo, jobs)
+        jobs = mf.parse_jobs(viejo)
+        errors = mf.validate(viejo, jobs, REPO)
         assert any("Migracion" in e and "version" in e for e in errors)
 
     def test_clave_desconocida_no_pasa_en_silencio(self):
@@ -319,12 +324,12 @@ class TestValidateManifest:
                 }
             ]
         )
-        jobs = ic.parse_jobs(raw)
-        errors = ic.validate_manifest(raw, jobs)
+        jobs = mf.parse_jobs(raw)
+        errors = mf.validate(raw, jobs, REPO)
         assert any("canal" in e for e in errors)
 
     def test_wrapper_compartido_con_distinto_command_falla(self):
-        jobs = ic.parse_jobs(
+        jobs = mf.parse_jobs(
             self.manifest(
                 [
                     {
@@ -342,16 +347,16 @@ class TestValidateManifest:
                 ]
             )
         )
-        assert any("ya declarado con otro command" in e for e in ic.validate_manifest({}, jobs))
+        assert any("ya declarado con otro command" in e for e in mf.validate({}, jobs, REPO))
 
 
 class TestRepoInvariants:
     """Invariantes del repo real: manifiesto valido y sin rutas absolutas."""
 
     def test_manifiesto_real_valida(self):
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        jobs = ic.parse_jobs(manifest)
-        assert ic.validate_manifest(manifest, jobs) == []
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        jobs = mf.parse_jobs(manifest)
+        assert mf.validate(manifest, jobs, REPO) == []
         assert len(jobs) >= 5
 
     def test_sin_rutas_absolutas_en_archivos_versionados(self):
@@ -365,8 +370,8 @@ class TestRepoInvariants:
             assert result.returncode == 0, f"{script.name}: {result.stderr}"
 
     def test_manifiesto_y_wrappers_instalados_usan_mismos_nombres(self):
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        for job in ic.parse_jobs(manifest):
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        for job in mf.parse_jobs(manifest):
             if job.is_no_agent:
                 assert job.wrapper.endswith(".sh"), job.name
 
@@ -375,7 +380,7 @@ class TestDrift:
     """--check: deseado vs real."""
 
     def job(self):
-        return ic.Job(
+        return mf.Job(
             name="demo",
             description="demo",
             schedule="0 9 * * *",
@@ -387,7 +392,7 @@ class TestDrift:
         )
 
     def test_reporta_job_faltante(self, tmp_path):
-        drift = ic.check_all([self.job()], {}, tmp_path, REPO)
+        drift = mo.drift([self.job()], {}, tmp_path, REPO)
         assert any("no existe en Hermes" in line for line in drift)
         assert any("falta en" in line for line in drift)
 
@@ -395,27 +400,27 @@ class TestDrift:
         job = self.job()
         (tmp_path / "scripts").mkdir(parents=True)
         (tmp_path / "scripts" / "demo.sh").write_text(
-            ic.render_wrapper(job, REPO), encoding="utf-8"
+            rd.render_wrapper(job, REPO), encoding="utf-8"
         )
         write_jobs_file(tmp_path, [fake_job(schedule={"expr": "0 10 * * *"})])
-        drift = ic.check_all([job], {}, tmp_path, REPO)
+        drift = mo.drift([job], {}, tmp_path, REPO)
         assert any("schedule: deseado='0 9 * * *'" in line for line in drift)
 
     def test_sin_drift_cuando_todo_coincide(self, tmp_path):
         job = self.job()
         (tmp_path / "scripts").mkdir(parents=True)
         (tmp_path / "scripts" / "demo.sh").write_text(
-            ic.render_wrapper(job, REPO), encoding="utf-8"
+            rd.render_wrapper(job, REPO), encoding="utf-8"
         )
         write_jobs_file(tmp_path, [fake_job()])
-        assert ic.check_all([job], {}, tmp_path, REPO) == []
+        assert mo.drift([job], {}, tmp_path, REPO) == []
 
 
 class TestApplySinEfectos:
     """apply_plan con `run` monkeypatcheado: se valida el argv, no se toca Hermes."""
 
     def job(self):
-        return ic.Job(
+        return mf.Job(
             name="demo",
             description="demo",
             schedule="0 9 * * *",
@@ -499,7 +504,7 @@ class TestApplySinEfectos:
         (scripts / "demo.sh").write_text("# manual, sin marca\n", encoding="utf-8")
         log = ic.apply_plan([self.job()], {}, tmp_path, REPO, force=True)
         assert any("actualizado" in line for line in log)
-        assert ic.WRAPPER_MARKER in (scripts / "demo.sh").read_text(encoding="utf-8")
+        assert rd.WRAPPER_MARKER in (scripts / "demo.sh").read_text(encoding="utf-8")
 
     def test_verificacion_detecta_drift(self, tmp_path, monkeypatch):
         monkeypatch.setattr(
@@ -515,7 +520,7 @@ class TestApplySinEfectos:
                 "--repo",
                 str(REPO),
                 "--manifest",
-                ic.MANIFEST_DEFAULT,
+                mf.MANIFEST_DEFAULT,
                 "--hermes-home",
                 str(tmp_path),
                 "--check",
@@ -540,6 +545,27 @@ class TestApplySinEfectos:
         )
         assert code == 0
         assert not (tmp_path / "cron").exists()
+
+    def test_python_directo_no_escribe(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr(ic, "read_live_jobs", lambda h: [])
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        write_manifest(repo, [demo_manifest_job()])
+        code = ic.main(base_args(repo, home))
+        assert code == 1
+        assert not (home / "scripts").exists()
+        assert "Drift" in capsys.readouterr().out
+
+    def test_apply_escribe_el_wrapper(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(ic, "hermes_cli", lambda: "hermes")
+        monkeypatch.setattr(ic, "run", lambda cmd: None)
+        monkeypatch.setattr(ic, "read_live_jobs", lambda h: [fake_job()])
+        repo = tmp_path / "repo"
+        home = tmp_path / "home"
+        write_manifest(repo, [demo_manifest_job()])
+        code = ic.main(base_args(repo, home, "--apply"))
+        assert code == 0
+        assert (home / "scripts" / "demo.sh").is_file()
 
     def test_cli_manifiesto_inexistente(self, tmp_path, capsys):
         code = ic.main(["--repo", str(tmp_path), "--manifest", "cron/jobs.json"])
@@ -589,9 +615,9 @@ class TestQuiet:
         repo = tmp_path / "repo"
         home = tmp_path / "home"
         write_manifest(repo, [demo_manifest_job()])
-        job = ic.parse_jobs(ic.load_manifest(repo / "cron" / "jobs.json"))[0]
+        job = mf.parse_jobs(mf.load_manifest(repo / "cron" / "jobs.json"))[0]
         (home / "scripts").mkdir(parents=True)
-        (home / "scripts" / "demo.sh").write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        (home / "scripts" / "demo.sh").write_text(rd.render_wrapper(job, repo), encoding="utf-8")
         monkeypatch.setattr(ic, "read_live_jobs", lambda h: [fake_job()])
         code = ic.main(base_args(repo, home, "--check", "--quiet"))
         assert code == 0
@@ -604,7 +630,7 @@ class TestQuiet:
                 "--repo",
                 str(REPO),
                 "--manifest",
-                ic.MANIFEST_DEFAULT,
+                mf.MANIFEST_DEFAULT,
                 "--hermes-home",
                 str(tmp_path),
                 "--check",
@@ -630,9 +656,9 @@ class TestQuiet:
         repo = tmp_path / "repo"
         home = tmp_path / "home"
         write_manifest(repo, [demo_manifest_job()])
-        job = ic.parse_jobs(ic.load_manifest(repo / "cron" / "jobs.json"))[0]
+        job = mf.parse_jobs(mf.load_manifest(repo / "cron" / "jobs.json"))[0]
         (home / "scripts").mkdir(parents=True)
-        (home / "scripts" / "demo.sh").write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        (home / "scripts" / "demo.sh").write_text(rd.render_wrapper(job, repo), encoding="utf-8")
         monkeypatch.setattr(
             ic, "read_live_jobs", lambda h: [fake_job(), fake_job(id="x9", name="otro")]
         )
@@ -647,9 +673,9 @@ class TestQuiet:
         repo = tmp_path / "repo"
         home = tmp_path / "home"
         write_manifest(repo, [demo_manifest_job()])
-        job = ic.parse_jobs(ic.load_manifest(repo / "cron" / "jobs.json"))[0]
+        job = mf.parse_jobs(mf.load_manifest(repo / "cron" / "jobs.json"))[0]
         (home / "scripts").mkdir(parents=True)
-        (home / "scripts" / "demo.sh").write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        (home / "scripts" / "demo.sh").write_text(rd.render_wrapper(job, repo), encoding="utf-8")
         monkeypatch.setattr(
             ic, "read_live_jobs", lambda h: [fake_job(), fake_job(id="x9", name="otro")]
         )
@@ -663,9 +689,9 @@ class TestQuiet:
         repo = tmp_path / "repo"
         home = tmp_path / "home"
         write_manifest(repo, [demo_manifest_job()])
-        job = ic.parse_jobs(ic.load_manifest(repo / "cron" / "jobs.json"))[0]
+        job = mf.parse_jobs(mf.load_manifest(repo / "cron" / "jobs.json"))[0]
         (home / "scripts").mkdir(parents=True)
-        (home / "scripts" / "demo.sh").write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        (home / "scripts" / "demo.sh").write_text(rd.render_wrapper(job, repo), encoding="utf-8")
         monkeypatch.setattr(
             ic,
             "read_live_jobs",
@@ -686,9 +712,9 @@ class TestQuiet:
         repo = tmp_path / "repo"
         home = tmp_path / "home"
         write_manifest(repo, [demo_manifest_job()])
-        job = ic.parse_jobs(ic.load_manifest(repo / "cron" / "jobs.json"))[0]
+        job = mf.parse_jobs(mf.load_manifest(repo / "cron" / "jobs.json"))[0]
         (home / "scripts").mkdir(parents=True)
-        (home / "scripts" / "demo.sh").write_text(ic.render_wrapper(job, repo), encoding="utf-8")
+        (home / "scripts" / "demo.sh").write_text(rd.render_wrapper(job, repo), encoding="utf-8")
         monkeypatch.setattr(
             ic,
             "read_live_jobs",
@@ -705,8 +731,8 @@ class TestQuiet:
         assert "info: job 'otro' existe en Hermes pero no en el manifiesto" in out
 
     def test_manifiesto_real_trae_cron_drift_check(self, tmp_path):
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        jobs = ic.parse_jobs(manifest)
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        jobs = mf.parse_jobs(manifest)
         assert len(jobs) == 21
         found = [job for job in jobs if job.name == "cron-drift-check"]
         assert len(found) == 1
@@ -717,14 +743,14 @@ class TestQuiet:
         assert "--check --quiet" in job.command
         assert job.deliver == "${notify}"
         wrapper = tmp_path / "cron-check.sh"
-        wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
+        wrapper.write_text(rd.render_wrapper(job, REPO), encoding="utf-8")
         result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
 
     def test_manifiesto_real_trae_gate_audit(self, tmp_path):
         """El guard de contextos huérfanos corre solo (#317): job semanal y silencioso si verde."""
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        jobs = ic.parse_jobs(manifest)
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        jobs = mf.parse_jobs(manifest)
         found = [job for job in jobs if job.name == "gate-audit"]
         assert len(found) == 1
         job = found[0]
@@ -733,15 +759,15 @@ class TestQuiet:
         assert job.wrapper == "gate-audit.sh"
         assert "--alert" in job.command
         assert job.deliver == "${notify}"
-        assert ic.validate_manifest(manifest, jobs) == []
+        assert mf.validate(manifest, jobs, REPO) == []
         wrapper = tmp_path / "gate-audit.sh"
-        wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
+        wrapper.write_text(rd.render_wrapper(job, REPO), encoding="utf-8")
         result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
 
     def test_manifiesto_real_trae_cron_doctor_check(self, tmp_path):
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        jobs = ic.parse_jobs(manifest)
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        jobs = mf.parse_jobs(manifest)
         found = [job for job in jobs if job.name == "cron-doctor-check"]
         assert len(found) == 1
         job = found[0]
@@ -750,9 +776,9 @@ class TestQuiet:
         assert job.wrapper == "cron-doctor.sh"
         assert "--doctor" in job.command
         assert job.deliver == "origin"
-        assert ic.validate_manifest(manifest, jobs) == []
+        assert mf.validate(manifest, jobs, REPO) == []
         wrapper = tmp_path / "cron-doctor.sh"
-        wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
+        wrapper.write_text(rd.render_wrapper(job, REPO), encoding="utf-8")
         result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr
 
@@ -786,7 +812,7 @@ class TestDoctor:
 
     def test_hermes_ausente(self, monkeypatch, capsys):
         monkeypatch.setattr(
-            ic, "hermes_cli", lambda: (_ for _ in ()).throw(ic.ManifestError("sin binario"))
+            ic, "hermes_cli", lambda: (_ for _ in ()).throw(mf.ManifestError("sin binario"))
         )
         assert ic.run_doctor() == 2
         assert "ERROR" in capsys.readouterr().err
@@ -801,8 +827,8 @@ class TestDoctor:
         assert capsys.readouterr().out == ""
 
     def test_manifiesto_real_trae_aviso_offpeak(self, tmp_path):
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        jobs = {job.name: job for job in ic.parse_jobs(manifest)}
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        jobs = {job.name: job for job in mf.parse_jobs(manifest)}
         for name, schedule in (
             ("aviso-offpeak-22h", "0 22 * * 0-4"),
             ("aviso-offpeak-04h", "0 4 * * 1-5"),
@@ -814,7 +840,7 @@ class TestDoctor:
             assert "aviso-offpeak.sh" in job.command
             assert job.deliver == "${personal}"
             wrapper = tmp_path / "aviso-offpeak.sh"
-            wrapper.write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
+            wrapper.write_text(rd.render_wrapper(job, REPO), encoding="utf-8")
             result = subprocess.run(["bash", "-n", str(wrapper)], capture_output=True, text=True)
             assert result.returncode == 0, result.stderr
 
@@ -932,13 +958,13 @@ class TestRemove:
         repo, home = tmp_path / "repo", tmp_path / "home"
         write_manifest(repo, [_job_t()])
         monkeypatch.setattr(
-            ic, "hermes_cli", lambda: (_ for _ in ()).throw(ic.ManifestError("sin binario"))
+            ic, "hermes_cli", lambda: (_ for _ in ()).throw(mf.ManifestError("sin binario"))
         )
         code = ic.main(base_args(repo, home, "--remove", "demo"))
         assert code == 2
 
 
-def no_agent_job(**overrides) -> "ic.Job":
+def no_agent_job(**overrides) -> "mf.Job":
     """Job no_agent minimo para probar el argv."""
     base = dict(
         name="demo",
@@ -951,10 +977,10 @@ def no_agent_job(**overrides) -> "ic.Job":
         command="bash bin/demo.sh",
     )
     base.update(overrides)
-    return ic.Job(**base)
+    return mf.Job(**base)
 
 
-def agent_job(**overrides) -> "ic.Job":
+def agent_job(**overrides) -> "mf.Job":
     """Job de agente con prompt y skills."""
     return no_agent_job(
         name="agente",
@@ -1002,7 +1028,7 @@ class TestSmoke:
             vistos.append(env)
             assert env["HERMES_HOME"] != str(real)
             assert env["HOME"] == str(Path.home())
-            assert env["PATH"] == ic.SMOKE_PATH
+            assert env["PATH"] == mo.SMOKE_PATH
             assert env["HERMES_SCRIPTS_DIR"] == str(repo)
             return subprocess.CompletedProcess(argv, 0, "ok\n", "")
 
@@ -1042,24 +1068,24 @@ class TestArgvContraElCLI:
     """
 
     def test_create_no_usa_flags_de_schedule_ni_prompt(self):
-        argv = ic.create_args(no_agent_job(), {}, "demo.sh")
+        argv = rd.create_args(no_agent_job(), {}, "demo.sh")
         assert argv[0] == "0 9 * * *"
         assert "--schedule" not in argv
         assert "--prompt" not in argv
         assert "--agent" not in argv
 
     def test_create_agent_pone_el_prompt_posicional(self):
-        argv = ic.create_args(agent_job(), {}, "demo.sh")
+        argv = rd.create_args(agent_job(), {}, "demo.sh")
         assert argv[0] == "0 9 * * *"
         assert argv[1] == "Haz algo util"
 
     def test_create_usa_skill_repetible(self):
-        argv = ic.create_args(agent_job(), {}, "demo.sh")
+        argv = rd.create_args(agent_job(), {}, "demo.sh")
         assert "--skill" in argv
         assert "--add-skill" not in argv
 
     def test_edit_usa_schedule_y_prompt_como_flags(self):
-        argv = ic.edit_args(agent_job(), {}, "demo.sh")
+        argv = rd.edit_args(agent_job(), {}, "demo.sh")
         assert argv[:2] == ["--schedule", "0 9 * * *"]
         assert "--prompt" in argv
         assert "--add-skill" not in argv
@@ -1101,13 +1127,13 @@ class TestContratoConElCLI:
 
     def test_flags_de_create_existen(self):
         aceptados = self._aceptados("create")
-        usados = self._flags(ic.create_args(agent_job(), {}, "demo.sh"))
+        usados = self._flags(rd.create_args(agent_job(), {}, "demo.sh"))
         faltantes = sorted(usados - aceptados)
         assert not faltantes, f"`hermes cron create` no acepta: {faltantes}"
 
     def test_flags_de_edit_existen(self):
         aceptados = self._aceptados("edit")
-        usados = self._flags(ic.edit_args(agent_job(), {}, "demo.sh"))
+        usados = self._flags(rd.edit_args(agent_job(), {}, "demo.sh"))
         faltantes = sorted(usados - aceptados)
         assert not faltantes, f"`hermes cron edit` no acepta: {faltantes}"
 
@@ -1120,8 +1146,8 @@ class TestManifestFueraDeLaVentanaPeak:
     """
 
     def test_backup_diario_no_arranca_en_peak(self):
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        jobs = [job for job in ic.parse_jobs(manifest) if job.name == "backup-diario"]
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        jobs = [job for job in mf.parse_jobs(manifest) if job.name == "backup-diario"]
         assert len(jobs) == 1
         schedule = jobs[0].schedule
         minute, hour, *_ = schedule.split()
@@ -1141,8 +1167,8 @@ class TestUpdateSemanalDesacoplado:
 
     @staticmethod
     def _job():
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        jobs = [j for j in ic.parse_jobs(manifest) if j.name == "Hermes weekly update + backup"]
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        jobs = [j for j in mf.parse_jobs(manifest) if j.name == "Hermes weekly update + backup"]
         assert len(jobs) == 1
         return jobs[0]
 
@@ -1209,48 +1235,48 @@ class TestExpectativasDelDia:
 
     def test_ocurrencias_incluyen_la_hora_base(self):
         # `*/30 * * * *` a las 11:00: 00:00 incluida y tope de gracia (10:45) = 22.
-        assert len(ic.occurrences_today("*/30 * * * *", AHORA)) == 22
+        assert len(mo.occurrences_today("*/30 * * * *", AHORA)) == 22
 
     def test_ocurrencias_de_un_job_diario(self):
-        assert ic.occurrences_today("0 8 * * *", AHORA) == [datetime(2026, 9, 18, 8, 0)]
+        assert mo.occurrences_today("0 8 * * *", AHORA) == [datetime(2026, 9, 18, 8, 0)]
 
     def test_sin_ocurrencias_cuando_el_schedule_no_dispara_hoy(self):
         # Viernes: el job dominical no tiene nada que hacer hoy.
-        assert ic.occurrences_today("0 4 * * 0", AHORA) == []
-        assert ic.occurrences_today("0 10 * * 1", AHORA) == []
+        assert mo.occurrences_today("0 4 * * 0", AHORA) == []
+        assert mo.occurrences_today("0 10 * * 1", AHORA) == []
 
     def test_respeta_la_ventana_de_gracia(self):
         # El scheduler recupera corridas perdidas (catch_up_occurrences): a las
         # 08:05 todavía no se puede declarar perdida la de las 08:00.
-        assert ic.occurrences_today("0 8 * * *", datetime(2026, 9, 18, 8, 5)) == []
-        assert ic.occurrences_today("0 8 * * *", datetime(2026, 9, 18, 8, 20)) == [
+        assert mo.occurrences_today("0 8 * * *", datetime(2026, 9, 18, 8, 5)) == []
+        assert mo.occurrences_today("0 8 * * *", datetime(2026, 9, 18, 8, 20)) == [
             datetime(2026, 9, 18, 8, 0)
         ]
 
     def test_no_espera_corridas_anteriores_al_alta_del_job(self):
         alta = datetime(2026, 9, 18, 9, 50)
-        esperadas = ic.expected_runs([_job_dict(expr="0 4 * * *", created_at=alta)], AHORA)
+        esperadas = mo.expected_runs([_job_dict(expr="0 4 * * *", created_at=alta)], AHORA)
         assert esperadas == {}
 
     def test_job_deshabilitado_no_genera_expectativa(self):
-        esperadas = ic.expected_runs([_job_dict(enabled=False)], AHORA)
+        esperadas = mo.expected_runs([_job_dict(enabled=False)], AHORA)
         assert esperadas == {}
 
     def test_espera_la_ocurrencia_de_un_job_diario_vivo(self):
-        esperadas = ic.expected_runs(
+        esperadas = mo.expected_runs(
             [_job_dict(job_id="j1", expr="0 8 * * *", created_at=datetime(2026, 9, 1))], AHORA
         )
         assert esperadas == {"j1": [datetime(2026, 9, 18, 8, 0)]}
 
     @pytest.mark.parametrize("delivery", [None, "delivered", "suppressed"])
     def test_entregas_sanas(self, delivery):
-        assert ic.delivery_verdict("completed", delivery) == ic.VERDICT_OK
+        assert mo.delivery_verdict("completed", delivery) == mo.VERDICT_OK
 
     def test_entrega_fallida_es_hallazgo(self):
-        assert ic.delivery_verdict("completed", "failed") == ic.VERDICT_FAILED
+        assert mo.delivery_verdict("completed", "failed") == mo.VERDICT_FAILED
 
     def test_corrida_fallida_es_hallazgo(self):
-        assert ic.delivery_verdict("failed", "delivered") == ic.VERDICT_FAILED
+        assert mo.delivery_verdict("failed", "delivered") == mo.VERDICT_FAILED
 
     def test_digest_silencioso_con_el_estado_sano(self):
         jobs = [
@@ -1261,11 +1287,11 @@ class TestExpectativasDelDia:
             "j1": [_run(datetime(2026, 9, 18, 8, 30), delivery="delivered")],
             "j2": [_run(datetime(2026, 9, 18, 6, 0), delivery="suppressed")],
         }
-        assert ic.doctor_digest(jobs, runs, AHORA) == []
+        assert mo.doctor_digest(jobs, runs, AHORA) == []
 
     def test_digest_reporta_la_corrida_perdida(self):
         jobs = [_job_dict(job_id="j1", name="job-scout daily run", expr="0 8 * * *")]
-        lineas = ic.doctor_digest(jobs, {}, AHORA)
+        lineas = mo.doctor_digest(jobs, {}, AHORA)
         assert len(lineas) == 1
         assert "job-scout daily run" in lineas[0]
         assert "08:00" in lineas[0]
@@ -1273,7 +1299,7 @@ class TestExpectativasDelDia:
     def test_digest_reporta_la_entrega_fallida(self):
         jobs = [_job_dict(job_id="j1", name="resumen-noticias-diario", expr="30 8 * * *")]
         runs = {"j1": [_run(datetime(2026, 9, 18, 8, 30), delivery="failed")]}
-        lineas = ic.doctor_digest(jobs, runs, AHORA)
+        lineas = mo.doctor_digest(jobs, runs, AHORA)
         assert len(lineas) == 1
         assert "resumen-noticias-diario" in lineas[0]
         assert "entrega" in lineas[0]
@@ -1281,7 +1307,7 @@ class TestExpectativasDelDia:
     def test_digest_reporta_la_corrida_fallida(self):
         jobs = [_job_dict(job_id="j1", name="runtime-sync", expr="25 4 * * *")]
         runs = {"j1": [_run(datetime(2026, 9, 18, 4, 25), status="failed")]}
-        lineas = ic.doctor_digest(jobs, runs, AHORA)
+        lineas = mo.doctor_digest(jobs, runs, AHORA)
         assert len(lineas) == 1
         assert "runtime-sync" in lineas[0]
 
@@ -1289,7 +1315,7 @@ class TestExpectativasDelDia:
         """El catch-up corre minutos después: no es una corrida perdida."""
         jobs = [_job_dict(job_id="j1", name="job-scout daily run", expr="0 8 * * *")]
         runs = {"j1": [_run(datetime(2026, 9, 18, 8, 9), scheduled=datetime(2026, 9, 18, 8, 0))]}
-        assert ic.doctor_digest(jobs, runs, AHORA) == []
+        assert mo.doctor_digest(jobs, runs, AHORA) == []
 
 
 class TestJobDiarioDelDoctor:
@@ -1297,8 +1323,8 @@ class TestJobDiarioDelDoctor:
 
     @staticmethod
     def _job():
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        jobs = [j for j in ic.parse_jobs(manifest) if j.name == "cron-doctor-daily"]
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        jobs = [j for j in mf.parse_jobs(manifest) if j.name == "cron-doctor-daily"]
         assert len(jobs) == 1
         return jobs[0]
 
@@ -1310,3 +1336,68 @@ class TestJobDiarioDelDoctor:
 
     def test_usa_el_modo_de_expectativas(self):
         assert "--expectations" in self._job().command
+
+
+class TestModosExcluyentes:
+    """Un solo modo. El .py sin modo chequea y no escribe."""
+
+    def test_dos_modos_salen_2(self, tmp_path, capsys):
+        code = ic.main(base_args(tmp_path, tmp_path, "--apply", "--check"))
+        assert code == 2
+        assert "un solo modo" in capsys.readouterr().err
+
+    def test_force_sin_apply_sale_2(self, tmp_path, capsys):
+        code = ic.main(base_args(tmp_path, tmp_path, "--force"))
+        assert code == 2
+        assert "--force" in capsys.readouterr().err
+
+    def test_doctor_no_imprime_desde_el_monitor(self, capsys):
+        rc, text = mo.doctor(lambda: subprocess.CompletedProcess([], 1, "FALLA\n", ""))
+        assert rc == 1
+        assert "FALLA" in text
+        assert capsys.readouterr().out == ""
+
+    def test_bash_sin_modo_pasa_apply(self):
+        bash = _bash_usable()
+        if bash is None:
+            pytest.skip("bash no disponible")
+        fake = REPO / "out" / "fake-uv-323"
+        fake.parent.mkdir(exist_ok=True)
+        fake.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\"\n", encoding="utf-8")
+        fake.chmod(0o755)
+        try:
+            proc = subprocess.run(
+                [bash, _posix(REPO / "bin" / "install-cron.sh")],
+                cwd=str(REPO),
+                env={"UV": _posix(fake), "PATH": "/usr/bin:/bin", "HOME": _posix(REPO)},
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        finally:
+            fake.unlink(missing_ok=True)
+        assert proc.returncode == 0, proc.stderr
+        assert proc.stdout.strip().endswith("src/install_cron.py --apply")
+
+    def test_bash_con_check_no_anade_apply(self):
+        bash = _bash_usable()
+        if bash is None:
+            pytest.skip("bash no disponible")
+        fake = REPO / "out" / "fake-uv-323"
+        fake.parent.mkdir(exist_ok=True)
+        fake.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\"\n", encoding="utf-8")
+        fake.chmod(0o755)
+        try:
+            proc = subprocess.run(
+                [bash, _posix(REPO / "bin" / "install-cron.sh"), "--check"],
+                cwd=str(REPO),
+                env={"UV": _posix(fake), "PATH": "/usr/bin:/bin", "HOME": _posix(REPO)},
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        finally:
+            fake.unlink(missing_ok=True)
+        assert proc.returncode == 0, proc.stderr
+        assert "--apply" not in proc.stdout
+        assert proc.stdout.strip().endswith("src/install_cron.py --check")
