@@ -4,6 +4,18 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.18.5 (2026-09-26)
+
+### 📦 Chores
+
+- Blindar retiro de plantilla legacy Markdown v1
+  ([#320](https://github.com/pelukron/hermes-scripts/pull/320),
+  [`a1afc84`](https://github.com/pelukron/hermes-scripts/commit/a1afc84ecb3becadbeb624047cd2d19786e316d1))
+
+- Sync uv.lock tras release [skip ci]
+  ([`a5adb16`](https://github.com/pelukron/hermes-scripts/commit/a5adb16b72d4f8d17b325a4dc0c273a9506a8539))
+
+
 ## v0.18.4 (2026-09-26)
 
 ### 📦 Chores
