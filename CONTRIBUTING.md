@@ -183,6 +183,11 @@ checks borra las demás reglas: `deletion`, `non_fast_forward`, `pull_request`),
 `gh api repos/pelukron/hermes-scripts/rulesets/18811339 --jq '[.rules[]|select(.type=="required_status_checks").parameters.required_status_checks[].context]'`.
 Ver #314.
 
+**Corre solo.** El job `gate-audit` (lunes 10:05, `no_agent`, cero tokens) ejecuta
+`uv run python bin/gate-audit.py --alert`: sin huecos ni huérfanos no entrega nada y deja la matriz en
+`out/gate-audit.md`. Instalación y verificación: `bin/install-cron.sh` (`--dry-run` / `--check`), ver
+`docs/INSTALL.md`.
+
 ## Auto-release (PSR)
 
 Al mergear un PR a main, `python-semantic-release`:

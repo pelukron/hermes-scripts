@@ -5,6 +5,10 @@ Uso::
 
     uv run python bin/gate-audit.py --markdown   # matriz a stdout + out/gate-audit.md
     uv run python bin/gate-audit.py --digest     # digest Telegram a stdout + out/gate-audit.md
+    uv run python bin/gate-audit.py --alert      # digest solo si hay huecos u huerfanos
+
+`--alert` es el modo del cron (`gate-audit`, lunes 10:05): sin huecos no imprime nada y el job
+no entrega mensaje.
 
 Requiere `gh` autenticado (lectura). Sin auto-issues ni escrituras en otros repos.
 """
@@ -23,6 +27,7 @@ from src.gate_audit import (  # noqa: E402
     BACKLOG_REPOS,
     DEFAULT_OWNER,
     collect,
+    render_alert,
     render_digest,
     render_markdown,
     summarize,
@@ -36,6 +41,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--repos", nargs="*", default=BACKLOG_REPOS, help="repos a auditar")
     parser.add_argument("--markdown", action="store_true", help="imprime la matriz (default)")
     parser.add_argument("--digest", action="store_true", help="imprime el digest compacto")
+    parser.add_argument(
+        "--alert",
+        action="store_true",
+        help="imprime el digest solo si hay huecos u huerfanos; silencio si todo verde",
+    )
     parser.add_argument("--out", default="out/gate-audit.md", help="archivo del reporte")
     parser.add_argument("--date", default=str(date.today()), help="fecha del digest")
     parser.add_argument("--no-write", action="store_true", help="no escribe el archivo")
@@ -57,7 +67,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_write:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(render_markdown(records, summary), encoding="utf-8")
-    if args.digest:
+    if args.alert:
+        alerta = render_alert(records, summary, args.date)
+        if alerta:
+            print(alerta)
+    elif args.digest:
         print(render_digest(records, summary, args.date))
     else:
         print(render_markdown(records, summary))
