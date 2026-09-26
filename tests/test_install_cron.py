@@ -298,6 +298,31 @@ class TestValidateManifest:
         )
         assert any("version" in e for e in ic.validate_manifest({"version": 99}, jobs))
 
+    def test_manifiesto_viejo_pide_migracion(self):
+        """Sin `version` (contrato previo) no valida: el error dice cómo migrar."""
+        viejo = {
+            "defaults": {"deliver": "origin"},
+            "jobs": [{"name": "demo", "schedule": "0 9 * * *", "command": "bash x.sh"}],
+        }
+        jobs = ic.parse_jobs(viejo)
+        errors = ic.validate_manifest(viejo, jobs)
+        assert any("Migracion" in e and "version" in e for e in errors)
+
+    def test_clave_desconocida_no_pasa_en_silencio(self):
+        raw = self.manifest(
+            [
+                {
+                    "name": "demo",
+                    "schedule": "0 9 * * *",
+                    "command": "bash x.sh",
+                    "canal": "telegram",
+                }
+            ]
+        )
+        jobs = ic.parse_jobs(raw)
+        errors = ic.validate_manifest(raw, jobs)
+        assert any("canal" in e for e in errors)
+
     def test_wrapper_compartido_con_distinto_command_falla(self):
         jobs = ic.parse_jobs(
             self.manifest(

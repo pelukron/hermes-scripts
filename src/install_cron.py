@@ -46,6 +46,25 @@ QUIET_DIGEST_MAX = 5
 ABSOLUTE_HOME_RE = re.compile(r"/(?:home|Users)/[A-Za-z0-9._-]+")
 TARGET_REF_RE = re.compile(r"^\$\{([A-Za-z0-9_-]+)\}$")
 CRON_RANGES = ((0, 59), (0, 23), (1, 31), (1, 12), (0, 7))
+SCHEMA_VERSION = 1
+MANIFEST_KEYS = frozenset({"version", "doc", "defaults", "jobs"})
+JOB_KEYS = frozenset(
+    {
+        "name",
+        "description",
+        "schedule",
+        "mode",
+        "deliver",
+        "enabled",
+        "wrapper",
+        "command",
+        "prompt",
+        "skills",
+        "model",
+        "provider",
+        "requires",
+    }
+)
 
 
 class ManifestError(Exception):
@@ -302,11 +321,46 @@ def validate_job_commands(jobs: list[Job], repo: Path) -> list[str]:
     return errors
 
 
+def version_error(got: Any) -> str:
+    """Un manifiesto de otra versión no sigue en silencio: dice cómo migrar."""
+    return (
+        f"version: se esperaba {SCHEMA_VERSION}, hay {got!r}. "
+        'Migracion: escribe "version": 1 en cron/jobs.json. '
+        "Una clave fuera de este contrato se rechaza, "
+        "para que un esquema nuevo no pase en silencio en el resto del backlog."
+    )
+
+
+def unknown_key_errors(manifest: dict[str, Any]) -> list[str]:
+    """Claves que este contrato no lista. Un typo o un campo nuevo no se traga."""
+    errors: list[str] = []
+    extra = sorted(set(manifest) - MANIFEST_KEYS)
+    if extra:
+        errors.append("claves desconocidas en el manifiesto: " + ", ".join(extra))
+    defaults = manifest.get("defaults") or {}
+    if isinstance(defaults, dict):
+        extra_defaults = sorted(set(defaults) - JOB_KEYS)
+        if extra_defaults:
+            errors.append("claves desconocidas en defaults: " + ", ".join(extra_defaults))
+    raw_jobs = manifest.get("jobs") or []
+    if not isinstance(raw_jobs, list):
+        return errors
+    for raw in raw_jobs:
+        if not isinstance(raw, dict):
+            continue
+        extra_job = sorted(set(raw) - JOB_KEYS)
+        if extra_job:
+            label = str(raw.get("name") or "<sin nombre>")
+            errors.append(f"{label}: claves desconocidas: {', '.join(extra_job)}")
+    return errors
+
+
 def validate_manifest(manifest: dict[str, Any], jobs: list[Job]) -> list[str]:
     """Reglas de validacion. Devuelve la lista de errores (vacia = OK)."""
     errors: list[str] = []
-    if manifest.get("version") != 1:
-        errors.append(f"version: se esperaba 1, hay {manifest.get('version')!r}")
+    if manifest.get("version") != SCHEMA_VERSION:
+        errors.append(version_error(manifest.get("version")))
+    errors.extend(unknown_key_errors(manifest))
     names = [job.name for job in jobs]
     duplicates = sorted({name for name in names if names.count(name) > 1})
     if duplicates:
