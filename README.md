@@ -50,6 +50,13 @@ Aviso semanal de drift: el job `cron-drift-check` (lunes 10:00, `no_agent`,
 cero tokens) corre `bin/check-drift.sh --quiet` — sin drift no entrega nada; con drift
 entrega el digest. A mano: `bin/check-drift.sh` (cron + skills declaradas).
 
+Guard de contextos huérfanos: el job `gate-audit` (lunes 10:05, `no_agent`, cero tokens) corre
+`uv run python bin/gate-audit.py --alert` — cruza los check que el ruleset de `main` exige **por
+nombre** contra los jobs que el CI produce de verdad. Sin huecos no entrega nada; con un contexto
+huérfano (o una matriz incompleta) entrega el digest y deja la matriz en `out/gate-audit.md`.
+A mano: `bin/gate-audit.py --markdown|--digest|--alert`. El porqué está en `CONTRIBUTING.md`
+§«Contextos exigidos por el ruleset».
+
 Detalles, personalización y cómo quitarlo: [`docs/INSTALL.md`](docs/INSTALL.md).
 
 ## Skills
