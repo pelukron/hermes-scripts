@@ -443,11 +443,15 @@ class TestReportFailure:
             "resumen_tigres_diario",
             "sync_runtime",
         ]
+        with open(os.path.join(scripts, "team_pipeline.py"), encoding="utf-8") as f:
+            pipeline = f.read()
         for name in esperados:
             with open(os.path.join(scripts, f"{name}.py"), encoding="utf-8") as f:
                 texto = f.read()
-            assert "report_failure" in texto, name
-            assert re.search(r"except Exception as exc", texto), name
+            # Rayados/Tigres delegan el envoltorio en team_pipeline.enter.
+            efectivo = texto + pipeline if "enter(main)" in texto else texto
+            assert "report_failure" in efectivo, name
+            assert re.search(r"except Exception as exc", efectivo), name
 
 
 class TestVersionFooter:
@@ -474,10 +478,13 @@ class TestVersionFooter:
             "resumen_rayados_diario",
             "resumen_tigres_diario",
         ]
+        with open(os.path.join(scripts, "team_pipeline.py"), encoding="utf-8") as f:
+            pipeline = f.read()
         for name in esperados:
             with open(os.path.join(scripts, f"{name}.py"), encoding="utf-8") as f:
                 texto = f.read()
-            assert "version_footer" in texto, name
+            efectivo = texto + pipeline if "enter(main)" in texto else texto
+            assert "version_footer" in efectivo, name
 
 
 def _uv_ejecutable(tmp_path, subdir="", nombre="uv"):
