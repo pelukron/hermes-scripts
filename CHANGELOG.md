@@ -4,6 +4,37 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.18.8 (2026-09-26)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`b54b4d7`](https://github.com/pelukron/hermes-scripts/commit/b54b4d76051c82d3a8ccae3f974694560bf62f84))
+
+### 📝 Docs
+
+- Entorno por sistema para no repetir los rojos locales
+  ([#333](https://github.com/pelukron/hermes-scripts/pull/333),
+  [`d2dab4a`](https://github.com/pelukron/hermes-scripts/commit/d2dab4a6723855b68e102a2d4dc81a6dfcbb162e))
+
+
+## v0.18.7 (2026-09-26)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`5c10e5d`](https://github.com/pelukron/hermes-scripts/commit/5c10e5ddf2005b8ee23b8dfebfd4a0986661a038))
+
+### ♻️ Refactor
+
+- Los scripts de equipo quedan en el config
+  ([`703bd37`](https://github.com/pelukron/hermes-scripts/commit/703bd3718ff3e0416d926bc455a91418e11371b1))
+
+- Un solo TeamPipeline para los resumenes de equipo
+  ([#331](https://github.com/pelukron/hermes-scripts/pull/331),
+  [`21268e6`](https://github.com/pelukron/hermes-scripts/commit/21268e66a1661bf7ed6400a8c4144d06a20edb6d))
+
+
 ## v0.18.6 (2026-09-26)
 
 ### 📦 Chores
