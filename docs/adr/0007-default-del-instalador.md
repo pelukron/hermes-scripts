@@ -25,3 +25,7 @@ remedio del digest de drift) sí tiene que instalar.
 Quien lea solo uno de los dos entrypoints va a creer que el otro está mal. No lo está:
 el bash es el instalador que ya citan los docs; el `.py` es el que invocan los jobs y
 un shell con prisa. `check-drift.sh` sigue pasando `--check` explícito.
+
+`bin/install-cron.sh --quiet` no es un error de uso: el bash lo traduce a `--check --quiet`
+(el `.py` sigue rechazando `--quiet` sin `--check`). El flag solo ya significa «chequeo
+silencioso» y era el único modo documentado del wrapper que salía con código 2.
