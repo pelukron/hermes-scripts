@@ -23,7 +23,7 @@
 
 ## 2. Gate y CI
 
-- Local: `bash bin/gate.sh` (necesita `shellcheck` en el PATH: `sudo apt-fast install -y shellcheck`). Windows: el mismo comando desde Git Bash; no hay lista manual de invocaciones que mantener.
+- Local en Linux: `bash bin/gate.sh` (necesita `shellcheck` en el PATH: `sudo apt-fast install -y shellcheck`). En Windows la consola es PowerShell y, si falta `make`, el gate completo no corre; Git Bash sólo para scripts. Receta: `skills/github-pelukron-flow/SKILL.md` §«Entorno por sistema».
 - JUnit: `GATE_JUNIT=<ruta> bash bin/gate.sh` escribe el XML que lee la noche. Sin la variable, ni local ni CI generan XML.
 - CI (`.github/workflows/ci.yml`): checkout + `setup-uv` + `uv python install` (matriz piso y techo: 3.11 y 3.13) + `uv sync --locked` + shellcheck por apt + changelog check (solo PRs) + `bash bin/gate.sh` + notify Telegram. Un solo job: no duplicar pasos de lint/test/audit en el YAML. Local usa `.python-version` (3.13): sin pin, `uv sync` elige lo que encuentra y en Windows el intérprete cambia cómo resuelve `bash` (#303).
 - Reglas: PR obligatorio, CODEOWNERS `@pelukron`, PR asignado a `@pelukron`, CHANGELOG.md intacto (PSR lo genera al mergear), sin `--force` ni `--amend` tras push, merge-commit (no squash), el agente no mergea.

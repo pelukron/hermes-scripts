@@ -1,10 +1,10 @@
 ---
 name: github-pelukron-flow
-description: Flujo de trabajo GitHub para repos pelukron (Hermes scripts). Maneja auth, bump-and-pr, limpieza de ramas, pushes con token temporal, y ajustes de CI.
-version: 1.1.0
+description: Flujo de trabajo GitHub para repos pelukron (Hermes scripts). Maneja auth, bump-and-pr, limpieza de ramas, pushes con token temporal, ajustes de CI y el entorno por sistema (Windows/PowerShell y Linux).
+version: 1.2.0
 author: Hermes Agent
 license: MIT
-platforms: [linux]
+platforms: [linux, windows]
 metadata:
   hermes:
     tags: [GitHub, pelukron, hermes-scripts, bump-and-pr, CI, cleanup]
@@ -550,6 +550,26 @@ Para cambios full-stack (frontend + backend):
 - **Frontend:** `npm install && npm run build` (corre `tsc -b && vite build` → typecheck) y `npm run lint`. Ambos deben salir exit 0. Un warning de Vite "chunk > 500 kB" NO es error; reportarlo pero no bloquea.
 - **Backend:** levantar el servicio (p.ej. `uv run uvicorn app.main:app --port 8000`) y hacer `curl -s -w "%{http_code}"` al endpoint tocado. Confirmar 200 + shape del JSON. Matar el proceso después (`pkill -f "uvicorn app.main:app"`).
 - **Evidencia fresca:** mostrar `BUILD_EXIT=0` / `LINT_EXIT=0` y el curl 200 en el resumen. Sin eso, el "listo" no está verificado.
+
+## Entorno por sistema
+
+La consola cambia con el sistema. El gate de CI (Linux) es la autoridad: un rojo local se corre también en `main` limpio antes de tocar el diff.
+
+### Windows — consola PowerShell
+
+Medido el 2026-09-26 en la máquina del operador. PowerShell es la consola de git, `gh` y `uv`. Git Bash entra sólo cuando el comando es un script `.sh`.
+
+- Encadena con `;`. El JSON de un `gh api` o el cuerpo de un PR se escribe a un archivo y entra por `--input` o `--body-file`: un `--jq` o un `--template` con comillas se lo queda PowerShell. `Out-File -Encoding utf8` escribe BOM; el archivo lo escribe la herramienta de archivos, o Python con `encoding="utf-8"`.
+- Git Bash del repo: `C:\Program Files\Git\usr\bin\bash.exe`. `C:\Windows\System32\bash.exe` es el relay de WSL.
+- `make` no está instalado, así que `bash bin/gate.sh` no es el comando local. Antes del PR: `uv run ruff check`, `uv run ruff format --check`, `uv run mypy` de los archivos tocados y `uv run pytest` de los tests del cambio. El verde del gate lo publica el CI del PR.
+- Rojos que ya están en `main` limpio y no acusan al diff: `test_uv_bin_*` y `test_gh_bin_*` comparan el nombre pelado `uv`/`gh` con la ruta de Windows (`C:\Users\...\uv`). WinError 1314 (symlink sin privilegio) es la misma clase.
+- `git branch <rama> origin/main` y `git worktree add -b <rama> … origin/main` dejan el upstream en `origin/main` (medido al abrir #324). Si `git status -sb` dice `...<rama>...origin/main`, `git branch --unset-upstream` y el primer push es `git push -u origin HEAD:<rama>`. Un `git push` a secas empujaría `main`.
+- El aviso `LF will be replaced by CRLF` es `core.autocrlf`. No es un cambio de contenido.
+- Imports de test: `from hermes_common import news_utils`. El shim `hermes_common.py` de la raíz es un módulo, y `hermes_common.news_utils` no resuelve como paquete. Un módulo cargado con `spec_from_file_location` no entra en `sys.modules`: el helper cierra sobre el dict que recibió (`globals()`), no sobre `sys.modules[__name__]` (medido en #324, `KeyError: resumen_rayados`).
+
+### Linux — consola bash
+
+El gate es un comando, con `PATH` y `TMPDIR` en la misma línea. Los tres rojos de esa consola están en la sección siguiente. Ahí corren el CI y el cron.
 
 ### Los tres rojos locales del gate no son del código
 
