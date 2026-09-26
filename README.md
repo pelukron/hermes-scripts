@@ -100,6 +100,7 @@ make test       # pytest -v
 │   ├── hermes_common/         # Utilidades compartidas (common.py, news_utils.py)
 │   ├── scripts/               # Entrypoints de cron (issue #71)
 │   │   ├── resumen_noticias_diario.py
+│   │   ├── team_pipeline.py
 │   │   ├── resumen_rayados_diario.py
 │   │   ├── resumen_tigres_diario.py
 │   │   ├── monitor_ram_mexico.py
