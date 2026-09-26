@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "doc": "Manifiesto de los cron jobs de Hermes. Fuente de verdad unica: bin/install-cron.sh (--dry-run / --check / aplicar). Los 'deliver' con ${nombre} se resuelven desde cron/targets.local.json (no versionado) para no filtrar IDs de chat en el repo.",
+  "doc": "Manifiesto de los cron jobs de Hermes. Contrato version 1: una clave desconocida es error. Fuente de verdad unica: bin/install-cron.sh (--dry-run / --check / aplicar). Los 'deliver' con ${nombre} se resuelven desde cron/targets.local.json (no versionado) para no filtrar IDs de chat en el repo.",
   "defaults": {
     "deliver": "origin",
     "enabled": true,
