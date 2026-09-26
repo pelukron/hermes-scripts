@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.18.4 (2026-09-26)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`a41ddf8`](https://github.com/pelukron/hermes-scripts/commit/a41ddf834cc22098b967ae25c56f2d338b14d392))
+
+### ✅ Tests
+
+- Guard que afirma que todo *.json versionado parsea
+  ([#319](https://github.com/pelukron/hermes-scripts/pull/319),
+  [`7033086`](https://github.com/pelukron/hermes-scripts/commit/703308676d63f5a838ccb93aff0c2b42e6db30b4))
+
+
 ## v0.18.3 (2026-09-26)
 
 ### 📦 Chores
