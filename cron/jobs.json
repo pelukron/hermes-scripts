@@ -142,6 +142,14 @@
       "deliver": "${notify}"
     },
     {
+      "name": "gate-audit",
+      "description": "Guard de contextos huérfanos: cruza los check exigidos por el ruleset contra los jobs que el CI produce (sin huecos no entrega nada)",
+      "schedule": "5 10 * * 1",
+      "wrapper": "gate-audit.sh",
+      "command": "uv run python bin/gate-audit.py --alert",
+      "deliver": "${notify}"
+    },
+    {
       "name": "cron-doctor-check",
       "description": "Salud semanal de la flota Hermes (hermes cron doctor; sin hallazgos no entrega nada)",
       "schedule": "0 10 * * 2",
