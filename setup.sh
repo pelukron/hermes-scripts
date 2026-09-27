@@ -1,6 +1,8 @@
 #!/bin/bash
-# setup.sh — Configura el entorno de desarrollo para hermes-scripts
-# Ejecutar una vez al clonar el repo
+# setup.sh — Método corto de montaje (convive con el wizard bin/setup-wizard.sh, #327).
+# Envoltorio delgado: los pasos viven en bin/entorno-dev.sh y aquí solo se llaman
+# con la política de siempre, «avisa y sigue» (rc 0 aunque algún paso falle).
+# Para verificación estricta paso a paso usa: bin/setup-wizard.sh
 
 set -euo pipefail
 
@@ -9,47 +11,16 @@ cd "$SCRIPT_DIR"
 
 echo "🔧 Configurando hermes-scripts..."
 
-# 1. Git hooks
-if [ -d ".githooks" ]; then
-    git config core.hooksPath .githooks
-    echo "  ✅ Git hooks configurados (.githooks/pre-push)"
-else
-    echo "  ⚠️  Directorio .githooks no encontrado"
-fi
+# shellcheck disable=SC2034 # ENTORNO_DEV_ESTRICTO la consume bin/entorno-dev.sh
+ENTORNO_DEV_ESTRICTO=0
+# shellcheck source=bin/entorno-dev.sh
+. "$SCRIPT_DIR/bin/entorno-dev.sh"
 
-# 2. Python environment
-if [ -f "pyproject.toml" ]; then
-    if command -v uv &>/dev/null; then
-        uv sync --dev 2>/dev/null || echo "  ⚠️  uv sync falló"
-        echo "  ✅ Dependencias instaladas (uv)"
-    fi
-fi
-
-# 3. Pre-commit
-if [ -f ".pre-commit-config.yaml" ]; then
-    if command -v pre-commit &>/dev/null || uv run pre-commit --version &>/dev/null 2>&1; then
-        uv run pre-commit install 2>/dev/null || echo "  ⚠️  pre-commit install falló"
-        echo "  ✅ Pre-commit hooks instalados"
-    fi
-fi
-
-# 4. GITHUB_TOKEN
-ENV_FILE="${HERMES_HOME:-$HOME/.hermes}/.env"
-if [ -f "$ENV_FILE" ] && grep -q "^GITHUB_TOKEN=" "$ENV_FILE"; then
-    echo "  ✅ GITHUB_TOKEN encontrado"
-else
-    echo "  ⚠️  GITHUB_TOKEN no configurado en $ENV_FILE"
-fi
-
-# 5. Gateway hooks (avisos del propio Hermes: back-online al arrancar)
-if [ -d "hooks" ]; then
-    HOOKS_DIR="${HERMES_HOME:-$HOME/.hermes}/hooks"
-    mkdir -p "$HOOKS_DIR"
-    cp -r hooks/. "$HOOKS_DIR/"
-    echo "  ✅ Gateway hooks instalados ($HOOKS_DIR)"
-else
-    echo "  ⚠️  Directorio hooks no encontrado"
-fi
+paso_git_hooks
+paso_uv_sync
+paso_pre_commit
+paso_github_token
+paso_gateway_hooks
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
