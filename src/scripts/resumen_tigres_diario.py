@@ -22,6 +22,7 @@ CONFIG = TeamConfig(
     sources_line="Fuentes: Google News RSS + tigres.com.mx",
     prefilter_official=True,
     announce_overflow=True,
+    edition={"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"},
 )
 
 expose(

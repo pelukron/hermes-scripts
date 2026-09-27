@@ -1,9 +1,12 @@
 """Seam de TeamPipeline: un ensamble, dos configs, y un guard contra la deriva."""
 
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from hermes_common import news_utils
-from scripts.team_pipeline import TeamConfig, build_report
+from scripts.team_pipeline import TeamConfig, build_report, expose
 
 NewsItem = news_utils.NewsItem
 
@@ -20,6 +23,7 @@ def _config(**overrides) -> TeamConfig:
         sources_line="Fuentes: prueba",
         prefilter_official=False,
         announce_overflow=False,
+        edition={"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"},
     )
     base.update(overrides)
     return TeamConfig(**base)
@@ -106,3 +110,64 @@ def test_las_listas_compartidas_viven_una_sola_vez():
         assert "expose(" in text
         assert "podría" not in text
         assert len(text.splitlines()) < 90
+
+
+def _exposed(config: TeamConfig) -> dict:
+    """Devuelve el namespace que `expose` cuelga en un módulo de equipo."""
+    ns: dict = {}
+    expose(
+        ns,
+        config,
+        request=lambda *a, **k: None,
+        official_impl=lambda _request: [],
+        detail_label="equipo.test",
+        official_name="fetch_official_listing",
+        detail_name="fetch_official_detail",
+        enrich_name="enrich_official_items",
+    )
+    return ns
+
+
+def _edicion_que_llega_al_feed(config: TeamConfig) -> object:
+    """Captura el argumento `edition` con el que el config pide el feed."""
+    capturado: dict = {}
+
+    def falso(query, category, *args):
+        capturado["edition"] = args[3]
+        return []
+
+    with patch("hermes_common.news_utils.fetch_google_news", side_effect=falso):
+        _exposed(config)["fetch_google_news"]("'Equipo'", "confirmadas")
+    return capturado["edition"]
+
+
+def test_el_config_del_equipo_pasa_su_edicion_al_feed():
+    """La edición viaja del config al constructor de la URL (ADR 0010, issue #357)."""
+    en_eeuu = {"hl": "en-US", "gl": "US", "ceid": "US:en"}
+    assert _edicion_que_llega_al_feed(_config(edition=en_eeuu)) == en_eeuu
+
+
+def test_el_config_exige_la_edicion():
+    """Sin edición el config no se construye: no hay herencia por omisión (ADR 0010)."""
+    sin_edicion = {
+        "history_name": "sin-edicion.json",
+        "queries": {},
+        "sitios_oficiales": [],
+        "header_title": "",
+        "sources_line": "",
+        "prefilter_official": False,
+        "announce_overflow": False,
+    }
+    with pytest.raises(TypeError):
+        TeamConfig(**sin_edicion)  # type: ignore[call-arg]
+
+
+def test_los_reportes_vivos_declaran_la_edicion_mexicana():
+    """La edición de Rayados y Tigres vive en su config, no en la librería (ADR 0010)."""
+    from scripts.resumen_rayados_diario import CONFIG as RAYADOS
+    from scripts.resumen_tigres_diario import CONFIG as TIGRES
+
+    for config in (RAYADOS, TIGRES):
+        assert config.edition == {"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"}
+        url = news_utils.build_google_news_url("Equipo", config.edition)
+        assert url.endswith("&hl=es-419&gl=MX&ceid=MX:es-419")
