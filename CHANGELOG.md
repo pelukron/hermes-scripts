@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.21.3 (2026-09-27)
+
+### 📝 Docs
+
+- Regla mandatoria el agente no mergea, solo crea ramas (#373)
+  ([#374](https://github.com/pelukron/hermes-scripts/pull/374),
+  [`5022a5d`](https://github.com/pelukron/hermes-scripts/commit/5022a5d213da04b99b3f697af15dd59f33d3059d))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`a7f54b3`](https://github.com/pelukron/hermes-scripts/commit/a7f54b3de96ab0b210cc6e6e9181fe3e9f5a7f91))
+
+
 ## v0.21.2 (2026-09-27)
 
 ### 📝 Docs
