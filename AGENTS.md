@@ -39,7 +39,7 @@
   dentro del repo (`.worktrees/`, ignorado) para no pedir validaciones de permisos externos.
   Dos issues en el mismo árbol mezclan cambios, pisan ramas y meten scope
   colado en el PR. Se borra tras el merge: `git worktree remove .worktrees/w<N>-<slug>`.
-- El agente no mergea: PRs y commits; `@pelukron` revisa y mergea.
+- Mandatorio: el agente **no mergea PRs** — solo crea ramas, commitea y abre PRs. `@pelukron` revisa y mergea.
 - Todo PR pide review a `@pelukron` (auto: workflow `pr-review` + `bump-and-pr.sh`; GitHub omite el request si el autor es `@pelukron`).
 - Proceso completo: `PROJECT_MANAGEMENT.md` y `CONTRIBUTING.md`.
 - Contexto del repo: `CONTEXT.md`.
