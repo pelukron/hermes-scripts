@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.20.0 (2026-09-27)
+
+### ✨ Features
+
+- La subseccion NFL lee fuentes en ingles
+  ([`7f2d7da`](https://github.com/pelukron/hermes-scripts/commit/7f2d7da1577294d68048f57d623a87077b54461f))
+
+- Subsección NFL (titulares) en la sección de deportes del reporte diario (#353)
+  ([#354](https://github.com/pelukron/hermes-scripts/pull/354),
+  [`a93c23e`](https://github.com/pelukron/hermes-scripts/commit/a93c23e5468e6209d73fc8ab31d04ce735c22c53))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`2223096`](https://github.com/pelukron/hermes-scripts/commit/22230962cd5c9b347e7d59dbdc5e4c5603763838))
+
+
 ## v0.19.9 (2026-09-27)
 
 ### 📝 Docs
