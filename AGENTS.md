@@ -46,6 +46,11 @@
   por carácter (parte la URL y el enlace llega como texto), itálicas `*x*` y nunca `_x_` (el dialecto las
   entrega con guiones bajos), ninguna línea por encima de `MAX_CHARS_LINEA`, y un guard que sólo vea
   enlaces cerrados es ciego al defecto que importa.
+- Entrega **por área** del parque de avisos: el estándar es obligatorio y vive en
+  `docs/adr/0009-estandar-de-entrega-por-area.md` (1 área = 1 política, 1 mensaje = 1 trozo, 1 sola
+  fecha, y cada job clasificado: medido con reloj/umbral forzado o declarado con su motivo).
+- Job nuevo, renombrado o quitado del manifiesto: el ADR 0009 y `TestEstandarPorAreaDelParque` se
+  actualizan en el mismo cambio — el test lee el ADR y el manifiesto, así que divergir es gate rojo.
 - Skills: aplica el router ask-matt sin que te lo pidan (idea → grill-with-docs → spec → tickets → implement; bug → diagnosing-bugs; pila de requests → triage; si no encaja, ejecución directa).
 - Emoji: fuera del código; en docs y labels sí, con el vocabulario de `PROJECT_MANAGEMENT.md`.
 - Nombres nuevos (jobs, wrappers, módulos) en **inglés** (`cron-canary`, `cron-doctor-daily`). No
