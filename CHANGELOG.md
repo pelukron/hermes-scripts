@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.19.2 (2026-09-27)
+
+### 🐛 Fixes
+
+- Alinear CONTEXT.md y el sniffer de modos del instalador (#336)
+  ([#338](https://github.com/pelukron/hermes-scripts/pull/338),
+  [`44d7fc1`](https://github.com/pelukron/hermes-scripts/commit/44d7fc19dbc2db112c9d90c09517801c02b58fd3))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`309bab4`](https://github.com/pelukron/hermes-scripts/commit/309bab43c0fd471d6f2ae451e73c31012e033494))
+
+
 ## v0.19.1 (2026-09-27)
 
 ### 📦 Chores
