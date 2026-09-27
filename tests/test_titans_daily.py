@@ -55,6 +55,16 @@ class TestConfigTitans:
         assert is_oficial("https://www.tennesseetitans.com/news/titans-sign-db") is True
         assert is_oficial("https://www.espn.com/nfl/story/_/id/1/titans") is False
 
+    def test_seccion_liga_declarada(self):
+        """#371: el canal lleva contexto de liga en bloque propio."""
+        extra = CONFIG.extra_section
+        assert extra is not None
+        assert "{count}" in extra.titulo
+        assert extra.categoria == "liga"
+        assert extra.query.startswith('"')
+        assert "(" not in extra.query and ")" not in extra.query
+        assert " AND " not in extra.query
+
 
 class TestFetchTitansOfficial:
     def test_vacio_declarado(self):
@@ -83,23 +93,40 @@ def _mk_confirmada(i: int) -> NewsItem:
     )
 
 
-def test_reporte_tres_bloques_con_techo():
-    """12 confirmadas con límite 8: header '8 de 12' y el mensaje cabe en 1 trozo."""
+def _mk_liga(i: int) -> NewsItem:
+    return NewsItem(
+        title=f"NFL league note {i}",
+        link=f"https://ejemplo.com/liga/{i}",
+        source="ESPN",
+        confiable=True,
+        origin="gn",
+        category="liga",
+    )
+
+
+def test_reporte_cuatro_bloques_con_techo():
+    """#371: header + liga + CONFIRMADO + RUMORES; el mensaje cabe en 1 trozo."""
     confirmadas = [_mk_confirmada(i) for i in range(12)]
+    liga = [_mk_liga(i) for i in range(3)]
+    por_categoria = {"confirmadas": confirmadas, "rumores": [], "liga": liga}
     with (
         patch("hermes_common.HistoryManager") as mock_hist_cls,
         patch.object(mod, "fetch_google_news") as mock_gn,
         patch.object(mod, "fetch_titans_official") as mock_official,
     ):
         mock_hist_cls.return_value.exists.return_value = False
-        mock_gn.side_effect = lambda q, cat: confirmadas if cat == "confirmadas" else []
+        mock_gn.side_effect = lambda q, cat: list(por_categoria.get(cat, []))
         mock_official.return_value = []
         blocks = mod.build_report_blocks()
 
-    assert len(blocks) == 3
+    assert len(blocks) == 4
     assert "Tennessee Titans" in blocks[0]
+    bloque_liga = [b for b in blocks if "La liga" in b][0]
+    assert blocks.index(bloque_liga) == 1
+    assert "NFL league note 0" in bloque_liga
     conf = [b for b in blocks if "CONFIRMADO" in b][0]
-    assert "RUMORES" in blocks[2]
+    assert "RUMORES" in blocks[3]
+    assert "NFL league note 0" not in conf, "la liga no se repite en el bloque del equipo"
     bullets = [line for line in conf.splitlines() if line.startswith("- ")]
     assert len(bullets) <= 8
     header = conf.splitlines()[0]

@@ -3,6 +3,7 @@
 
 from hermes_common import retry_request
 from scripts.team_pipeline import (
+    ExtraSection,
     Request,
     TeamConfig,
     enter,
@@ -34,6 +35,11 @@ CONFIG = TeamConfig(
         "thetennessean.com",
     ],
     rumor_keywords=["rumor", "trade", "signing", "waive", "release", "injur"],
+    extra_section=ExtraSection(
+        titulo="**🏈 NFL — La liga** ({count})",
+        query='"NFL" OR "NFL news" OR "NFL scores"',
+        categoria="liga",
+    ),
 )
 
 
