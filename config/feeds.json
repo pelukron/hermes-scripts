@@ -288,6 +288,15 @@
               "url": "https://news.google.com/rss/search?q=site:espn.com.mx+Rayados+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
             }
           ]
+        },
+        {
+          "name": "NFL",
+          "sources": [
+            {
+              "name": "NFL",
+              "url": "https://news.google.com/rss/search?q=NFL+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+            }
+          ]
         }
       ]
     }
