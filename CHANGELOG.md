@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.22.0 (2026-09-27)
+
+### ✨ Features
+
+- Wizard bash de montaje funcional (#327)
+  ([#366](https://github.com/pelukron/hermes-scripts/pull/366),
+  [`a3bbc4e`](https://github.com/pelukron/hermes-scripts/commit/a3bbc4e7eb60cee6e97092a9e6131763035ef76e))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`0ee46a8`](https://github.com/pelukron/hermes-scripts/commit/0ee46a85151513315a5e28a184107ab64b6de796))
+
+
 ## v0.21.4 (2026-09-27)
 
 ### 📦 Chores
