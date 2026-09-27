@@ -253,6 +253,12 @@ def build_subsection_block(
 ) -> str:
     """Arma el bloque Markdown de una subsección, acotado a `cuota` caracteres.
 
+    Reparte por rondas (#360): en la primera ronda entra el primer item de cada fuente, en
+    el orden declarado, y las rondas siguientes agregan el resto. Antes se llenaba la
+    primera fuente hasta la cuota y las demás quedaban fuera aunque tuvieran items frescos:
+    con ~386 chars por subsección la primera se la comía entera (medido: 11 de 14
+    subsecciones entregaban una sola fuente y ~1000 chars del presupuesto quedaban sin usar).
+
     Toma hasta ITEMS_POR_FUENTE por fuente (top por fecha), omite URLs ya vistas en
     el run (dedupe cross-sección) y recorta **por item completo**: el bullet de una
     fuente es indivisible de su primer item y ninguna línea se parte por la mitad.
@@ -261,7 +267,8 @@ def build_subsection_block(
     (#278: 4 de 10 enlaces así).
 
     Un item que no cupo NO se marca como visto: puede salir en una sección siguiente
-    si allí queda presupuesto.
+    si allí queda presupuesto. Tampoco condena a su fuente: la ronda siguiente prueba
+    su item siguiente (mitad del defecto de #355).
 
     Args:
         sub_name: Nombre de la subsección (cabecera en itálicas).
@@ -277,8 +284,8 @@ def build_subsection_block(
     encabezado = f"*{sin_parentesis(sub_name)}*"
     lineas = [encabezado]
     usado = len(encabezado) + 1
+    candidatas: list = []
     for (source_name, _url), items in zip(sources, fetched):
-        bullet = f"• *{sin_parentesis(source_name)}*"
         candidatos = []
         for title, link in (items or [])[:ITEMS_POR_FUENTE]:
             clean_link = escape_link(link)
@@ -286,23 +293,30 @@ def build_subsection_block(
                 continue
             titulo = smart_truncate(sin_parentesis(clean_title(title)), limit=MAX_CHARS_TITULO)
             candidatos.append((f"  [{titulo}]({clean_link})", clean_link))
-        if not candidatos:
-            continue
-        # El bullet viaja con su primer item; los siguientes entran de uno en uno.
-        gastado = usado + len(bullet) + 1 + len(candidatos[0][0]) + 1
-        if gastado > tope:
-            continue
-        emitidos = [candidatos[0]]
-        for candidato in candidatos[1:]:
-            if gastado + len(candidato[0]) + 1 > tope:
-                break
-            emitidos.append(candidato)
-            gastado += len(candidato[0]) + 1
-        lineas.append(bullet)
-        for linea, url in emitidos:
+        if candidatos:
+            candidatas.append(
+                {
+                    "bullet": f"• *{sin_parentesis(source_name)}*",
+                    "items": candidatos,
+                    "abierto": False,
+                }
+            )
+    rondas = max((len(fuente["items"]) for fuente in candidatas), default=0)
+    for ronda in range(rondas):
+        for fuente in candidatas:
+            if ronda >= len(fuente["items"]):
+                continue
+            linea, url = fuente["items"][ronda]
+            # El bullet viaja con su primer item; los siguientes entran de uno en uno.
+            extra = 1 if fuente["abierto"] else len(fuente["bullet"]) + 1
+            if usado + extra + len(linea) + 1 > tope:
+                continue
+            if not fuente["abierto"]:
+                lineas.append(fuente["bullet"])
+                fuente["abierto"] = True
             lineas.append(linea)
             seen_urls.add(url)
-        usado = gastado
+            usado += extra + len(linea) + 1
     return "\n".join(lineas) if len(lineas) > 1 else ""
 
 

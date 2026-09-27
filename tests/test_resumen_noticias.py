@@ -342,6 +342,32 @@ class TestNoticieroGlobal:
         # no por carácter: antes cortaba a mitad de la URL y dejaba el enlace sin cerrar).
         assert block.rstrip().splitlines()[-1].endswith(")")
 
+    def test_dos_fuentes_entran_antes_del_segundo_item_de_la_primera(self):
+        """El reparto es por rondas: la segunda fuente no espera a que la primera se llene."""
+        sources = [("Reuters", "https://reuters.example/rss"), ("AP", "https://ap.example/rss")]
+        largo = "Titular largo " + "x" * 60
+        fetched = [
+            [(largo, "https://example.com/r1"), (largo + " 2", "https://example.com/r2")],
+            [(largo, "https://example.com/a1")],
+        ]
+        # Cuota para el encabezado, los dos bullets y un item por fuente: no para dos de Reuters.
+        with patch.object(mod, "MAX_CHARS_POR_SUBSECCION", 260):
+            block = mod.build_subsection_block("Subs", sources, fetched, set())
+        assert "• *Reuters*" in block and "• *AP*" in block
+        assert block.count("\n  [") == 2  # un item por fuente, no los dos de la primera
+
+    def test_una_fuente_cuya_primera_no_cabe_entra_por_la_siguiente(self):
+        """Un primer item enorme no condena a su fuente: la ronda siguiente prueba el siguiente."""
+        sources = [("Reuters", "https://reuters.example/rss")]
+        enorme = "Titular enorme " + "x" * 200
+        fetched = [
+            [(enorme, "https://example.com/" + "u" * 200), ("Corto", "https://example.com/c1")]
+        ]
+        with patch.object(mod, "MAX_CHARS_POR_SUBSECCION", 220):
+            block = mod.build_subsection_block("Subs", sources, fetched, set())
+        assert "Corto" in block
+        assert "• *Reuters*" in block
+
     def test_dedupe_cross_seccion(self):
         seen: set = set()
         sources_a = [("Reuters", "https://reuters.example/rss")]
