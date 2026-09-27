@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.21.2 (2026-09-27)
+
+### 📝 Docs
+
+- Los tropiezos del gate que no son del diff en la skill github-pelukron-flow
+  ([#362](https://github.com/pelukron/hermes-scripts/pull/362),
+  [`fc6a6b5`](https://github.com/pelukron/hermes-scripts/commit/fc6a6b5a6d7da16ecc12f6d4fc78f9135fc80b6d))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`2334fbe`](https://github.com/pelukron/hermes-scripts/commit/2334fbe4cd2e1cf51cb26bdd97243d8f4eaf1e82))
+
+
 ## v0.21.1 (2026-09-27)
 
 ### 🐛 Fixes
