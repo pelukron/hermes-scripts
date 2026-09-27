@@ -240,3 +240,50 @@ class TestClassify:
         conf, rum = news_utils.classify(items, ["tigres.com.mx"], ["espn.com.mx"])
         assert len(conf) == 1
         assert rum == []
+
+
+class TestEdicionDelFeed:
+    """La edición del feed se declara por reporte (ADR 0010, issue #357)."""
+
+    def test_el_default_es_la_edicion_mexicana(self):
+        assert news_utils.DEFAULT_EDITION == {"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"}
+
+    def test_la_url_por_defecto_no_cambio(self):
+        """Los reportes vivos no cambian de comportamiento: la URL es la de siempre."""
+        url = news_utils.build_google_news_url("Tigres")
+        assert url == "https://news.google.com/rss/search?q=Tigres&hl=es-419&gl=MX&ceid=MX:es-419"
+
+    def test_edicion_explicita_cambia_hl_gl_ceid(self):
+        en_eeuu = {"hl": "en-US", "gl": "US", "ceid": "US:en"}
+        url = news_utils.build_google_news_url("Titans", en_eeuu)
+        assert url.endswith("&hl=en-US&gl=US&ceid=US:en")
+        assert "es-419" not in url
+
+    def test_la_edicion_llega_al_feed(self):
+        capturado = {}
+
+        def falso_parse(url):
+            capturado["url"] = url
+            return Mock(entries=[])
+
+        with patch("feedparser.parse", side_effect=falso_parse):
+            news_utils.fetch_google_news(
+                "Titans",
+                "confirmadas",
+                ["tennesseetitans.com"],
+                ["espn.com"],
+                ["rumor"],
+                {"hl": "en-US", "gl": "US", "ceid": "US:en"},
+            )
+        assert capturado["url"].endswith("&hl=en-US&gl=US&ceid=US:en")
+
+    def test_sin_edicion_el_feed_sale_en_la_mexicana(self):
+        capturado = {}
+
+        def falso_parse(url):
+            capturado["url"] = url
+            return Mock(entries=[])
+
+        with patch("feedparser.parse", side_effect=falso_parse):
+            news_utils.fetch_google_news("Tigres", "confirmadas", ["tigres.com.mx"], [], ["rumor"])
+        assert capturado["url"].endswith("&hl=es-419&gl=MX&ceid=MX:es-419")

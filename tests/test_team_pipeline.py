@@ -1,9 +1,10 @@
 """Seam de TeamPipeline: un ensamble, dos configs, y un guard contra la deriva."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 from hermes_common import news_utils
-from scripts.team_pipeline import TeamConfig, build_report
+from scripts.team_pipeline import TeamConfig, build_report, expose
 
 NewsItem = news_utils.NewsItem
 
@@ -106,3 +107,43 @@ def test_las_listas_compartidas_viven_una_sola_vez():
         assert "expose(" in text
         assert "podría" not in text
         assert len(text.splitlines()) < 90
+
+
+def _exposed(config: TeamConfig) -> dict:
+    """Devuelve el namespace que `expose` cuelga en un módulo de equipo."""
+    ns: dict = {}
+    expose(
+        ns,
+        config,
+        request=lambda *a, **k: None,
+        official_impl=lambda _request: [],
+        detail_label="equipo.test",
+        official_name="fetch_official_listing",
+        detail_name="fetch_official_detail",
+        enrich_name="enrich_official_items",
+    )
+    return ns
+
+
+def _edicion_que_llega_al_feed(config: TeamConfig) -> object:
+    """Captura el argumento `edition` con el que el config pide el feed."""
+    capturado: dict = {}
+
+    def falso(query, category, *args):
+        capturado["edition"] = args[3]
+        return []
+
+    with patch("hermes_common.news_utils.fetch_google_news", side_effect=falso):
+        _exposed(config)["fetch_google_news"]("'Equipo'", "confirmadas")
+    return capturado["edition"]
+
+
+def test_el_config_del_equipo_pasa_su_edicion_al_feed():
+    """La edición viaja del config al constructor de la URL (ADR 0010, issue #357)."""
+    en_eeuu = {"hl": "en-US", "gl": "US", "ceid": "US:en"}
+    assert _edicion_que_llega_al_feed(_config(edition=en_eeuu)) == en_eeuu
+
+
+def test_el_config_sin_edicion_no_impone_ninguna():
+    """Sin edición declarada el config no decide: lo hace el default de news_utils."""
+    assert _edicion_que_llega_al_feed(_config()) is None

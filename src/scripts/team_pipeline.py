@@ -99,6 +99,7 @@ class TeamConfig:
     telegram_max_chars: int = TELEGRAM_MAX_CHARS
     sitios_confiables: list[str] = field(default_factory=lambda: list(SITIOS_CONFIABLES))
     rumor_keywords: list[str] = field(default_factory=lambda: list(RUMOR_KEYWORDS))
+    edition: dict[str, str] | None = None
 
 
 def ensure_news_deps() -> None:
@@ -475,6 +476,7 @@ def expose(
             config.sitios_oficiales,
             config.sitios_confiables,
             config.rumor_keywords,
+            config.edition,
         )
 
     def fetch_official() -> list:
