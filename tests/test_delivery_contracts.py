@@ -6,8 +6,13 @@ import importlib.util
 import json
 import os
 import re
+import shlex
+import shutil
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from hermes_common import (
     TELEGRAM_UTF16_LIMIT,
@@ -301,3 +306,281 @@ class TestPresupuestoDeEntrega:
         # (gateway/platforms/base.py), así que con líneas cortas un enlace no puede partirse.
         assert noticias.MAX_CHARS_REPORTE > 3200
         assert noticias.MAX_CHARS_REPORTE <= 2 * (TELEGRAM_UTF16_LIMIT - 300)
+
+
+# ═══════════════════════════════════════════
+# ADR 0009 (#351): el estándar de entrega por área del parque de avisos
+# ═══════════════════════════════════════════
+
+AREA_GUARDS = "guards de infra"
+AREA_REPORTES = "reportes diarios"
+AREA_VENTANA = "avisos de ventana"
+AREA_MANTENIMIENTO = "mantenimiento"
+
+# El mapa por área del ADR 0009, sobre los 21 jobs del manifiesto (medido 2026-09-27).
+AREAS: dict[str, tuple[str, ...]] = {
+    AREA_GUARDS: (
+        "sistema-alertas",
+        "cron-canary",
+        "cron-doctor-daily",
+        "cron-doctor-check",
+        "cron-drift-check",
+        "gate-audit",
+        "adopted-sha-audit",
+        "runtime-sync",
+        "backup-diario",
+        "monitor-ram-mexico",
+    ),
+    AREA_REPORTES: (
+        "reporte-uso-hermes",
+        "resumen-noticias-diario",
+        "resumen-rayados-diario",
+        "resumen-tigres-diario",
+        "job-scout daily run",
+    ),
+    AREA_VENTANA: ("aviso-peak-19h", "aviso-peak-00h", "aviso-offpeak-22h", "aviso-offpeak-04h"),
+    AREA_MANTENIMIENTO: ("cleanup-housekeeping", "Hermes weekly update + backup"),
+}
+
+# Los jobs cuyo stdout ES el mensaje y que corren offline con el reloj o el umbral forzado.
+# Los dos de peak entran aquí como ENTRADAS del manifiesto, no como el wrapper compartido:
+# `bin/aviso-peak.sh` sirve a los dos y su único test lo nombraba a él (#347).
+MEDIDOS_AQUI: tuple[str, ...] = ("sistema-alertas", *AREAS[AREA_VENTANA])
+
+# Lo que no se puede medir offline: se declara con el motivo, no se finge. Que un job esté aquí
+# no lo deja sin contrato: su nombre lo cubre otro test (ver test_cada_job_sin_medicion_...).
+SIN_MEDICION: dict[str, str] = {
+    "backup-diario": "hace el respaldo real del host: escribe .tar.gz, no es de solo lectura",
+    "runtime-sync": "hace `git pull` sobre el clon de runtime: muta el checkout del operador",
+    "adopted-sha-audit": "corre el gate completo sobre el clon vivo (minutos y RAM)",
+    "cleanup-housekeeping": (
+        "borra archivos vencidos: una corrida de prueba no puede ser destructiva"
+    ),
+    "reporte-uso-hermes": "lee executions.db del Hermes real (uso y costo por modelo)",
+    "resumen-noticias-diario": "lee fuentes en red; su presupuesto por mensaje lo fija su test",
+    "resumen-rayados-diario": "lee fuentes en red (feed del club)",
+    "resumen-tigres-diario": "lee fuentes en red (feed del club)",
+    "monitor-ram-mexico": "necesita los precios en red y el historial del host",
+    "cron-drift-check": (
+        "compara contra el jobs.json real del operador: con un home de mentira "
+        "no hay nada que comparar"
+    ),
+    "job-scout daily run": "el comando vive en otro repo ($HOME/empleo) y gasta tokens",
+    "gate-audit": "consulta la API de GitHub (rulesets y checks): no corre offline",
+    "cron-doctor-check": "consulta el home real de Hermes (corridas e incidentes)",
+    "cron-doctor-daily": "digest de expectativas sobre el home real (corridas y entregas)",
+    "cron-canary": "ejecuta la allow-list de jobs contra un sandbox del home; ya tiene su test",
+    "Hermes weekly update + backup": (
+        "único job en modo `agent`: sin command ni wrapper, y hace el update real"
+    ),
+}
+
+# La ventana que el NOMBRE de la entrada promete. El guion no decide el texto: lo decide la hora
+# UTC del reloj, así que el reloj se deriva del schedule de la propia entrada (ver _reloj).
+VENTANA_ESPERADA: dict[str, str] = {
+    "aviso-peak-19h": "19:00-22:00",
+    "aviso-peak-00h": "00:00-04:00",
+    "aviso-offpeak-22h": "19:00-22:00",
+    "aviso-offpeak-04h": "00:00-04:00",
+}
+
+# Fechas ISO por mensaje, medidas sobre el stdout real. Los avisos de ventana no llevan fecha:
+# se identifican con la ventana y el reloj ("en 5 minutos"), y si un área añade una, se actualiza
+# esta tabla en el mismo cambio (el assert es exacto a propósito).
+FECHAS_ISO: dict[str, int] = {"sistema-alertas": 1, **{j: 0 for j in AREAS[AREA_VENTANA]}}
+
+ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+UTC_OFFSET_HORAS = 6  # America/Monterrey (CST, UTC-6) en septiembre
+needs_bash = pytest.mark.skipif(shutil.which("bash") is None, reason="bash no disponible")
+
+
+class TestEstandarPorAreaDelParque:
+    """El estándar por área del parque de avisos, fijado con asserts (ADR 0009, #351).
+
+    Fija tres cosas: que los 21 jobs del manifiesto estén clasificados (medidos aquí o
+    declarados con motivo), que el mapa por área del ADR sea el del manifiesto, y que el
+    mensaje de los jobs medibles cumpla el presupuesto (1 mensaje = 1 trozo) y no repita fecha.
+
+    El hueco que cierra: el área sin contrato fijado era justo la que tenía el defecto de
+    formato (#347) — `sistema-alertas` imprimía el `\n` literal y los dos jobs de peak sólo
+    estaban cubiertos por el wrapper compartido, no por su entrada del manifiesto.
+    """
+
+    @staticmethod
+    def _jobs() -> dict[str, mf.Job]:
+        manifiesto = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        return {job.name: job for job in mf.parse_jobs(manifiesto)}
+
+    @staticmethod
+    def _reloj(expr: str) -> dict[str, str]:
+        """Reloj fakeado a partir del campo minuto/hora del cron de la propia entrada.
+
+        El aviso de ventana se dispara 5 minutos antes de la ventana y el script elige el texto
+        por la hora UTC; derivarlo del schedule del manifiesto es lo que hace que la unidad
+        medida sea la entrada (`aviso-peak-19h`) y no el script compartido, que sirve a las dos.
+        """
+        minuto, hora = expr.split()[:2]
+        hora_local = int(hora)
+        utc = f"{(hora_local + UTC_OFFSET_HORAS) % 24:02d}:{int(minuto):02d}"
+        return {"local": f"{hora_local:02d}:{int(minuto):02d}", "utc": utc, "utc_hour": utc[:2]}
+
+    def _correr(
+        self, nombre: str, tmp_path: Path, **extra: str
+    ) -> subprocess.CompletedProcess[str]:
+        """Corre el `command` de la entrada con un HERMES_HOME de mentira.
+
+        El home temporal no es decorativo: `sistema-alertas` escribe su sello de cooldown en
+        `$HERMES_HOME`, y una corrida de prueba no debe tocar el estado del operador (#349).
+        """
+        job = self._jobs()[nombre]
+        assert job.command, f"{nombre} no declara command: no es medible como mensaje"
+        env = {**os.environ, "HERMES_HOME": str(tmp_path), **extra}
+        return subprocess.run(
+            shlex.split(job.command),
+            cwd=REPO,
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=60,
+        )
+
+    def _correr_medido(self, nombre: str, tmp_path: Path) -> subprocess.CompletedProcess[str]:
+        """El stdout real del job medible: umbral forzado en el guard, reloj forzado en el aviso."""
+        if nombre in AREAS[AREA_VENTANA]:
+            prefijo = "AVISO" if nombre.startswith("aviso-peak") else "OFFPEAK"
+            reloj = self._reloj(self._jobs()[nombre].schedule)
+            return self._correr(
+                nombre,
+                tmp_path,
+                **{
+                    f"{prefijo}_FAKE_LOCAL": reloj["local"],
+                    f"{prefijo}_FAKE_UTC": reloj["utc"],
+                    f"{prefijo}_FAKE_UTC_HOUR": reloj["utc_hour"],
+                },
+            )
+        # Aviso de guardia con una alerta real forzada (disco al 1 %): es la forma que se
+        # entrega de verdad, no el mensaje de prueba de FORCE_ALERT.
+        return self._correr(nombre, tmp_path, UMBRAL_DISCO="1")
+
+    # ── La partición y el mapa ──────────────────────────────────────────────
+
+    def test_el_manifiesto_tiene_los_21_jobs_del_estandar(self):
+        assert len(self._jobs()) == 21, sorted(self._jobs())
+
+    def test_particion_sin_huecos_ni_fantasmas(self):
+        """Todo job del manifiesto es medido aquí o declarado con motivo. Nada en el limbo."""
+        nombres = set(self._jobs())
+        medidos, declarados = set(MEDIDOS_AQUI), set(SIN_MEDICION)
+        assert not medidos & declarados, sorted(medidos & declarados)
+        assert medidos | declarados == nombres, (
+            sorted(nombres - medidos - declarados),
+            sorted(medidos | declarados - nombres),
+        )
+
+    def test_los_dos_jobs_de_peak_se_miden_como_entradas_del_manifiesto(self):
+        """#347: su único test nombraba `bin/aviso-peak.sh`, no las entradas que sí existen."""
+        assert {"aviso-peak-19h", "aviso-peak-00h"} <= set(MEDIDOS_AQUI)
+
+    def test_cada_job_sin_medicion_esta_nombrado_en_otro_test(self):
+        """El piso de cobertura: nombrado en otro test, o medido de verdad aquí.
+
+        «Nombrado» es el piso, no la garantía —el contrato de cada job lo fijan sus propios
+        asserts—, pero un job que nadie nombra es un job sin área (el caso de #347).
+        """
+        mio = Path(__file__).name
+        otros = {
+            p.name: p.read_text(encoding="utf-8")
+            for p in sorted((REPO / "tests").glob("test_*.py"))
+            if p.name != mio
+        }
+        sin_cubrir = [j for j in SIN_MEDICION if not any(j in t for t in otros.values())]
+        assert sin_cubrir == [], f"sin nombrar en ningún test ni medidos aquí: {sin_cubrir}"
+
+    def test_cada_job_sin_medicion_declara_el_motivo(self):
+        for nombre, motivo in SIN_MEDICION.items():
+            assert len(motivo.strip()) >= 20, (nombre, motivo)
+
+    def test_mapa_por_area_cubre_los_21_sin_repetir(self):
+        por_area = [j for jobs in AREAS.values() for j in jobs]
+        assert len(por_area) == len(set(por_area)), "un job en dos áreas"
+        assert set(por_area) == set(self._jobs()), (
+            sorted(set(self._jobs()) - set(por_area)),
+            sorted(set(por_area) - set(self._jobs())),
+        )
+
+    def test_el_adr_0009_declara_las_areas_y_los_jobs(self):
+        """El ADR y el manifiesto no pueden divergir: el estándar no vive sólo en prosa."""
+        adr = next((REPO / "docs" / "adr").glob("0009-*.md"), None)
+        assert adr is not None, "falta docs/adr/0009-*.md"
+        texto = adr.read_text(encoding="utf-8")
+        sin_area = [a for a in AREAS if a not in texto]
+        assert sin_area == [], f"el ADR no declara el área: {sin_area}"
+        sin_job = [j for j in self._jobs() if j not in texto]
+        assert sin_job == [], f"el ADR no nombra el job: {sin_job}"
+
+    # ── El contrato medido sobre el stdout real ─────────────────────────────
+
+    @needs_bash
+    @pytest.mark.parametrize("nombre", MEDIDOS_AQUI)
+    def test_un_mensaje_es_un_trozo(self, nombre: str, tmp_path: Path, capsys):
+        r = self._correr_medido(nombre, tmp_path)
+        assert r.returncode == 0, r.stderr
+        assert r.stdout.strip(), f"{nombre} no entregó nada"
+        n, chunks = utf16_len(r.stdout), telegram_chunks(r.stdout)
+        with capsys.disabled():
+            print(f"\n  {nombre}: utf16={n} chunks={chunks}")
+        assert chunks <= 1, f"{nombre}: utf16={n} chunks={chunks}"
+
+    @needs_bash
+    @pytest.mark.parametrize("nombre", MEDIDOS_AQUI)
+    def test_una_sola_fecha_por_mensaje(self, nombre: str, tmp_path: Path):
+        """Nunca dos fechas: dos días en un mensaje es la ambigüedad que nadie puede resolver."""
+        r = self._correr_medido(nombre, tmp_path)
+        fechas = ISO_DATE.findall(r.stdout)
+        assert len(fechas) <= 1, f"{nombre}: {fechas}"
+        assert len(fechas) == FECHAS_ISO[nombre], (
+            f"{nombre}: {len(fechas)} fechas ISO {fechas} (tabla: {FECHAS_ISO[nombre]}). "
+            "Si el área cambió de forma, actualiza FECHAS_ISO y el ADR en el mismo cambio."
+        )
+
+    @needs_bash
+    @pytest.mark.parametrize("nombre", AREAS[AREA_VENTANA])
+    def test_el_aviso_de_ventana_dice_la_ventana_de_su_nombre(self, nombre: str, tmp_path: Path):
+        r = self._correr_medido(nombre, tmp_path)
+        assert r.returncode == 0, r.stderr
+        assert VENTANA_ESPERADA[nombre] in r.stdout, r.stdout
+
+    @needs_bash
+    def test_el_guard_calla_si_no_cruza_ningun_umbral(self, tmp_path: Path):
+        """«Silencio = sano» es el contrato del área de guards, no una ausencia de contrato."""
+        r = self._correr(
+            "sistema-alertas", tmp_path, UMBRAL_DISCO="999", UMBRAL_MEMORIA="999", UMBRAL_CPU="999"
+        )
+        assert r.returncode == 0, r.stderr
+        assert r.stdout == "", r.stdout
+
+    @needs_bash
+    def test_el_aviso_de_guardia_cierra_con_el_remedio(self, tmp_path: Path):
+        """El remedio se fija por job conforme cada uno se toca: `sistema-alertas` lo cerró en #350.
+
+        El assert global de «todo aviso cierra con el remedio» queda fuera del ADR 0009 a
+        propósito: nacería rojo en media docena de jobs que no se arreglan en este PR.
+        """
+        r = self._correr_medido("sistema-alertas", tmp_path)
+        assert "remedio:" in r.stdout, r.stdout
+
+    @needs_bash
+    def test_el_sello_del_cooldown_queda_en_el_home_temporal(self, tmp_path: Path):
+        """Prueba de que la corrida de test no toca el estado real del operador (#349)."""
+        self._correr_medido("sistema-alertas", tmp_path)
+        assert (tmp_path / "sistema-alertas-last-aviso").exists()
+
+    @needs_bash
+    def test_el_resumen_diario_forzado_es_un_mensaje_con_una_fecha(self, tmp_path: Path):
+        r = self._correr("sistema-alertas", tmp_path, FORCE_RESUMEN="1")
+        assert r.returncode == 0, r.stderr
+        assert telegram_chunks(r.stdout) <= 1
+        assert len(ISO_DATE.findall(r.stdout)) == 1
+        for seccion in ("⏱️", "🧠", "💾", "💽", "👤"):
+            assert seccion in r.stdout, seccion
