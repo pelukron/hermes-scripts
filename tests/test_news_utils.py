@@ -3,9 +3,14 @@
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
+import pytest
+
 from hermes_common import news_utils
 
 NewsItem = news_utils.NewsItem
+
+# Edición que declaran los reportes de equipos mexicanos (ADR 0010): dato del reporte, no default.
+EDICION_MX = {"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"}
 
 
 class TestCleanUrl:
@@ -201,7 +206,7 @@ class TestFetchGoogleNews:
     def test_error_retorna_item(self):
         with patch("feedparser.parse", side_effect=Exception("timeout")):
             items = news_utils.fetch_google_news(
-                "q", "confirmadas", ["a.com"], ["b.com"], ["rumor"]
+                "q", "confirmadas", ["a.com"], ["b.com"], ["rumor"], EDICION_MX
             )
             assert len(items) == 1
             assert items[0].title.startswith("[Error Google News")
@@ -217,7 +222,7 @@ class TestFetchGoogleNews:
         mock_feed = Mock(entries=[entry])
         with patch("feedparser.parse", return_value=mock_feed):
             items = news_utils.fetch_google_news(
-                "q", "confirmadas", ["tigres.com.mx"], ["espn.com.mx"], ["rumor"]
+                "q", "confirmadas", ["tigres.com.mx"], ["espn.com.mx"], ["rumor"], EDICION_MX
             )
             assert len(items) == 1
             assert items[0].source == "ESPN"
@@ -240,3 +245,61 @@ class TestClassify:
         conf, rum = news_utils.classify(items, ["tigres.com.mx"], ["espn.com.mx"])
         assert len(conf) == 1
         assert rum == []
+
+
+class TestEdicionDelFeed:
+    """La edición del feed se declara por reporte (ADR 0010, issue #357)."""
+
+    def test_la_edicion_declarada_da_la_url_de_siempre(self):
+        """Los reportes vivos declaran la mexicana en su config: su URL es la de antes."""
+        url = news_utils.build_google_news_url("Tigres", EDICION_MX)
+        assert url == "https://news.google.com/rss/search?q=Tigres&hl=es-419&gl=MX&ceid=MX:es-419"
+
+    def test_sin_edicion_no_hay_url(self):
+        """Sin edición declarada no se arma URL: no hay herencia por omisión (ADR 0010)."""
+        with pytest.raises(TypeError):
+            news_utils.build_google_news_url("Tigres")  # type: ignore[call-arg]
+
+    def test_edicion_explicita_cambia_hl_gl_ceid(self):
+        en_eeuu = {"hl": "en-US", "gl": "US", "ceid": "US:en"}
+        url = news_utils.build_google_news_url("Titans", en_eeuu)
+        assert url.endswith("&hl=en-US&gl=US&ceid=US:en")
+        assert "es-419" not in url
+
+    def test_la_edicion_llega_al_feed(self):
+        capturado = {}
+
+        def falso_parse(url):
+            capturado["url"] = url
+            return Mock(entries=[])
+
+        with patch("feedparser.parse", side_effect=falso_parse):
+            news_utils.fetch_google_news(
+                "Titans",
+                "confirmadas",
+                ["tennesseetitans.com"],
+                ["espn.com"],
+                ["rumor"],
+                {"hl": "en-US", "gl": "US", "ceid": "US:en"},
+            )
+        assert capturado["url"].endswith("&hl=en-US&gl=US&ceid=US:en")
+
+    def test_el_feed_exige_la_edicion(self):
+        """`fetch_google_news` sin edición tampoco arranca: el olvido se ve, no se hereda."""
+        with pytest.raises(TypeError):
+            news_utils.fetch_google_news(  # type: ignore[call-arg]
+                "Tigres", "confirmadas", ["tigres.com.mx"], [], ["rumor"]
+            )
+
+    def test_el_feed_sale_en_la_edicion_declarada(self):
+        capturado = {}
+
+        def falso_parse(url):
+            capturado["url"] = url
+            return Mock(entries=[])
+
+        with patch("feedparser.parse", side_effect=falso_parse):
+            news_utils.fetch_google_news(
+                "Tigres", "confirmadas", ["tigres.com.mx"], [], ["rumor"], EDICION_MX
+            )
+        assert capturado["url"].endswith("&hl=es-419&gl=MX&ceid=MX:es-419")

@@ -24,6 +24,7 @@ CONFIG = TeamConfig(
     sources_line="Fuentes: Google News RSS + rayados.com",
     prefilter_official=False,
     announce_overflow=False,
+    edition={"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"},
 )
 
 expose(

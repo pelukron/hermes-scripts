@@ -95,6 +95,7 @@ class TeamConfig:
     sources_line: str
     prefilter_official: bool
     announce_overflow: bool
+    edition: dict[str, str]
     max_items: int = 8
     telegram_max_chars: int = TELEGRAM_MAX_CHARS
     sitios_confiables: list[str] = field(default_factory=lambda: list(SITIOS_CONFIABLES))
@@ -475,6 +476,7 @@ def expose(
             config.sitios_oficiales,
             config.sitios_confiables,
             config.rumor_keywords,
+            config.edition,
         )
 
     def fetch_official() -> list:
