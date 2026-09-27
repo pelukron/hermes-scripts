@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.19.3 (2026-09-27)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`69991be`](https://github.com/pelukron/hermes-scripts/commit/69991bea07f24a94caaf58d4a2b07d2128fca81a))
+
+### 📝 Docs
+
+- La skill del flujo registra el issue hueco y los PRs apilados (#337)
+  ([#339](https://github.com/pelukron/hermes-scripts/pull/339),
+  [`9448402`](https://github.com/pelukron/hermes-scripts/commit/9448402baca3c052195a72bb5616d6772a4e561a))
+
+
 ## v0.19.2 (2026-09-27)
 
 ### 🐛 Fixes
