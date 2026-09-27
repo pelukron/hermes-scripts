@@ -51,6 +51,9 @@ def _scratch_repo(tmp_path, branch):
     script = repo / "bin" / "bump-and-pr.sh"
     shutil.copy(SCRIPT, script)
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    # El script sourcea la lib de slug (#344): sin copiarla, muere antes del guard
+    # que cada test viene a medir.
+    shutil.copy(REPO / "bin" / "slug.sh", repo / "bin" / "slug.sh")
     git = ["git", "-c", "user.email=t@t", "-c", "user.name=t"]
     subprocess.run([*git, "init", "-q", "-b", branch], cwd=repo, check=True)
     subprocess.run([*git, "add", "-A"], cwd=repo, check=True)

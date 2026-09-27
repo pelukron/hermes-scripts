@@ -11,6 +11,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Nombre de rama/worktree: una sola regla, compartida con bin/gh-issue (#344).
+# shellcheck source=bin/slug.sh
+. "$SCRIPT_DIR/slug.sh"
+
 # ── Cargar GITHUB_TOKEN ──
 if [ -z "${GITHUB_TOKEN:-}" ]; then
     ENV_FILE="${HERMES_HOME:-$HOME/.hermes}/.env"
@@ -79,9 +83,8 @@ cd "$SCRIPT_DIR/.." || exit 1
 
 # ── Crear rama (el N llega con el issue; banner tras conocerlo) ──
 TYPE=$(echo "$COMMIT_MSG" | cut -d: -f1 | tr -d ' ')
-SLUG=$(echo "$COMMIT_MSG" | cut -d: -f2- | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+SLUG="$(slug "$(printf '%s' "$COMMIT_MSG" | cut -d: -f2-)")"
 BRANCH="${TYPE}/${SLUG}"
-BRANCH=$(echo "$BRANCH" | cut -c1-80)
 
 # ── Crear Issue con cuerpo enriquecido (awesome-copilot style) ──
 echo "Generando cuerpo de issue..."
@@ -130,7 +133,6 @@ echo "  Issue: #$ISSUE_NUMBER"
 
 # Rama con N (contrato {tipo}/{N}-slug: un issue = un worktree = una rama)
 BRANCH="${TYPE}/${ISSUE_NUMBER}-${SLUG}"
-BRANCH=$(echo "$BRANCH" | cut -c1-80)
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
