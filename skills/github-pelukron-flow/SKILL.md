@@ -598,6 +598,7 @@ Medido el 2026-09-26 en la máquina del operador. PowerShell es la consola de gi
  - **Bucles `for` y `&&` dentro de `bash -lc '...'` se rompen por el entrecomillado** (medido: `syntax error: unexpected end of file from 'for'`). Una llamada simple por comando.
  - **SC1017 en el worktree Windows es `autocrlf`, no tu diff** (hasta `bin/slug.sh` intacto lo marca). El blob en repo es LF y el CI no lo ve: se comprueba con `git show HEAD:<archivo>` y conteo de CRLF, sin tocar el archivo.
  - **La salida de `shellcheck` con no-ASCII (em-dash) puede reventar la consola** (`commitBuffer: invalid argument`). Redirigir a archivo (`> /tmp/sc.txt`) y leerlo después.
+ - **Cuerpos de PR con tildes via `--body-file`: verificar con `repr`.** Medido: un `í` llego como soft hyphen (`Corr\xad`) al PR. Cuerpo en ASCII o relectura con `repr` buscando `\xad`/`�` antes de darlo por bueno.
 - Imports de test: `from hermes_common import news_utils`. El shim `hermes_common.py` de la raíz es un módulo, y `hermes_common.news_utils` no resuelve como paquete. Un módulo cargado con `spec_from_file_location` no entra en `sys.modules`: el helper cierra sobre el dict que recibió (`globals()`), no sobre `sys.modules[__name__]` (medido en #324, `KeyError: resumen_rayados`).
 
 ### Linux — consola bash
