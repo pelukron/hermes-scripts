@@ -60,7 +60,7 @@ gh issue view <N> -R pelukron/REPO --json state,title
   nuevos) y **no borrarlo** (el usuario prohíbe comandos destructivos). Antes de proponer revivirlo, comprobar si su
   decisión ya está en `main` (medido: un ADR «propuesto» sin commitear repetía algo que `CONTEXT.md` ya decidía por
   #152) y si su número de ADR colisiona (medido: `0003` ya existía, y el PR abierto introducía `0004`).
-- **DoD de higiene**: tras mergear, el worktree y su rama local se borran (`git worktree remove ../w<N>-<slug>` +
+- **DoD de higiene**: tras mergear, el worktree y su rama local se borran (`git worktree remove .worktrees/w<N>-<slug>` +
   `git branch -d`); una rama ya contenida en `main` se borra con `-d` sin miedo.
 - **El push va ANTES del merge, o no va.** Con `delete_branch_on_merge: true` (los repos pelukron lo tienen),
   empujar una rama cuyo PR ya se mergeó la **resucita**: medido en #293, el merge (23:38Z) borró la rama y el push
