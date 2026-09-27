@@ -141,6 +141,7 @@ class TestExitCodes:
             "resumen_rayados_diario",
             "resumen_tigres_diario",
             "sync_runtime",
+            "titans_daily",
         ]
         pipeline = (scripts / "team_pipeline.py").read_text(encoding="utf-8")
         for name in esperados:
@@ -317,7 +318,7 @@ AREA_REPORTES = "reportes diarios"
 AREA_VENTANA = "avisos de ventana"
 AREA_MANTENIMIENTO = "mantenimiento"
 
-# El mapa por área del ADR 0009, sobre los 21 jobs del manifiesto (medido 2026-09-27).
+# El mapa por área del ADR 0009, sobre los 22 jobs del manifiesto (medido 2026-09-27).
 AREAS: dict[str, tuple[str, ...]] = {
     AREA_GUARDS: (
         "sistema-alertas",
@@ -336,6 +337,7 @@ AREAS: dict[str, tuple[str, ...]] = {
         "resumen-noticias-diario",
         "resumen-rayados-diario",
         "resumen-tigres-diario",
+        "titans-daily",
         "job-scout daily run",
     ),
     AREA_VENTANA: ("aviso-peak-19h", "aviso-peak-00h", "aviso-offpeak-22h", "aviso-offpeak-04h"),
@@ -360,6 +362,7 @@ SIN_MEDICION: dict[str, str] = {
     "resumen-noticias-diario": "lee fuentes en red; su presupuesto por mensaje lo fija su test",
     "resumen-rayados-diario": "lee fuentes en red (feed del club)",
     "resumen-tigres-diario": "lee fuentes en red (feed del club)",
+    "titans-daily": "lee fuentes en red (edición US); render offline en su test",
     "monitor-ram-mexico": "necesita los precios en red y el historial del host",
     "cron-drift-check": (
         "compara contra el jobs.json real del operador: con un home de mentira "
@@ -397,7 +400,7 @@ needs_bash = pytest.mark.skipif(shutil.which("bash") is None, reason="bash no di
 class TestEstandarPorAreaDelParque:
     """El estándar por área del parque de avisos, fijado con asserts (ADR 0009, #351).
 
-    Fija tres cosas: que los 21 jobs del manifiesto estén clasificados (medidos aquí o
+    Fija tres cosas: que los 22 jobs del manifiesto estén clasificados (medidos aquí o
     declarados con motivo), que el mapa por área del ADR sea el del manifiesto, y que el
     mensaje de los jobs medibles cumpla el presupuesto (1 mensaje = 1 trozo) y no repita fecha.
 
@@ -465,8 +468,8 @@ class TestEstandarPorAreaDelParque:
 
     # ── La partición y el mapa ──────────────────────────────────────────────
 
-    def test_el_manifiesto_tiene_los_21_jobs_del_estandar(self):
-        assert len(self._jobs()) == 21, sorted(self._jobs())
+    def test_el_manifiesto_tiene_los_22_jobs_del_estandar(self):
+        assert len(self._jobs()) == 22, sorted(self._jobs())
 
     def test_particion_sin_huecos_ni_fantasmas(self):
         """Todo job del manifiesto es medido aquí o declarado con motivo. Nada en el limbo."""
@@ -501,7 +504,7 @@ class TestEstandarPorAreaDelParque:
         for nombre, motivo in SIN_MEDICION.items():
             assert len(motivo.strip()) >= 20, (nombre, motivo)
 
-    def test_mapa_por_area_cubre_los_21_sin_repetir(self):
+    def test_mapa_por_area_cubre_los_22_sin_repetir(self):
         por_area = [j for jobs in AREAS.values() for j in jobs]
         assert len(por_area) == len(set(por_area)), "un job en dos áreas"
         assert set(por_area) == set(self._jobs()), (
