@@ -331,25 +331,21 @@ def resolve_url(google_news_url: str, timeout: int = 5) -> str:
     return google_news_url
 
 
-DEFAULT_EDITION: dict[str, str] = {"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"}
-
-
-def build_google_news_url(query: str, edition: dict[str, str] | None = None) -> str:
+def build_google_news_url(query: str, edition: dict[str, str]) -> str:
     """Construye URL de Google News RSS para una consulta.
 
     Args:
         query: Términos de búsqueda para Google News.
-        edition: Campos `hl`/`gl`/`ceid` de la edición del feed. Por defecto, la mexicana
-            (`es-419`/`MX`): la que usan los reportes de equipos mexicanos.
+        edition: Campos `hl`/`gl`/`ceid` de la edición del feed. **Obligatorio**: la edición la
+            declara el reporte que llama (ADR 0010), no se hereda por omisión.
 
     Returns:
         str: URL completa del feed RSS de Google News.
     """
-    campos = edition or DEFAULT_EDITION
     encoded = quote(query)
     return (
         f"https://news.google.com/rss/search?q={encoded}"
-        f"&hl={campos['hl']}&gl={campos['gl']}&ceid={campos['ceid']}"
+        f"&hl={edition['hl']}&gl={edition['gl']}&ceid={edition['ceid']}"
     )
 
 
@@ -359,7 +355,7 @@ def fetch_google_news(
     sitios_oficiales: list,
     sitios_confiables: list,
     rumor_keywords: list,
-    edition: dict[str, str] | None = None,
+    edition: dict[str, str],
 ) -> list:
     """Obtiene noticias de Google News RSS para una consulta.
 
@@ -369,7 +365,7 @@ def fetch_google_news(
         sitios_oficiales: Dominios oficiales del equipo.
         sitios_confiables: Dominios de medios establecidos.
         rumor_keywords: Palabras que indican rumor.
-        edition: Edición del feed (`hl`/`gl`/`ceid`). Por defecto, la mexicana.
+        edition: Edición del feed (`hl`/`gl`/`ceid`). Obligatoria (ADR 0010).
 
     Returns:
         list[NewsItem]: Lista de NewsItem. En caso de error, retorna

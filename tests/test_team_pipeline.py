@@ -3,6 +3,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from hermes_common import news_utils
 from scripts.team_pipeline import TeamConfig, build_report, expose
 
@@ -21,6 +23,7 @@ def _config(**overrides) -> TeamConfig:
         sources_line="Fuentes: prueba",
         prefilter_official=False,
         announce_overflow=False,
+        edition={"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"},
     )
     base.update(overrides)
     return TeamConfig(**base)
@@ -144,6 +147,27 @@ def test_el_config_del_equipo_pasa_su_edicion_al_feed():
     assert _edicion_que_llega_al_feed(_config(edition=en_eeuu)) == en_eeuu
 
 
-def test_el_config_sin_edicion_no_impone_ninguna():
-    """Sin edición declarada el config no decide: lo hace el default de news_utils."""
-    assert _edicion_que_llega_al_feed(_config()) is None
+def test_el_config_exige_la_edicion():
+    """Sin edición el config no se construye: no hay herencia por omisión (ADR 0010)."""
+    sin_edicion = {
+        "history_name": "sin-edicion.json",
+        "queries": {},
+        "sitios_oficiales": [],
+        "header_title": "",
+        "sources_line": "",
+        "prefilter_official": False,
+        "announce_overflow": False,
+    }
+    with pytest.raises(TypeError):
+        TeamConfig(**sin_edicion)  # type: ignore[call-arg]
+
+
+def test_los_reportes_vivos_declaran_la_edicion_mexicana():
+    """La edición de Rayados y Tigres vive en su config, no en la librería (ADR 0010)."""
+    from scripts.resumen_rayados_diario import CONFIG as RAYADOS
+    from scripts.resumen_tigres_diario import CONFIG as TIGRES
+
+    for config in (RAYADOS, TIGRES):
+        assert config.edition == {"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"}
+        url = news_utils.build_google_news_url("Equipo", config.edition)
+        assert url.endswith("&hl=es-419&gl=MX&ceid=MX:es-419")

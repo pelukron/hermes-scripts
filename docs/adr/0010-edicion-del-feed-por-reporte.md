@@ -32,22 +32,29 @@ verosímil. La edición no es un detalle de transporte: es qué titulares ve el 
 1. **La edición se declara por reporte.** `news_utils.build_google_news_url(query, edition)` y
    `news_utils.fetch_google_news(..., edition)`; en los reportes de equipo, el campo
    `TeamConfig.edition` (campos `hl`/`gl`/`ceid`).
-2. **El default es la edición mexicana** (`DEFAULT_EDITION`): los jobs vivos no cambian de
-   comportamiento y su URL queda fijada con un assert.
+2. **No hay edición por omisión.** Los tres son obligatorios: sin edición **no se arma URL**
+   (`TypeError`) en vez de salir en la mexicana por herencia. El valor `es-419`/`MX` es **dato** del
+   reporte mexicano —`resumen-rayados-diario` y `resumen-tigres-diario` lo escriben en su `TeamConfig`—,
+   no un fallback de la librería.
 3. **Un reporte nuevo declara su edición** cuando su audiencia no es mexicana. Es una decisión de
-   entrega y se escribe, no se hereda por omisión.
+   entrega y se escribe, no se hereda por omisión: el olvido se ve al construir la URL, no en el
+   reporte ya entregado.
 
 ## Alternativas rechazadas
 
 | Opción | Por qué no |
 |---|---|
 | Tomar la edición del entorno del host (`LANG`, TZ) | El host está en Monterrey y eso no dice nada de la audiencia del canal: un reporte de un equipo de EE.UU. se lee igual desde Monterrey. |
+| Dejar la mexicana como default de la librería (lo que traía la primera versión del PR) | Un reporte nuevo hereda una edición que nadie decidió y el olvido es invisible: con la edición equivocada el feed no pierde cobertura, **gana ruido de otro deporte** (tabla de arriba). El parámetro obligatorio convierte ese olvido en un fallo al construir la URL. |
 | Que cada módulo de equipo arme su propia URL | Duplica el constructor y su saneo (`clean_url`, limpieza de `ceid`) en cada módulo; dos implementaciones divergen y sólo una se arregla. |
 | Pedir las dos ediciones y mezclar en el mismo mensaje | Duplica la cuota por sección (ADR 0005) y muestra el mismo hecho dos veces; además el dedupe por título no ve los duplicados entre idiomas. |
 
 ## Consecuencias
 
-- Los tres reportes vivos siguen pidiendo `hl=es-419&gl=MX&ceid=MX:es-419` (assert sobre la URL exacta).
+- `resumen-rayados-diario` y `resumen-tigres-diario` declaran `es-419`/`MX` en su `TeamConfig`: su URL
+  es la de siempre (assert sobre la URL exacta construida desde el config).
+- Un reporte nuevo **sin** `edition` no arranca (`TypeError` al construir el config o la URL) en vez de
+  entregar en la edición equivocada en silencio.
 - Un reporte de un equipo de EE.UU. deja de entregar «dónde ver el partido» de ESPN Uruguay, tablas de
   ESPN Argentina y notas de otros equipos.
 - No cambia el presupuesto ni el dialecto: siguen vigentes ADR 0005 (1 mensaje = 1 trozo, tope por línea)

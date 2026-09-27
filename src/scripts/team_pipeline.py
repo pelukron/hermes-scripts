@@ -95,11 +95,11 @@ class TeamConfig:
     sources_line: str
     prefilter_official: bool
     announce_overflow: bool
+    edition: dict[str, str]
     max_items: int = 8
     telegram_max_chars: int = TELEGRAM_MAX_CHARS
     sitios_confiables: list[str] = field(default_factory=lambda: list(SITIOS_CONFIABLES))
     rumor_keywords: list[str] = field(default_factory=lambda: list(RUMOR_KEYWORDS))
-    edition: dict[str, str] | None = None
 
 
 def ensure_news_deps() -> None:
