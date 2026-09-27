@@ -51,7 +51,28 @@ EXAMPLE:
     "code style": "📦 Chores",
   }
 %}{#
-#}{%  for type_, commits in commit_objects if type_ != "unknown" and type_ in section_names
+#}{#  ORDEN DE PRESENTACION (#342): de lo que le importa a quien lee el release a lo accesorio.
+       "others" (chores / build system / code style, donde cae el `sync uv.lock` del bot) va al
+       final: commit_objects llega dictsort (alfabetico) y el lockfile encabezaba las notas de
+       v0.19.3. Esta lista es el unico orden que decide la salida.
+#}{%  set section_order = [
+    "features",
+    "bug fixes",
+    "performance improvements",
+    "infra",
+    "refactoring",
+    "continuous integration",
+    "documentation",
+    "testing",
+    "chores",
+    "build system",
+    "code style",
+  ]
+%}{#  Copia por tipo: el bucle recorre section_order, no commit_objects.
+#}{%  set commits_por_tipo = dict(commit_objects)
+%}{#
+#}{%  for type_ in section_order if type_ in section_names
+%}{%    set commits = commits_por_tipo.get(type_, [])
 %}{#    PREPROCESS COMMITS (order by description & format description line)
 #}{%    set ns = namespace(commits=commits)
 %}{%    set _ = apply_alphabetical_ordering_by_descriptions(ns)
