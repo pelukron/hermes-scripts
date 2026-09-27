@@ -11,6 +11,7 @@ import sqlite3
 import subprocess
 import tempfile
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,20 @@ SMOKE_TIMEOUT = 300
 Reader = Callable[[Path], list[dict[str, Any]]]
 SmokeRunner = Callable[[list[str], dict[str, str]], subprocess.CompletedProcess[str]]
 DoctorRun = Callable[[], Any]
+
+
+@dataclass(frozen=True)
+class DoctorReport:
+    """Lo que devolvió `hermes cron doctor`. El código de salida lo decide el adaptador.
+
+    ``ran=False`` es «no se pudo correr el doctor» (eso sí es un fallo del guard);
+    ``issues=True`` es «corrió y encontró algo», que viaja como mensaje y no como rc
+    (ADR 0008, #340).
+    """
+
+    ran: bool
+    issues: bool
+    text: str
 
 
 def render_drift_digest(drift: list[str], date_str: str) -> str:
@@ -293,20 +308,20 @@ def signatures_differ(job: Job, targets: dict[str, str], actual: dict[str, Any])
     return _diff_signatures(_desired_signature(job, targets), _live_signature(actual))
 
 
-def doctor(run: DoctorRun) -> tuple[int, str]:
-    """Salud de la flota. `(0, "")` si todo está bien. No imprime."""
+def doctor(run: DoctorRun) -> DoctorReport:
+    """Salud de la flota. Sin hallazgos ni texto: `DoctorReport(True, False, "")`. No imprime."""
     try:
         result = run()
     except (OSError, subprocess.SubprocessError, ManifestError) as exc:
-        return 2, f"ERROR: hermes no disponible: {exc}"
+        return DoctorReport(ran=False, issues=False, text=f"ERROR: hermes no disponible: {exc}")
     rc = int(getattr(result, "returncode", 1) or 0)
-    if rc != 0:
-        stdout = getattr(result, "stdout", "") or ""
-        stderr = getattr(result, "stderr", "") or ""
-        out = (stdout + stderr).strip()
-        text = out if out else "hermes cron doctor reportó problemas (sin detalle)"
-        return rc or 1, text
-    return 0, ""
+    if rc == 0:
+        return DoctorReport(ran=True, issues=False, text="")
+    stdout = getattr(result, "stdout", "") or ""
+    stderr = getattr(result, "stderr", "") or ""
+    out = (stdout + stderr).strip()
+    text = out if out else "hermes cron doctor reportó problemas (sin detalle)"
+    return DoctorReport(ran=True, issues=True, text=text)
 
 
 def _smoke_env(repo: Path, sandbox: Path, home: Path) -> dict[str, str]:

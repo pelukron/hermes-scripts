@@ -800,14 +800,17 @@ class TestDoctor:
         assert ic.run_doctor() == 0
         assert capsys.readouterr().out == ""
 
-    def test_hallazgos_se_entregan(self, monkeypatch, capsys):
+    def test_hallazgos_no_fallan_el_job(self, monkeypatch, capsys):
+        """#340: encontrar problemas viaja como mensaje; la anomalía no es un rc."""
         self._fake_run(monkeypatch, rc=1, out="FALLA: job x\n")
-        assert ic.run_doctor() == 1
-        assert "FALLA: job x" in capsys.readouterr().out
+        assert ic.run_doctor() == 0
+        capturado = capsys.readouterr()
+        assert "FALLA: job x" in capturado.out
+        assert capturado.err == ""
 
-    def test_sin_detalle_avisa(self, monkeypatch, capsys):
+    def test_sin_detalle_avisa_sin_fallar(self, monkeypatch, capsys):
         self._fake_run(monkeypatch, rc=1, out="", err="")
-        assert ic.run_doctor() == 1
+        assert ic.run_doctor() == 0
         assert "sin detalle" in capsys.readouterr().out
 
     def test_hermes_ausente(self, monkeypatch, capsys):
@@ -1352,10 +1355,17 @@ class TestModosExcluyentes:
         assert "--force" in capsys.readouterr().err
 
     def test_doctor_no_imprime_desde_el_monitor(self, capsys):
-        rc, text = mo.doctor(lambda: subprocess.CompletedProcess([], 1, "FALLA\n", ""))
-        assert rc == 1
-        assert "FALLA" in text
+        report = mo.doctor(lambda: subprocess.CompletedProcess([], 1, "FALLA\n", ""))
+        assert report.ran
+        assert report.issues
+        assert "FALLA" in report.text
         assert capsys.readouterr().out == ""
+
+    def test_doctor_sano_no_reporta_hallazgos(self):
+        report = mo.doctor(lambda: subprocess.CompletedProcess([], 0, "todo bien\n", ""))
+        assert report.ran
+        assert not report.issues
+        assert report.text == ""
 
     def _bash_argv(self, *flags: str) -> str:
         """stdout del wrapper con un `uv` falso: el argv que llegaría al .py."""

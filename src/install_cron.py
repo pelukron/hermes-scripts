@@ -302,7 +302,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--doctor",
         action="store_true",
-        help="salud de la flota Hermes (hermes cron doctor); silencio si todo OK",
+        help="salud de la flota (hermes cron doctor); silencio si OK; hallazgos = mensaje, rc 0",
     )
     parser.add_argument(
         "--expectations",
@@ -441,13 +441,17 @@ def _run_hermes_doctor() -> subprocess.CompletedProcess[str]:
 
 
 def run_doctor() -> int:
-    """Modo --doctor. Silencio si todo OK. El texto lo imprime este adaptador."""
-    rc, text = doctor(_run_hermes_doctor)
-    rc_int = int(rc)
-    if not text:
-        return rc_int
-    print(text, file=sys.stderr if str(text).startswith("ERROR:") else sys.stdout)
-    return rc_int
+    """Modo --doctor. Silencio si todo OK. El texto lo imprime este adaptador.
+
+    Hallazgos ⇒ rc 0 y el texto viaja al `deliver` del job: la anomalía es el
+    mensaje, no un fallo del guard (#340, misma política que --expectations).
+    No poder correr el doctor sí falla el job (rc 2): ahí el guard está ciego.
+    """
+    report = doctor(_run_hermes_doctor)
+    if not report.text:
+        return 0
+    print(report.text, file=sys.stdout if report.ran else sys.stderr)
+    return 0 if report.ran else 2
 
 
 def run_expectations(hermes_home: Path) -> int:
