@@ -614,6 +614,30 @@ PATH="$HOME/.hermes/bin:$PATH" TMPDIR=/tmp bash bin/gate.sh
    su `.venv` (`Disk quota exceeded (os error 122)`), y el smoke parece roto. Los clones de prueba van al
    scratch de Hermes (`$TMPDIR`), no a `/tmp`.
 
+### Cuatro rojos que no son del diff (medidos el 2026-09-27)
+
+- **El log miente si lo lees por el final.** Una corrida murió con `GATE_RC=2` y la última línea del log era
+  «All checks passed!»: el rojo estaba tres líneas antes, en `uv run ruff format --check .` contestando
+  `Would reformat: tests/<archivo>.py`. **`ruff check` verde no implica gate verde.** Arreglo:
+  `uv run ruff format <archivo>` antes de commitear; al diagnosticar, lee el log completo, no `tail -1`.
+- **`mypy` no typechequea `tests/`** (`exclude = ["tests"]` en `pyproject.toml`): un `# type: ignore` en un
+  test no lo valida el gate y no rompe por «unused ignore» — el que sí marca el error de tipo es el LSP
+  (pyright). Déjalo con su código (`# type: ignore[call-arg]`) para que el editor y el gate no se contradigan.
+- **ruff N811 al importar un `CONFIG` con alias en minúsculas.** `from scripts.resumen_rayados_diario import
+  CONFIG as rayados` es N811 («Constant imported as non-constant»): el alias va en mayúsculas (`as RAYADOS`).
+- **Un worktree nuevo deja el upstream en `origin/main`** (`git worktree add -b <rama> … origin/main`): un
+  `git push` a secas **empujaría a `main`**. Antes del primer push: `git branch --unset-upstream` y
+  `git push -u origin HEAD:<tipo>/<N>-<slug>`.
+- **Entre el commit del release y el `chore: sync uv.lock` que el bot empuja después, cualquier worktree
+  nuevo falla el gate** con `error: The lockfile at uv.lock needs to be updated, but --check was provided.`
+  No es del diff: `git fetch origin && git merge --ff-only origin/main` (trae el sync) y el gate vuelve en
+  verde. Comprobado antes de culpar al cambio: `git log --oneline origin/main -3`.
+
+**Medir un PR abierto sin mergearlo** (A/B contra `main`, sin tocar la rama): `git show
+origin/<rama-del-PR>:config/feeds.json > /ruta/al/scratch/feeds-pr.json` y correr el pipeline contra esa copia
+— `load_feeds()` acepta ruta absoluta—. Da «código de `main` + feeds del PR» contra «código de `main` + feeds
+de `main`», que es lo que decide si un PR de fuentes mueve algo.
+
 **Pitfall — PR manual: el `(#N)` se pierde (y el emoji delante rompe CI).** `bin/gh-pr` arma el título con el
 del issue + ` (#N)` y el body con `Closes #N`; `gh pr create` a mano no añade ninguno de los dos. El sufijo
 `(#N)` no lo exige ningún workflow, pero el **tipo conventional sí** (`commitlint` en `hygiene.yml`, regex
