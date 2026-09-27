@@ -309,3 +309,59 @@ def test_render_no_colapsa_cambios_distintos():
     )
     assert out.count("Primera parte") == 2
     assert "Segunda parte" in out
+
+
+def test_render_no_repite_el_par_merge_rama_con_sufijos():
+    """El sufijo del merge no hace un cambio distinto: es el mismo par que #246, con los números
+    que añaden `bin/gh-pr` (`(#N)` del issue en el título del PR) y GitHub (`(#M)` del PR) encima.
+    Medido en v0.19.5 y v0.19.6: el mismo cambio listado dos veces, sólo cambiaba el hash."""
+    rama = _fake_commit("un solo slug de rama", "chore", sha="242bd1b0000001")
+    merge = _fake_commit(
+        "un solo slug de rama (#344) (#345)", "chore", mr="#345", sha="8b8aeae0000002"
+    )
+    for orden in ([rama, merge], [merge, rama]):
+        out = _render([("chores", orden)])
+        assert out.count("Un solo slug de rama") == 1, out
+        assert "[#345]" in out, f"se conservó la línea sin enlace al PR:\n{out}"
+
+
+def test_render_imprime_la_referencia_original():
+    """El sufijo se ignora al comparar, no al imprimir: la línea conserva el texto del autor."""
+    out = _render(
+        [("chores", [_fake_commit("un solo slug de rama (#344) (#345)", "chore", mr="#345")])]
+    )
+    assert "(#344) (#345)" in out, out
+
+
+def test_render_no_colapsa_por_el_sufijo_solo():
+    """Control: ignorar el sufijo no junta cambios distintos que comparten el prefijo."""
+    out = _render(
+        [
+            (
+                "chores",
+                [
+                    _fake_commit("un solo slug de rama", "chore", sha="aaaaaaa0000001"),
+                    _fake_commit(
+                        "un solo slug de rama y de worktree", "chore", sha="aaaaaaa0000002"
+                    ),
+                ],
+            )
+        ]
+    )
+    assert out.count("Un solo slug de rama") == 2, out
+
+
+def test_render_no_colapsa_si_el_sufijo_es_toda_la_descripcion():
+    """`(#N)` a secas no deja clave vacía: dos cambios distintos siguen siendo dos."""
+    out = _render(
+        [
+            (
+                "chores",
+                [
+                    _fake_commit("(#344)", "chore", sha="aaaaaaa0000001"),
+                    _fake_commit("(#345)", "chore", sha="aaaaaaa0000002"),
+                ],
+            )
+        ]
+    )
+    assert out.count("(#34") == 2, out

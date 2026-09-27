@@ -199,20 +199,49 @@
 %}
 
 
+{#  MACRO: descripcion sin los parentesis finales que solo referencian issue/PR
+  - El asunto del merge trae numeros que el commit de rama no: `bin/gh-pr` titula el PR con el
+    titulo del issue (`(#344)`) y GitHub le pega el del PR (`(#345)`), asi que el mismo cambio
+    llega con dos descripciones y el dedup por texto exacto los deja pasar (medido en v0.19.5 y
+    v0.19.6: el mismo cambio listado dos veces, solo cambiaba el hash).
+  - Se usa SOLO como clave de comparacion: la linea impresa conserva el texto original, para no
+    perder la referencia al issue que el autor escribio a mano.
+  - No vacia la descripcion: un `(#N)` a secas no produce clave vacia que junte cambios distintos.
+  - parameter: texto (str)
+  - returns str
+#}{%  macro descripcion_sin_refs(texto)
+%}{%    set ns = namespace(limpio=texto | trim)
+%}{%    for _ in range(3)
+%}{%      set actual = ns.limpio
+%}{%      if actual.endswith(")")
+%}{%        set abre = actual.rfind("(")
+%}{%        if abre > 0 and (actual[:abre] | trim) | length > 0
+%}{%          set dentro = actual[abre + 1: -1]
+%}{%          if dentro.startswith("#") and (dentro[1:] | int(-1)) >= 0
+%}{%            set ns.limpio = actual[:abre] | trim
+%}{%          endif
+%}{%        endif
+%}{%      endif
+%}{%    endfor
+%}{{    ns.limpio
+}}{%  endmacro %}
+
+
 {#  MACRO: descarta los commits que repiten un cambio ya listado en la misma seccion
   - El merge commit de un PR y su commit de rama llevan el mismo asunto (#245 hizo
     visibles a los dos) y ambos caen en la misma seccion, asi que la nota listaba el
     mismo cambio dos veces (#246). `unique` no puede colapsar el par: la linea del
     merge trae el enlace al PR y la del commit de rama no.
-  - La identidad es (scope, primera linea de la descripcion), no el sha del commit:
-    son dos commits distintos que describen el mismo cambio.
+  - La identidad es (scope, primera linea de la descripcion sin los sufijos `(#N)`), no el sha
+    del commit: son dos commits distintos que describen el mismo cambio, y el merge trae numeros
+    que el commit de rama no lleva.
   - Conserva la entrada informativa: la que enlaza el PR, cuando solo una lo hace.
   - parameter: ns (namespace) object with a commits list
   - returns None but modifies the ns.commits list in place
 #}{%  macro deduplicate_commits_by_description(ns)
 %}{%    set representative = namespace(by_key={}) %}
 %}{%    for commit in ns.commits %}
-%}{%      set key = (commit.scope, commit.descriptions[0] | trim) %}
+%}{%      set key = (commit.scope, descripcion_sin_refs(commit.descriptions[0])) %}
 %}{#        # `linked_merge_request` vacio = la linea sin enlace al PR
 #}{%      if key not in representative.by_key
             or (commit.linked_merge_request != ""
@@ -223,7 +252,7 @@
 %}{#      # Una entrada por clave, en el orden en que aparece cada clave (la lista ya viene ordenada)
 #}{%    set deduped = namespace(commits=[], keys=[]) %}
 %}{%    for commit in ns.commits %}
-%}{%      set key = (commit.scope, commit.descriptions[0] | trim) %}
+%}{%      set key = (commit.scope, descripcion_sin_refs(commit.descriptions[0])) %}
 %}{%      if key not in deduped.keys %}
 %}{%        set _ = deduped.keys.append(key) %}
 %}{%        set _ = deduped.commits.append(representative.by_key[key]) %}
