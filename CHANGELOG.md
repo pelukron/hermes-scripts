@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.23.0 (2026-09-27)
+
+### ✨ Features
+
+- Canal propio para los Titans (reporte diario de equipo) (#356)
+  ([#369](https://github.com/pelukron/hermes-scripts/pull/369),
+  [`d040819`](https://github.com/pelukron/hermes-scripts/commit/d0408198c8ae0bbf575ec644b1a5fa97f108eb80))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`29bbecf`](https://github.com/pelukron/hermes-scripts/commit/29bbecfbddf5e7a68dbf7a083f7c4673afd1bccc))
+
+
 ## v0.22.0 (2026-09-27)
 
 ### ✨ Features
