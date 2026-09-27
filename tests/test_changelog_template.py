@@ -55,6 +55,43 @@ def test_secciones_con_emoji():
     assert not sin_emoji, f"secciones sin prefijo emoji: {sin_emoji}"
 
 
+def _section_order():
+    """Orden de presentacion de las secciones (fuente unica: la plantilla)."""
+    src = (TEMPLATES / ".components" / "changes.md.j2").read_text(encoding="utf-8")
+    block = re.search(r"set section_order = \[(.*?)\]", src, re.S).group(1)
+    return re.findall(r'"([^"]+)"', block)
+
+
+def test_orden_cubre_todas_las_secciones():
+    """El bucle recorre `section_order`, no `commit_objects`: un tipo fuera de la lista
+    desaparece de las notas sin romper nada. Misma cobertura exigida que al mapa."""
+    assert set(_section_order()) == set(_section_map())
+
+
+def test_orden_deja_others_al_final():
+    """El bloque "Others" (chores, build system, code style: ahi cae el `sync uv.lock` del
+    bot) va despues de todo lo demas: un bullet de lockfile no debe encabezar el release (#342).
+    """
+    orden = _section_order()
+    assert set(orden[-3:]) == {"chores", "build system", "code style"}, orden
+
+
+def test_render_ordena_por_prioridad_no_alfabetico():
+    """Guarda del bucle: `commit_objects` llega dictsort (alfabetico) y la salida la decide
+    `section_order`. Entrada alfabetica -> salida por prioridad, con Others al final. Sin
+    la lista, `chores` (el `sync uv.lock`) encabezaba las notas de v0.19.3."""
+    out = _render(
+        [
+            ("bug fixes", [_fake_commit("corregir y", "fix")]),
+            ("chores", [_fake_commit("Sync uv.lock tras release [skip ci]", "chore")]),
+            ("documentation", [_fake_commit("documentar z", "docs")]),
+            ("features", [_fake_commit("agregar x", "feat")]),
+        ]
+    )
+    titulos = re.findall(r"^### (.+)$", out, re.M)
+    assert titulos == ["✨ Features", "🐛 Fixes", "📝 Docs", "📦 Chores"], titulos
+
+
 def test_macros_vendored_puro():
     macros = (TEMPLATES / ".components" / "macros.md.j2").read_text(encoding="utf-8")
     assert "macro format_entry_subject" not in macros
