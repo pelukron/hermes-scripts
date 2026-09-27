@@ -60,7 +60,7 @@ gh issue view <N> -R pelukron/REPO --json state,title
   nuevos) y **no borrarlo** (el usuario prohíbe comandos destructivos). Antes de proponer revivirlo, comprobar si su
   decisión ya está en `main` (medido: un ADR «propuesto» sin commitear repetía algo que `CONTEXT.md` ya decidía por
   #152) y si su número de ADR colisiona (medido: `0003` ya existía, y el PR abierto introducía `0004`).
-- **DoD de higiene**: tras mergear, el worktree y su rama local se borran (`git worktree remove ../w<N>-<slug>` +
+- **DoD de higiene**: tras mergear, el worktree y su rama local se borran (`git worktree remove .worktrees/w<N>-<slug>` +
   `git branch -d`); una rama ya contenida en `main` se borra con `-d` sin miedo.
 - **El push va ANTES del merge, o no va.** Con `delete_branch_on_merge: true` (los repos pelukron lo tienen),
   empujar una rama cuyo PR ya se mergeó la **resucita**: medido en #293, el merge (23:38Z) borró la rama y el push
@@ -590,6 +590,7 @@ Medido el 2026-09-26 en la máquina del operador. PowerShell es la consola de gi
 - Rojos que ya están en `main` limpio y no acusan al diff: `test_uv_bin_*` y `test_gh_bin_*` comparan el nombre pelado `uv`/`gh` con la ruta de Windows (`C:\Users\...\uv`). WinError 1314 (symlink sin privilegio) es la misma clase.
 - `git branch <rama> origin/main` y `git worktree add -b <rama> … origin/main` dejan el upstream en `origin/main` (medido al abrir #324). Si `git status -sb` dice `...<rama>...origin/main`, `git branch --unset-upstream` y el primer push es `git push -u origin HEAD:<rama>`. Un `git push` a secas empujaría `main`.
 - El aviso `LF will be replaced by CRLF` es `core.autocrlf`. No es un cambio de contenido.
+- **Si cambia el número de jobs del manifiesto, grep de conteos hardcodeados.** Medido en #369: `test_install_cron.py::test_manifiesto_real_trae_cron_drift_check` afirmaba `len(jobs) == 21` y tumbó el CI con `assert 22 == 21` (759 passed, 1 failed). Buscar `== 21` (y el número que sea) en `tests/`, no solo el nombre del job.
 - Imports de test: `from hermes_common import news_utils`. El shim `hermes_common.py` de la raíz es un módulo, y `hermes_common.news_utils` no resuelve como paquete. Un módulo cargado con `spec_from_file_location` no entra en `sys.modules`: el helper cierra sobre el dict que recibió (`globals()`), no sobre `sys.modules[__name__]` (medido en #324, `KeyError: resumen_rayados`).
 
 ### Linux — consola bash
