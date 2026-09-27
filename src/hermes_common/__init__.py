@@ -18,6 +18,7 @@ from .common import (
     smart_truncate,
     state_dir,
     uv_bin,
+    uv_shell,
     version_footer,
 )
 from .delivery import TELEGRAM_UTF16_LIMIT, markdown_v2_link_issues, telegram_chunks, utf16_len
@@ -32,6 +33,7 @@ __all__ = [
     "version_footer",
     "state_dir",
     "uv_bin",
+    "uv_shell",
     "gh_bin",
     "get_headers",
     "get_repo_version",

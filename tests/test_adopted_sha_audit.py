@@ -177,9 +177,9 @@ def test_run_gate_clasifica_rojo_de_entorno(tmp_path):
 
 
 def test_manifiesto_declara_el_job():
-    from src import install_cron as ic
+    import cron_manifest as mf
 
-    jobs = ic.parse_jobs(ic.load_manifest(REPO / ic.MANIFEST_DEFAULT))
+    jobs = mf.parse_jobs(mf.load_manifest(REPO / mf.MANIFEST_DEFAULT))
     job = next(j for j in jobs if j.name == "adopted-sha-audit")
     assert job.schedule == audit.SCHEDULE
     assert job.is_no_agent
