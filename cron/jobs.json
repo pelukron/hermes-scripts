@@ -72,6 +72,14 @@
       "deliver": "${tigres}"
     },
     {
+      "name": "titans-daily",
+      "description": "Noticias de Tennessee Titans (edición US)",
+      "schedule": "0 9 * * *",
+      "wrapper": "titans-daily.sh",
+      "command": "uv run titans-daily",
+      "deliver": "${titans}"
+    },
+    {
       "name": "monitor-ram-mexico",
       "description": "Monitor de precios de RAM (MX). Deshabilitado por defecto.",
       "schedule": "*/30 * * * *",
