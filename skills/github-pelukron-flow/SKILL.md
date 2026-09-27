@@ -190,6 +190,11 @@ export GITHUB_TOKEN="$(gh auth token)"    # el .env no tiene GITHUB_TOKEN; sin e
 
 - **`GITHUB_TOKEN` no está en `~/.hermes/.env`** → el script sale con `GITHUB_TOKEN no encontrado`.
   Prefijar `GITHUB_TOKEN="$(gh auth token)"` (ver sección Auth).
+- **`--worktree` deja el issue con el cuerpo de plantilla vacío.** El script llama a
+  `generate_issue_body.py` y el issue sale con `## Problem`, `## Changes` e `## Implementation` en blanco
+  y un `Branch:` sin el `N` (medido en #336). El `Closes #N` funciona igual, pero el issue —que es la
+  fuente de verdad del repo— queda sin problema ni DoD: reescríbelo **antes** de abrir el PR con
+  `gh issue edit <N> --body-file <archivo>` y verifica leyendo de vuelta (`gh issue view <N> --json body`).
 - **Estar en una rama de PR rompe el flujo.** Si corres `bump-and-pr.sh` desde una rama de PR, o
   commiteas ahí por error, los commits quedan en el PR equivocado y no hay salida limpia: el repo
   prohíbe `--force`/`--amend`. Los commits locales no empujados se recuperan con `git cherry-pick
@@ -213,6 +218,24 @@ gh pr create \
   --base main \
   --head <rama>
 ```
+
+## Un fix que depende de un PR abierto: apilar la rama, no ramificar de `main`
+
+Si el cambio toca algo que **sólo existe en un PR abierto** (un módulo nuevo, un ADR, un flag), ramificar de
+`main` deja el código describiendo lo que todavía no está. Medido en #336, que arregla cabos de #335.
+
+1. Issue + worktree con el flujo normal: `bin/bump-and-pr.sh "<tipo>: <desc>" --worktree`.
+2. Apila la rama sobre la del PR base, dentro del worktree: `git merge --ff-only <rama-del-PR>` (ff puro,
+   sin reescribir nada). Comprueba antes con `git merge-base --is-ancestor HEAD <rama-del-PR>`: si dice NO,
+   el `ff` va a fallar y toca parar, no forzar.
+3. Commit y `git push -u origin HEAD:<rama>`. El `gh api repos/pelukron/<repo>/compare/main...<rama>` va a
+   listar los commits del PR base **y** el tuyo: es el estado esperado mientras el base no mergee.
+4. Abre el PR **después** de mergear el base (`bin/gh-pr <N> <rama>`). Si lo abres antes, el review arrastra
+   los commits del PR base y el ruleset de `main` (strict) lo deja `BEHIND`.
+
+Mergear el base primero es lo que deja el diff del PR nuevo en un solo commit. En el caso medido, el PR base
+no tocaba `skills/`, así que el segundo pudo ramificar de `main` sin apilarse: el criterio es el solape de
+archivos, no el orden de los issues.
 
 ## Release automático con python-semantic-release (PSR)
 
