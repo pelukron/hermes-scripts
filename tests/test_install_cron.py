@@ -1357,7 +1357,8 @@ class TestModosExcluyentes:
         assert "FALLA" in text
         assert capsys.readouterr().out == ""
 
-    def test_bash_sin_modo_pasa_apply(self):
+    def _bash_argv(self, *flags: str) -> str:
+        """stdout del wrapper con un `uv` falso: el argv que llegaría al .py."""
         bash = _bash_usable()
         if bash is None:
             pytest.skip("bash no disponible")
@@ -1367,7 +1368,7 @@ class TestModosExcluyentes:
         fake.chmod(0o755)
         try:
             proc = subprocess.run(
-                [bash, _posix(REPO / "bin" / "install-cron.sh")],
+                [bash, _posix(REPO / "bin" / "install-cron.sh"), *flags],
                 cwd=str(REPO),
                 env={"UV": _posix(fake), "PATH": "/usr/bin:/bin", "HOME": _posix(REPO)},
                 capture_output=True,
@@ -1377,27 +1378,18 @@ class TestModosExcluyentes:
         finally:
             fake.unlink(missing_ok=True)
         assert proc.returncode == 0, proc.stderr
-        assert proc.stdout.strip().endswith("src/install_cron.py --apply")
+        return proc.stdout
+
+    def test_bash_sin_modo_pasa_apply(self):
+        assert self._bash_argv().strip().endswith("src/install_cron.py --apply")
 
     def test_bash_con_check_no_anade_apply(self):
-        bash = _bash_usable()
-        if bash is None:
-            pytest.skip("bash no disponible")
-        fake = REPO / "out" / "fake-uv-323"
-        fake.parent.mkdir(exist_ok=True)
-        fake.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\"\n", encoding="utf-8")
-        fake.chmod(0o755)
-        try:
-            proc = subprocess.run(
-                [bash, _posix(REPO / "bin" / "install-cron.sh"), "--check"],
-                cwd=str(REPO),
-                env={"UV": _posix(fake), "PATH": "/usr/bin:/bin", "HOME": _posix(REPO)},
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-        finally:
-            fake.unlink(missing_ok=True)
-        assert proc.returncode == 0, proc.stderr
-        assert "--apply" not in proc.stdout
-        assert proc.stdout.strip().endswith("src/install_cron.py --check")
+        salida = self._bash_argv("--check")
+        assert "--apply" not in salida
+        assert salida.strip().endswith("src/install_cron.py --check")
+
+    def test_bash_con_quiet_implica_check(self):
+        """`--quiet` sólo vale con `--check` (ADR 0007): el wrapper lo traduce, no sale rc 2."""
+        salida = self._bash_argv("--quiet")
+        assert "--apply" not in salida
+        assert salida.strip().endswith("src/install_cron.py --check --quiet")

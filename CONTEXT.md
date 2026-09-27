@@ -41,7 +41,7 @@
 ## 4. Mapa del repo
 
 - `src/scripts/` (entrypoints de cron: `resumen_*_diario`, `monitor_ram_mexico`, `polymarket_diario`, `reporte_uso_hermes`, `backup_diario`, `cleanup_housekeeping`; comandos con guiones vía `[project.scripts]`), `hermes_common.py` en raíz solo como compat (fuente viva en `src/`).
-- `src/hermes_common/` (utilidades compartidas), `src/install_cron.py`, `src/check_skills.py`, `src/generate_issue_body.py`.
+- `src/hermes_common/` (utilidades compartidas), `src/install_cron.py` (adaptador CLI del manifiesto: sin modo sólo chequea) con `src/cron_manifest.py` (contrato de `cron/jobs.json`), `src/cron_render.py` (texto de los wrappers) y `src/cron_monitor.py` (drift, doctor, expectations, smoke) — split de #323, ADR `docs/adr/0007-default-del-instalador.md`; `src/check_skills.py`, `src/generate_issue_body.py`.
 - `skills/` (skills del sistema, versionadas aquí), `config/skills.json` (skills independientes declaradas), `config/runtime-clones.json` (clones + sus symlinks vigilados).
 - `config/feeds.json`, `cron/jobs.json` (manifiesto declarativo) + `bin/install-cron.sh`, `bin/check-drift.sh`, `bin/check-skills.sh`, `bin/` (entradas + `shellcheck` en CI), `tests/`.
 - Regresión de crons: ADR `docs/adr/0004-regresion-crons-donde-vive.md` (epic #214).
