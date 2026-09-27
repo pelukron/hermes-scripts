@@ -60,7 +60,7 @@ gh issue view <N> -R pelukron/REPO --json state,title
   nuevos) y **no borrarlo** (el usuario prohíbe comandos destructivos). Antes de proponer revivirlo, comprobar si su
   decisión ya está en `main` (medido: un ADR «propuesto» sin commitear repetía algo que `CONTEXT.md` ya decidía por
   #152) y si su número de ADR colisiona (medido: `0003` ya existía, y el PR abierto introducía `0004`).
-- **DoD de higiene**: tras mergear, el worktree y su rama local se borran (`git worktree remove ../w<N>-<slug>` +
+- **DoD de higiene**: tras mergear, el worktree y su rama local se borran (`git worktree remove .worktrees/w<N>-<slug>` +
   `git branch -d`); una rama ya contenida en `main` se borra con `-d` sin miedo.
 - **El push va ANTES del merge, o no va.** Con `delete_branch_on_merge: true` (los repos pelukron lo tienen),
   empujar una rama cuyo PR ya se mergeó la **resucita**: medido en #293, el merge (23:38Z) borró la rama y el push
@@ -590,6 +590,7 @@ Medido el 2026-09-26 en la máquina del operador. PowerShell es la consola de gi
 - Rojos que ya están en `main` limpio y no acusan al diff: `test_uv_bin_*` y `test_gh_bin_*` comparan el nombre pelado `uv`/`gh` con la ruta de Windows (`C:\Users\...\uv`). WinError 1314 (symlink sin privilegio) es la misma clase.
 - `git branch <rama> origin/main` y `git worktree add -b <rama> … origin/main` dejan el upstream en `origin/main` (medido al abrir #324). Si `git status -sb` dice `...<rama>...origin/main`, `git branch --unset-upstream` y el primer push es `git push -u origin HEAD:<rama>`. Un `git push` a secas empujaría `main`.
 - El aviso `LF will be replaced by CRLF` es `core.autocrlf`. No es un cambio de contenido.
+- **Si cambia el número de jobs del manifiesto, grep de conteos hardcodeados.** Medido en #369: `test_install_cron.py::test_manifiesto_real_trae_cron_drift_check` afirmaba `len(jobs) == 21` y tumbó el CI con `assert 22 == 21` (759 passed, 1 failed). Buscar `== 21` (y el número que sea) en `tests/`, no solo el nombre del job.
 - Imports de test: `from hermes_common import news_utils`. El shim `hermes_common.py` de la raíz es un módulo, y `hermes_common.news_utils` no resuelve como paquete. Un módulo cargado con `spec_from_file_location` no entra en `sys.modules`: el helper cierra sobre el dict que recibió (`globals()`), no sobre `sys.modules[__name__]` (medido en #324, `KeyError: resumen_rayados`).
 
 ### Linux — consola bash
@@ -613,6 +614,30 @@ PATH="$HOME/.hermes/bin:$PATH" TMPDIR=/tmp bash bin/gate.sh
 3. **`/tmp` es tmpfs de 2.6 GB** y va por el 80 %: un clon desechable ahí con `uv run` dentro falla al construir
    su `.venv` (`Disk quota exceeded (os error 122)`), y el smoke parece roto. Los clones de prueba van al
    scratch de Hermes (`$TMPDIR`), no a `/tmp`.
+
+### Cuatro rojos que no son del diff (medidos el 2026-09-27)
+
+- **El log miente si lo lees por el final.** Una corrida murió con `GATE_RC=2` y la última línea del log era
+  «All checks passed!»: el rojo estaba tres líneas antes, en `uv run ruff format --check .` contestando
+  `Would reformat: tests/<archivo>.py`. **`ruff check` verde no implica gate verde.** Arreglo:
+  `uv run ruff format <archivo>` antes de commitear; al diagnosticar, lee el log completo, no `tail -1`.
+- **`mypy` no typechequea `tests/`** (`exclude = ["tests"]` en `pyproject.toml`): un `# type: ignore` en un
+  test no lo valida el gate y no rompe por «unused ignore» — el que sí marca el error de tipo es el LSP
+  (pyright). Déjalo con su código (`# type: ignore[call-arg]`) para que el editor y el gate no se contradigan.
+- **ruff N811 al importar un `CONFIG` con alias en minúsculas.** `from scripts.resumen_rayados_diario import
+  CONFIG as rayados` es N811 («Constant imported as non-constant»): el alias va en mayúsculas (`as RAYADOS`).
+- **Un worktree nuevo deja el upstream en `origin/main`** (`git worktree add -b <rama> … origin/main`): un
+  `git push` a secas **empujaría a `main`**. Antes del primer push: `git branch --unset-upstream` y
+  `git push -u origin HEAD:<tipo>/<N>-<slug>`.
+- **Entre el commit del release y el `chore: sync uv.lock` que el bot empuja después, cualquier worktree
+  nuevo falla el gate** con `error: The lockfile at uv.lock needs to be updated, but --check was provided.`
+  No es del diff: `git fetch origin && git merge --ff-only origin/main` (trae el sync) y el gate vuelve en
+  verde. Comprobado antes de culpar al cambio: `git log --oneline origin/main -3`.
+
+**Medir un PR abierto sin mergearlo** (A/B contra `main`, sin tocar la rama): `git show
+origin/<rama-del-PR>:config/feeds.json > /ruta/al/scratch/feeds-pr.json` y correr el pipeline contra esa copia
+— `load_feeds()` acepta ruta absoluta—. Da «código de `main` + feeds del PR» contra «código de `main` + feeds
+de `main`», que es lo que decide si un PR de fuentes mueve algo.
 
 **Pitfall — PR manual: el `(#N)` se pierde (y el emoji delante rompe CI).** `bin/gh-pr` arma el título con el
 del issue + ` (#N)` y el body con `Closes #N`; `gh pr create` a mano no añade ninguno de los dos. El sufijo
