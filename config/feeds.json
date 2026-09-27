@@ -293,8 +293,28 @@
           "name": "NFL",
           "sources": [
             {
-              "name": "NFL",
-              "url": "https://news.google.com/rss/search?q=NFL+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+              "name": "FOX Sports",
+              "url": "https://api.foxsports.com/v1/rss?partnerKey=zBaFxRyGKCfxBagJG9b8pqLyndmvo7UU&tag=nfl"
+            },
+            {
+              "name": "CBS Sports",
+              "url": "https://www.cbssports.com/rss/headlines/nfl/"
+            },
+            {
+              "name": "Pro Football Talk",
+              "url": "https://profootballtalk.nbcsports.com/feed/"
+            },
+            {
+              "name": "ESPN",
+              "url": "https://news.google.com/rss/search?q=site:espn.com+NFL+when:24h&hl=en-US&gl=US&ceid=US:en"
+            },
+            {
+              "name": "Bleacher Report",
+              "url": "https://news.google.com/rss/search?q=site:bleacherreport.com+NFL+when:24h&hl=en-US&gl=US&ceid=US:en"
+            },
+            {
+              "name": "NFL.com",
+              "url": "https://news.google.com/rss/search?q=site:nfl.com+when:24h&hl=en-US&gl=US&ceid=US:en"
             }
           ]
         }
