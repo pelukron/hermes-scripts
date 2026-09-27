@@ -4,9 +4,32 @@
 # - Si no hay alerta y son las 8:00-8:05 AM: envía resumen diario.
 # - En cualquier otro caso: silencioso.
 
-UMBRAL_DISCO=80
-UMBRAL_MEMORIA=80
-UMBRAL_CPU=80
+UMBRAL_DISCO=${UMBRAL_DISCO:-80}
+UMBRAL_MEMORIA=${UMBRAL_MEMORIA:-80}
+UMBRAL_CPU=${UMBRAL_CPU:-80}
+
+# Cooldown del aviso de alerta (#349): sin él, un umbral cruzado hablaba cada 30 min.
+# FORCE_ALERT=1 lo salta, para que el remedio del propio mensaje siga sirviendo a mano.
+COOLDOWN_MIN=${COOLDOWN_MIN:-360}
+STATE_DIR=${HERMES_HOME:-$HOME/.hermes}
+SELLO_AVISO="$STATE_DIR/sistema-alertas-last-aviso"
+
+# ¿Toca avisar? Sin sello (nunca avisó) o con el cooldown vencido: sí.
+toca_avisar() {
+    [ -f "$SELLO_AVISO" ] || return 0
+    local ultimo ahora
+    ultimo=$(cat "$SELLO_AVISO" 2>/dev/null)
+    case "$ultimo" in
+        ''|*[!0-9]*) return 0 ;;   # sello ilegible: se trata como si no existiera
+    esac
+    ahora=$(date +%s)
+    [ $((ahora - ultimo)) -ge $((COOLDOWN_MIN * 60)) ]
+}
+
+marcar_aviso() {
+    mkdir -p "$STATE_DIR" 2>/dev/null
+    date +%s > "$SELLO_AVISO" 2>/dev/null || true
+}
 
 # Métricas
 USO_DISCO=$(df / | awk 'NR==2 {gsub(/%/,""); print $5}')
@@ -29,34 +52,37 @@ HORA_HORA=${HORA_HORA:-$(date '+%H:%M')}
 ALERTAS=""
 
 if [ "$USO_DISCO" -ge "$UMBRAL_DISCO" ]; then
-    ALERTAS="${ALERTAS}• 💽 **Disco**: $USO_DISCO% usado (umbral $UMBRAL_DISCO%)\n"
+    ALERTAS="${ALERTAS}• 💽 **Disco**: $USO_DISCO% usado (umbral $UMBRAL_DISCO%)"$'\n'
 fi
 
 if [ "$USO_MEMORIA" -ge "$UMBRAL_MEMORIA" ]; then
-    ALERTAS="${ALERTAS}• 💾 **Memoria**: $USO_MEMORIA% usada (umbral $UMBRAL_MEMORIA%)\n"
+    ALERTAS="${ALERTAS}• 💾 **Memoria**: $USO_MEMORIA% usada (umbral $UMBRAL_MEMORIA%)"$'\n'
 fi
 
 if [ "$CARGA_PCT" -ge "$UMBRAL_CPU" ]; then
-    ALERTAS="${ALERTAS}• 🧠 **Carga CPU**: $CARGA_PCT% (umbral $UMBRAL_CPU%, $NUM_CPUS CPUs)\n"
+    ALERTAS="${ALERTAS}• 🧠 **Carga CPU**: $CARGA_PCT% (umbral $UMBRAL_CPU%, $NUM_CPUS CPUs)"$'\n'
 fi
 
-# Enviar alerta inmediata si hay problemas o si se fuerza con FORCE_ALERT=1
+# Aviso inmediato si hay problemas (respetando el cooldown) o si se fuerza con FORCE_ALERT=1
 if [ -n "$ALERTAS" ] || [ "$FORCE_ALERT" = "1" ]; then
-    echo "⚠️ **Alerta de sistema** en \`$(hostname)\`"
-    echo ""
+    # Cooldown vencido: no se avisa, y tampoco se finge "todo normal" (silencio y rc 0).
+    if [ "$FORCE_ALERT" != "1" ] && ! toca_avisar; then
+        exit 0
+    fi
+    echo "⚠️ **sistema-alertas** — $(hostname) · $HORA"
     if [ -n "$ALERTAS" ]; then
-        echo "$ALERTAS"
+        printf '%s' "$ALERTAS"
     else
         echo "• ✅ No hay alertas reales. Este es un mensaje de prueba forzado."
     fi
-    echo ""
-    echo "_Hora: ${HORA}_"
+    echo "remedio: FORCE_ALERT=1 bash bin/sistema-alertas-y-resumen.sh · hermes cron list"
+    marcar_aviso
     exit 0
 fi
 
 # Resumen diario solo entre las 8:00 y 8:05 AM o si se fuerza con FORCE_RESUMEN=1
 if [[ "$HORA_HORA" =~ ^08:0[0-5]$ ]] || [ "$FORCE_RESUMEN" = "1" ]; then
-    echo "🖥️ **Estado del servidor**"
+    echo "🖥️ **sistema-alertas · resumen diario** — $(hostname) · $HORA"
     echo ""
     echo "⏱️ **Uptime**"
     echo "• Valor: $UPTIME"
@@ -79,6 +105,4 @@ if [[ "$HORA_HORA" =~ ^08:0[0-5]$ ]] || [ "$FORCE_RESUMEN" = "1" ]; then
     echo "• Estado: ✅ normal"
     echo ""
     echo "Todas las métricas se encuentran dentro de rangos normales."
-    echo ""
-    echo "_Hora: ${HORA}_"
 fi
