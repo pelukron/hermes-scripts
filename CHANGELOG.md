@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.19.8 (2026-09-27)
+
+### 🐛 Fixes
+
+- Sistema-alertas entrega el salto de linea literal y no tiene cooldown
+  ([#349](https://github.com/pelukron/hermes-scripts/pull/349),
+  [`cde01e8`](https://github.com/pelukron/hermes-scripts/commit/cde01e868271570745ad059019cea021abe3c640))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`899685a`](https://github.com/pelukron/hermes-scripts/commit/899685a8eda2bfe0607500d79bcd44d657c85f93))
+
+
 ## v0.19.7 (2026-09-27)
 
 ### 🐛 Fixes
