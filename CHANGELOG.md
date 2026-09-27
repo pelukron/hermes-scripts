@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.21.1 (2026-09-27)
+
+### 🐛 Fixes
+
+- El reparto de cuota de una subsección entre sus fuentes (#360)
+  ([#361](https://github.com/pelukron/hermes-scripts/pull/361),
+  [`b5f0105`](https://github.com/pelukron/hermes-scripts/commit/b5f0105d6acce39d0c19bb78cda56f45dafcdfa3))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`3743b52`](https://github.com/pelukron/hermes-scripts/commit/3743b523c0f1141bdf05bdaa18910176a984c283))
+
+
 ## v0.21.0 (2026-09-27)
 
 ### ✨ Features
