@@ -85,6 +85,20 @@ Request = Callable[..., Any]
 
 
 @dataclass(frozen=True)
+class ExtraSection:
+    """Sección opcional de contexto (liga) con bloque propio en el reporte.
+
+    El `titulo` lleva `{count}` (lo rellena `_section`); la `query` abre con
+    frase citada, igual que `queries` (AND y paréntesis dejan el feed en 0);
+    la `categoria` etiqueta los NewsItem para el fetch.
+    """
+
+    titulo: str
+    query: str
+    categoria: str = "confirmadas"
+
+
+@dataclass(frozen=True)
 class TeamConfig:
     """Lo que cambia entre equipos. El resto del reporte no se copia."""
 
@@ -100,6 +114,7 @@ class TeamConfig:
     telegram_max_chars: int = TELEGRAM_MAX_CHARS
     sitios_confiables: list[str] = field(default_factory=lambda: list(SITIOS_CONFIABLES))
     rumor_keywords: list[str] = field(default_factory=lambda: list(RUMOR_KEYWORDS))
+    extra_section: Optional[ExtraSection] = None
 
 
 def ensure_news_deps() -> None:
@@ -286,6 +301,15 @@ def _google_items(config: TeamConfig, fetch_google_news: GoogleFetch) -> list:
     return filter_by_max_age(confirmadas + rumores)
 
 
+def _extra_items(config: TeamConfig, fetch_google_news: GoogleFetch) -> list:
+    """Los items de la sección de liga. Vacío si el equipo no la declara."""
+    if config.extra_section is None:
+        return []
+    items = fetch_google_news(config.extra_section.query, config.extra_section.categoria)
+    time.sleep(1)
+    return filter_by_max_age(items)
+
+
 def _official_items(
     config: TeamConfig, fetch_official: OfficialFetch, enrich_official: Enrich
 ) -> list:
@@ -356,7 +380,12 @@ def _section(
     return "\n".join(lines)
 
 
-def _render(config: TeamConfig, confirmadas: list, rumores: list) -> list[str]:
+def _render(
+    config: TeamConfig,
+    confirmadas: list,
+    rumores: list,
+    liga: list | None = None,
+) -> list[str]:
     header = "\n".join(
         [
             config.header_title,
@@ -365,23 +394,52 @@ def _render(config: TeamConfig, confirmadas: list, rumores: list) -> list[str]:
             config.sources_line,
         ]
     )
-    confirmed = _section(
-        "**✅ CONFIRMADO** ({count})",
-        "*Fuentes oficiales y medios establecidos*",
-        confirmadas,
-        _tag_confirmada,
-        "*No se encontraron noticias confirmadas nuevas en las últimas 48h.*\n",
-        config,
+    bloques = [header]
+    vistos: set[str] = set()
+    if liga is not None and config.extra_section is not None:
+        liga = news_utils.dedupe_by_title(liga)
+        vistos = {news_utils.canonical_title(i.title) for i in liga}
+        bloques.append(
+            _section(
+                config.extra_section.titulo,
+                "*Contexto de la liga*",
+                liga,
+                _tag_confirmada,
+                "*Sin novedades de la liga en las últimas 48h.*\n",
+                config,
+            )
+        )
+    confirmadas = [
+        i
+        for i in news_utils.dedupe_by_title(confirmadas)
+        if news_utils.canonical_title(i.title) not in vistos
+    ]
+    rumores = [
+        i
+        for i in news_utils.dedupe_by_title(rumores)
+        if news_utils.canonical_title(i.title) not in vistos
+    ]
+    bloques.append(
+        _section(
+            "**✅ CONFIRMADO** ({count})",
+            "*Fuentes oficiales y medios establecidos*",
+            confirmadas,
+            _tag_confirmada,
+            "*No se encontraron noticias confirmadas nuevas en las últimas 48h.*\n",
+            config,
+        )
     )
-    rumors = _section(
-        "**⚠️ RUMORES** ({count})",
-        "*No confirmado oficialmente. Tomar con discreción*",
-        rumores,
-        _tag_rumor,
-        "*No se encontraron rumores o filtraciones nuevos en las últimas 48h.*\n",
-        config,
+    bloques.append(
+        _section(
+            "**⚠️ RUMORES** ({count})",
+            "*No confirmado oficialmente. Tomar con discreción*",
+            rumores,
+            _tag_rumor,
+            "*No se encontraron rumores o filtraciones nuevos en las últimas 48h.*\n",
+            config,
+        )
     )
-    return [header, confirmed, rumors]
+    return bloques
 
 
 def build_report(
@@ -392,18 +450,27 @@ def build_report(
     fetch_official: OfficialFetch,
     enrich_official: Enrich,
 ) -> list[str]:
-    """Ensambla los tres bloques de Telegram para un equipo."""
+    """Ensambla los bloques de Telegram para un equipo.
+
+    Sin `extra_section` sale lo de siempre (header + CONFIRMADO + RUMORES). Con
+    ella, la liga viaja en el mismo historial y la misma clasificación, pero se
+    parte a su bloque propio antes del render: el dedupe por título corre sobre
+    los tres juntos y nada sale repetido entre liga y equipo.
+    """
     google = _google_items(config, fetch_google_news)
     official = _official_items(config, fetch_official, enrich_official)
-    kept = _without_history(history_path, google + official)
+    extra = _extra_items(config, fetch_google_news)
+    kept = _without_history(history_path, google + official + extra)
     confirmadas, rumores = news_utils.classify(
         kept, config.sitios_oficiales, config.sitios_confiables
     )
-    return _render(
-        config,
-        news_utils.dedupe_by_title(confirmadas),
-        news_utils.dedupe_by_title(rumores),
-    )
+    if config.extra_section is None:
+        return _render(config, confirmadas, rumores)
+    enlaces_liga = {i.link for i in extra}
+    liga = [i for i in confirmadas + rumores if i.link in enlaces_liga]
+    confirmadas = [i for i in confirmadas if i.link not in enlaces_liga]
+    rumores = [i for i in rumores if i.link not in enlaces_liga]
+    return _render(config, confirmadas, rumores, liga=liga)
 
 
 _REEXPORTS = (
