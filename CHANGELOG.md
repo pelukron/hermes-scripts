@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.24.0 (2026-09-27)
+
+### ✨ Features
+
+- Una seccion de liga en el reporte de equipo (contexto NFL en el canal de los Titans) (#359)
+  ([#372](https://github.com/pelukron/hermes-scripts/pull/372),
+  [`51385e9`](https://github.com/pelukron/hermes-scripts/commit/51385e942ca6e2ece5ecaf95a183baacf15467d1))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`2dce76c`](https://github.com/pelukron/hermes-scripts/commit/2dce76c9b24d90f986992efee3379eaa7af842fa))
+
+
 ## v0.23.0 (2026-09-27)
 
 ### ✨ Features
