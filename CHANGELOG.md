@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.19.9 (2026-09-27)
+
+### 📝 Docs
+
+- El estandar de entrega por area del parque de avisos, fijado con asserts (#351)
+  ([#352](https://github.com/pelukron/hermes-scripts/pull/352),
+  [`1b9ef5f`](https://github.com/pelukron/hermes-scripts/commit/1b9ef5fe782de18800e46553222db98720d98df4))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`0ec5ab7`](https://github.com/pelukron/hermes-scripts/commit/0ec5ab7370b56c61546e2a7bd091e0b2d6393d85))
+
+
 ## v0.19.8 (2026-09-27)
 
 ### 🐛 Fixes
