@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.19.4 (2026-09-27)
+
+### 🐛 Fixes
+
+- El doctor reporta con mensaje y no falla el job
+  ([`aebc430`](https://github.com/pelukron/hermes-scripts/commit/aebc4308382acd3fb58a2b3ff2db1aa206e0cc21))
+
+- El doctor se reporta a si mismo y se queda rojo por su propio job (#340)
+  ([#341](https://github.com/pelukron/hermes-scripts/pull/341),
+  [`83c7b99`](https://github.com/pelukron/hermes-scripts/commit/83c7b99501d00bd21f31e6d4c14d3d464baf6483))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`8cf64a4`](https://github.com/pelukron/hermes-scripts/commit/8cf64a4a2c35ea3690a13b570d62ed2c9763b403))
+
+
 ## v0.19.3 (2026-09-27)
 
 ### 📦 Chores
