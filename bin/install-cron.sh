@@ -5,7 +5,7 @@
 #   bin/install-cron.sh --dry-run     # muestra el plan, no escribe nada
 #   bin/install-cron.sh --check       # deseado vs real; exit 1 si hay drift
 #   bin/install-cron.sh --smoke       # arranca cada no_agent en sandbox
-#   bin/install-cron.sh               # aplica wrappers + jobs (idempotente)
+#   bin/install-cron.sh               # aplica (--apply); el .py solo no muta
 #   bin/install-cron.sh --only backup-diario
 #
 # Sin efectos sobre Hermes: solo lee/escribe ~/.hermes/scripts y usa `hermes cron`.
@@ -24,4 +24,16 @@ if [ ! -x "$UV_BIN" ]; then
 fi
 
 cd "$REPO_DIR" || exit 1
+# El .py sin flags solo chequea. Este wrapper aplica cuando no pidieron otro modo.
+aplica=1
+for arg in "$@"; do
+  case "$arg" in
+    --check|--dry-run|--smoke|--doctor|--expectations|--init-targets|--remove|--remove=*|--apply)
+      aplica=0
+      ;;
+  esac
+done
+if [ "$aplica" -eq 1 ]; then
+  set -- --apply "$@"
+fi
 exec "$UV_BIN" run python src/install_cron.py "$@"

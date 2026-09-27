@@ -552,6 +552,19 @@ def uv_bin() -> str:
     return "uv"
 
 
+def uv_shell() -> str:
+    """Fragmento bash con el mismo orden que ``uv_bin``.
+
+    El wrapper lo emite tal cual. No hornea la ruta de la máquina que renderiza:
+    el cron resuelve ``uv`` cuando corre.
+    """
+    return (
+        'UV_BIN="${UV:-$(command -v uv || true)}"\n'
+        'if [ -z "$UV_BIN" ] || [ ! -x "$UV_BIN" ]; then UV_BIN="$HOME/.hermes/bin/uv"; fi\n'
+        'export PATH="$(dirname "$UV_BIN"):$PATH"\n'
+    )
+
+
 def gh_bin() -> str:
     """Ruta de `gh`, mismo contrato que `uv_bin()` (#256).
 

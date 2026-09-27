@@ -108,7 +108,10 @@ make test       # pytest -v
 │   │   ├── reporte_uso_hermes.py
 │   │   ├── backup_diario.py
 │   │   └── cleanup_housekeeping.py
-│   ├── install_cron.py        # Manifiesto cron declarativo
+│   ├── install_cron.py        # CLI: sin --apply no muta
+│   ├── cron_manifest.py       # Contrato de cron/jobs.json
+│   ├── cron_render.py         # Wrappers de cron
+│   ├── cron_monitor.py        # Drift, doctor, expectations y smoke
 │   ├── gate_audit.py          # Auditoría de gates cross-repo
 │   └── generate_issue_body.py # Generador de bodies enriquecidos para issues
 ├── config/

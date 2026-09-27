@@ -18,6 +18,9 @@ from hermes_common import (
 
 REPO = Path(__file__).resolve().parent.parent
 
+import cron_manifest as mf  # noqa: E402
+import cron_monitor as mo  # noqa: E402
+import cron_render as rd  # noqa: E402
 from src import install_cron as ic  # noqa: E402
 
 SCRIPT_DIR = str(REPO)
@@ -145,12 +148,12 @@ class TestExitCodes:
 
 class TestManifiestoEntrypoints:
     def test_manifiesto_real_todos_los_commands_resuelven(self):
-        manifest = ic.load_manifest(REPO / ic.MANIFEST_DEFAULT)
-        jobs = ic.parse_jobs(manifest)
-        assert ic.validate_job_commands(jobs, REPO) == []
+        manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
+        jobs = mf.parse_jobs(manifest)
+        assert mf.validate_job_commands(jobs, REPO) == []
 
     def test_entrypoint_inventado_falla(self):
-        jobs = ic.parse_jobs(
+        jobs = mf.parse_jobs(
             {
                 "version": 1,
                 "defaults": {"deliver": "origin", "mode": "no_agent"},
@@ -164,12 +167,12 @@ class TestManifiestoEntrypoints:
                 ],
             }
         )
-        errors = ic.validate_job_commands(jobs, REPO)
+        errors = mf.validate_job_commands(jobs, REPO)
         assert errors
         assert "no-existe-este-entry" in errors[0]
 
     def test_python_sin_archivo_falla(self):
-        jobs = ic.parse_jobs(
+        jobs = mf.parse_jobs(
             {
                 "version": 1,
                 "defaults": {"deliver": "origin", "mode": "no_agent"},
@@ -183,19 +186,19 @@ class TestManifiestoEntrypoints:
                 ],
             }
         )
-        errors = ic.validate_job_commands(jobs, REPO)
+        errors = mf.validate_job_commands(jobs, REPO)
         assert any("no existe" in e for e in errors)
 
     def test_check_con_fixture_hermes_home(self, tmp_path, monkeypatch, capsys):
         """--check --hermes-home <fixture> sin Hermes real: wrappers + live coinciden."""
         job = next(
             j
-            for j in ic.parse_jobs(ic.load_manifest(REPO / ic.MANIFEST_DEFAULT))
+            for j in mf.parse_jobs(mf.load_manifest(REPO / mf.MANIFEST_DEFAULT))
             if j.name == "backup-diario"
         )
         scripts = tmp_path / "scripts"
         scripts.mkdir()
-        (scripts / job.wrapper).write_text(ic.render_wrapper(job, REPO), encoding="utf-8")
+        (scripts / job.wrapper).write_text(rd.render_wrapper(job, REPO), encoding="utf-8")
         live = {
             "id": "fix",
             "name": job.name,
@@ -209,7 +212,7 @@ class TestManifiestoEntrypoints:
         }
         (tmp_path / "cron").mkdir()
         (tmp_path / "cron" / "jobs.json").write_text(json.dumps({"jobs": [live]}), encoding="utf-8")
-        monkeypatch.setattr(ic, "normalize_target", lambda d, _t: "telegram:-1")
+        monkeypatch.setattr(mo, "normalize_target", lambda d, _t: "telegram:-1")
         code = ic.main(
             [
                 "--repo",

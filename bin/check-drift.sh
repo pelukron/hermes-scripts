@@ -21,8 +21,8 @@ fi
 
 cd "$REPO_DIR" || exit 1
 
-# `--check` va forzado: este script es un chequeo, y `src/install_cron.py` sin ese flag APLICA
-# (upsert real de jobs en Hermes). Los flags del llamador se suman (`--quiet`, `--only`).
+# `--check` va forzado. El .py ya no aplica sin `--apply`, pero `--quiet` solo vale
+# junto a `--check`. Los flags del llamador se suman (`--quiet`, `--only`).
 rc=0
 "$UV_BIN" run python src/install_cron.py --check "$@" || rc=1
 "$UV_BIN" run python src/check_skills.py --check "$@" || rc=1

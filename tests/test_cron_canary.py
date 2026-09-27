@@ -224,9 +224,9 @@ def test_send_sin_token_no_hace_nada(monkeypatch):
 
 
 def test_manifiesto_declara_cron_canary():
-    from src import install_cron as ic
+    import cron_manifest as mf
 
-    jobs = ic.parse_jobs(ic.load_manifest(REPO / ic.MANIFEST_DEFAULT))
+    jobs = mf.parse_jobs(mf.load_manifest(REPO / mf.MANIFEST_DEFAULT))
     canary = next(j for j in jobs if j.name == "cron-canary")
     assert canary.schedule == "30 2 * * *"
     assert canary.is_no_agent
