@@ -19,3 +19,7 @@ out/
 .coverage
 .coverage.*
 htmlcov/
+
+# Worktrees por ticket (#368): dentro del repo para no pedir permisos externos;
+# pytest los ignora por norecursedirs (`.*`) y ruff por este gitignore.
+.worktrees/

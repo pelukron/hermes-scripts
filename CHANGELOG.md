@@ -4,6 +4,46 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.21.4 (2026-09-27)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`3bc85cf`](https://github.com/pelukron/hermes-scripts/commit/3bc85cfea51ce059fc4ee31ae866002f63010dc8))
+
+- Worktrees en carpeta ignorada dentro del repo (#368)
+  ([#370](https://github.com/pelukron/hermes-scripts/pull/370),
+  [`a3afee8`](https://github.com/pelukron/hermes-scripts/commit/a3afee87afe0fb30d166c30da633fe495c7ea0fa))
+
+
+## v0.21.3 (2026-09-27)
+
+### 📝 Docs
+
+- Regla mandatoria el agente no mergea, solo crea ramas (#373)
+  ([#374](https://github.com/pelukron/hermes-scripts/pull/374),
+  [`5022a5d`](https://github.com/pelukron/hermes-scripts/commit/5022a5d213da04b99b3f697af15dd59f33d3059d))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`a7f54b3`](https://github.com/pelukron/hermes-scripts/commit/a7f54b3de96ab0b210cc6e6e9181fe3e9f5a7f91))
+
+
+## v0.21.2 (2026-09-27)
+
+### 📝 Docs
+
+- Los tropiezos del gate que no son del diff en la skill github-pelukron-flow
+  ([#362](https://github.com/pelukron/hermes-scripts/pull/362),
+  [`fc6a6b5`](https://github.com/pelukron/hermes-scripts/commit/fc6a6b5a6d7da16ecc12f6d4fc78f9135fc80b6d))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`2334fbe`](https://github.com/pelukron/hermes-scripts/commit/2334fbe4cd2e1cf51cb26bdd97243d8f4eaf1e82))
+
+
 ## v0.21.1 (2026-09-27)
 
 ### 🐛 Fixes
