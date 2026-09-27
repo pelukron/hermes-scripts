@@ -592,7 +592,12 @@ Medido el 2026-09-26 en la máquina del operador. PowerShell es la consola de gi
 - **ruff N811: el alias de un import va en mayúsculas si el original lo es.** `from … import CONFIG as rayados` lo tumba; va `as RAYADOS`.
 - Rojos que ya están en `main` limpio y no acusan al diff: `test_uv_bin_*` y `test_gh_bin_*` comparan el nombre pelado `uv`/`gh` con la ruta de Windows (`C:\Users\...\uv`). WinError 1314 (symlink sin privilegio) es la misma clase.
 - `git branch <rama> origin/main` y `git worktree add -b <rama> … origin/main` dejan el upstream en `origin/main` (medido al abrir #324). Si `git status -sb` dice `...<rama>...origin/main`, `git branch --unset-upstream` y el primer push es `git push -u origin HEAD:<rama>`. Un `git push` a secas empujaría `main`.
-- El aviso `LF will be replaced by CRLF` es `core.autocrlf`. No es un cambio de contenido.
+ - El aviso `LF will be replaced by CRLF` es `core.autocrlf`. No es un cambio de contenido.
+ - **`gh --jq` con comillas se lo queda PowerShell.** Medido: `--jq '.[] | ...'` muere con `is not recognized` o `unknown arguments`. Filtrar con flags (`gh pr list --state all -H <rama> --json ...`) sin `--jq`; si el filtro es complejo, programa en archivo.
+ - **`gh pr create --label` exige el nombre exacto con emoji** (`🤖 automation`); `automation` pelao contesta `could not add label`. Crear sin `--label` y copiarlas del issue, o usar el nombre exacto.
+ - **Bucles `for` y `&&` dentro de `bash -lc '...'` se rompen por el entrecomillado** (medido: `syntax error: unexpected end of file from 'for'`). Una llamada simple por comando.
+ - **SC1017 en el worktree Windows es `autocrlf`, no tu diff** (hasta `bin/slug.sh` intacto lo marca). El blob en repo es LF y el CI no lo ve: se comprueba con `git show HEAD:<archivo>` y conteo de CRLF, sin tocar el archivo.
+ - **La salida de `shellcheck` con no-ASCII (em-dash) puede reventar la consola** (`commitBuffer: invalid argument`). Redirigir a archivo (`> /tmp/sc.txt`) y leerlo después.
 - Imports de test: `from hermes_common import news_utils`. El shim `hermes_common.py` de la raíz es un módulo, y `hermes_common.news_utils` no resuelve como paquete. Un módulo cargado con `spec_from_file_location` no entra en `sys.modules`: el helper cierra sobre el dict que recibió (`globals()`), no sobre `sys.modules[__name__]` (medido en #324, `KeyError: resumen_rayados`).
 
 ### Linux — consola bash
