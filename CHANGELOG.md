@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.19.7 (2026-09-27)
+
+### 🐛 Fixes
+
+- El CHANGELOG no debe repetir el cambio por el sufijo (#N) del merge
+  ([#348](https://github.com/pelukron/hermes-scripts/pull/348),
+  [`57b21be`](https://github.com/pelukron/hermes-scripts/commit/57b21be71373e08f6fb6257f88ac8575a2566e08))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`73dcf46`](https://github.com/pelukron/hermes-scripts/commit/73dcf468004e6f50ef3d5fdf2a0c464c73460741))
+
+
 ## v0.19.6 (2026-09-27)
 
 ### 📦 Chores
