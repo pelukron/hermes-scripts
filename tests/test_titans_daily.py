@@ -1,0 +1,121 @@
+"""Tests para titans_daily.py (canal propio de Tennessee Titans, #356)."""
+
+import importlib.util
+import json
+import os
+import re
+from unittest.mock import patch
+
+from hermes_common import telegram_chunks
+
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+spec = importlib.util.spec_from_file_location(
+    "titans_daily",
+    os.path.join(SCRIPT_DIR, "src", "scripts", "titans_daily.py"),
+)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+CONFIG = mod.CONFIG
+NewsItem = mod.NewsItem
+is_oficial = mod.is_oficial
+smells_like_rumor = mod.smells_like_rumor
+fetch_titans_official = mod.fetch_titans_official
+
+ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+class TestConfigTitans:
+    def test_edicion_us(self):
+        assert CONFIG.edition == {"hl": "en-US", "gl": "US", "ceid": "US:en"}
+
+    def test_sitio_oficial_declarado(self):
+        assert CONFIG.sitios_oficiales == ["tennesseetitans.com"]
+
+    def test_historial_propio(self):
+        assert CONFIG.history_name == "titans-history.json"
+
+    def test_encabezado_y_fuentes(self):
+        assert "Tennessee Titans" in CONFIG.header_title
+        assert "tennesseetitans.com" in CONFIG.sources_line
+
+    def test_medios_usa(self):
+        assert "espn.com" in CONFIG.sitios_confiables
+        assert "thetennessean.com" in CONFIG.sitios_confiables
+
+    def test_rumor_en_ingles(self):
+        assert smells_like_rumor("Trade rumor: Titans to sign veteran QB") is True
+        assert smells_like_rumor("Titans place star on injured reserve") is True
+
+    def test_objetivo_en_ingles_sin_rumor(self):
+        assert smells_like_rumor("Titans win 24-17 over Colts") is False
+
+    def test_dominio_oficial_cuenta_como_confirmado(self):
+        assert is_oficial("https://www.tennesseetitans.com/news/titans-sign-db") is True
+        assert is_oficial("https://www.espn.com/nfl/story/_/id/1/titans") is False
+
+
+class TestFetchTitansOfficial:
+    def test_vacio_declarado(self):
+        """Sin fetcher real (#356): el sitio es React y el listado no viene en el HTML."""
+        assert fetch_titans_official() == []
+        assert "React" in mod.fetch_titans_official_impl.__doc__
+
+
+def test_queries_usan_frases_entre_comillas():
+    """La query abre con frase citada; AND o paréntesis dejan el feed en 0 entries."""
+    patron = r'^"[^"]+"(?:\s+OR\s+"[^"]+"|\s+[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*$'
+    for key, q in mod.QUERIES.items():
+        assert re.fullmatch(patron, q), f"QUERIES[{key}] no cumple sintaxis: {q}"
+        assert "(" not in q and ")" not in q, f"QUERIES[{key}] usa paréntesis: {q}"
+        assert " AND " not in q, f"QUERIES[{key}] usa AND explícito: {q}"
+
+
+def _mk_confirmada(i: int) -> NewsItem:
+    return NewsItem(
+        title=f"Titans note {i}",
+        link=f"https://ejemplo.com/{i}",
+        source="ESPN",
+        confiable=True,
+        origin="gn",
+        category="confirmadas",
+    )
+
+
+def test_reporte_tres_bloques_con_techo():
+    """12 confirmadas con límite 8: header '8 de 12' y el mensaje cabe en 1 trozo."""
+    confirmadas = [_mk_confirmada(i) for i in range(12)]
+    with (
+        patch("hermes_common.HistoryManager") as mock_hist_cls,
+        patch.object(mod, "fetch_google_news") as mock_gn,
+        patch.object(mod, "fetch_titans_official") as mock_official,
+    ):
+        mock_hist_cls.return_value.exists.return_value = False
+        mock_gn.side_effect = lambda q, cat: confirmadas if cat == "confirmadas" else []
+        mock_official.return_value = []
+        blocks = mod.build_report_blocks()
+
+    assert len(blocks) == 3
+    assert "Tennessee Titans" in blocks[0]
+    conf = [b for b in blocks if "CONFIRMADO" in b][0]
+    assert "RUMORES" in blocks[2]
+    bullets = [line for line in conf.splitlines() if line.startswith("- ")]
+    assert len(bullets) <= 8
+    header = conf.splitlines()[0]
+    assert " de " in header, f"header {header!r} debería indicar el total recortado"
+    mensaje = "\n---\n".join(blocks)
+    assert telegram_chunks(mensaje) <= 1, f"mensaje pasa de 1 trozo: {len(mensaje)}"
+    assert len(ISO_DATE.findall(mensaje)) <= 1, "el mensaje repite fecha"
+
+
+def test_entrada_del_manifiesto():
+    """El job existe en el manifiesto con su entry point, wrapper y destino (#356)."""
+    with open(os.path.join(SCRIPT_DIR, "cron", "jobs.json"), encoding="utf-8") as f:
+        manifiesto = json.load(f)
+    jobs = {j["name"]: j for j in manifiesto["jobs"]}
+    job = jobs["titans-daily"]
+    assert job["schedule"] == "0 9 * * *"
+    assert job["command"] == "uv run titans-daily"
+    assert job["wrapper"] == "titans-daily.sh"
+    assert job["deliver"] == "${titans}"

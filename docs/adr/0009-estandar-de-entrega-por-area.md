@@ -6,7 +6,7 @@
 
 ## Contexto
 
-El parque de cron de Hermes son **21 jobs**, manifiesto y host alineados 21/21
+El parque de cron de Hermes son **22 jobs**, manifiesto y host alineados 22/22
 (`bin/install-cron.sh --check` → `Sin drift`, rc 0), en 6 destinos y ~10-12 mensajes/día. Los guards
 **sí callan**: `sistema-alertas` acumulaba 639 corridas suprimidas frente a 16 mensajes en 21 días, y
 el canario, `adopted-sha-audit` y el doctor diario llevaban varios días en silencio. El parque no
@@ -33,12 +33,12 @@ declaración de intenciones: es un contrato con asserts.
    motivo** (`SIN_MEDICION`). El test lee este ADR y el manifiesto, así que un job nuevo, renombrado o
    sin clasificar pone el gate rojo.
 
-### Mapa por área (21 jobs)
+### Mapa por área (22 jobs)
 
 | Área | Jobs | Política de entrega |
 |---|---|---|
 | guards de infra | `sistema-alertas`, `cron-canary`, `cron-doctor-daily`, `cron-doctor-check`, `cron-drift-check`, `gate-audit`, `adopted-sha-audit`, `runtime-sync`, `backup-diario`, `monitor-ram-mexico` | silencio = sano; rc 0 con hallazgos (ADR 0008) |
-| reportes diarios | `reporte-uso-hermes`, `resumen-noticias-diario`, `resumen-rayados-diario`, `resumen-tigres-diario`, `job-scout daily run` | se leen siempre; 1 mensaje (ADR 0005) |
+| reportes diarios | `reporte-uso-hermes`, `resumen-noticias-diario`, `resumen-rayados-diario`, `resumen-tigres-diario`, `titans-daily`, `job-scout daily run` | se leen siempre; 1 mensaje (ADR 0005) |
 | avisos de ventana | `aviso-peak-19h`, `aviso-peak-00h`, `aviso-offpeak-22h`, `aviso-offpeak-04h` | 1 mensaje corto al DM, 5 min antes o al cierre de la ventana |
 | mantenimiento | `cleanup-housekeeping`, `Hermes weekly update + backup` | resumen de 1 mensaje; el semanal es el único job en modo `agent` |
 

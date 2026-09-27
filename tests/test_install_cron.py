@@ -733,7 +733,7 @@ class TestQuiet:
     def test_manifiesto_real_trae_cron_drift_check(self, tmp_path):
         manifest = mf.load_manifest(REPO / mf.MANIFEST_DEFAULT)
         jobs = mf.parse_jobs(manifest)
-        assert len(jobs) == 21
+        assert len(jobs) == 22
         found = [job for job in jobs if job.name == "cron-drift-check"]
         assert len(found) == 1
         job = found[0]
