@@ -316,9 +316,11 @@ PATH="$PWD/.venv/bin:$PATH" git commit -m "..."
 PATH="$PWD/.venv/bin:$PATH" git push -u origin <rama>
 ```
 
-`bin/gh-issue` deriva el slug del título con `tr -cs 'a-z0-9' '-'`, así que los acentos se
-vuelven guiones (`automático` → `autom-tico`). Renombrar antes del push:
-`git branch -m <tipo>/N-slug-limpio`.
+El slug de rama y de worktree lo decide una sola regla, `bin/slug.sh` (`slug()`, la sourcean
+`bin/bump-and-pr.sh` y `bin/gh-issue`): minúsculas, no-alfanumérico → `-` y tope de 40 chars
+cortado en frontera de palabra. Los acentos se vuelven guiones (`automático` → `autom-tico`),
+así que la rama se llama como el slug, no como el título. Si aun así quieres otro nombre,
+`git branch -m <tipo>/N-slug-limpio` antes del push.
 
 ## Pitfall: nuevo repo recién creado no acepta PR del primer commit
 

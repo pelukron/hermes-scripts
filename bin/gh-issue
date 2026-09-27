@@ -12,6 +12,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$REPO_ROOT"
 
+# Nombre de rama/worktree: una sola regla, compartida con bin/bump-and-pr.sh (#344).
+# shellcheck source=bin/slug.sh
+. "$SCRIPT_DIR/slug.sh"
+
 OWNER="pelukron"
 REPO="hermes-scripts"
 
@@ -44,7 +48,7 @@ if ! echo "$VALID_TYPES" | grep -qw "$TYPE"; then
 fi
 
 # Derive branch name
-SLUG=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//')
+SLUG="$(slug "$TITLE")"
 BRANCH="${TYPE}/${SLUG}"
 
 # Confirm
