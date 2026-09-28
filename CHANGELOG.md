@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.25.1 (2026-09-28)
+
+### 📝 Docs
+
+- La skill project-manager declara el checklist en la descripcion y poda el texto
+  ([`0c8e076`](https://github.com/pelukron/hermes-scripts/commit/0c8e0765a6ad2a78b1843e04d37eedfeebc25277))
+
+- Skill project-manager con el checklist de calidad del backlog (#367)
+  ([#376](https://github.com/pelukron/hermes-scripts/pull/376),
+  [`5e2d3f7`](https://github.com/pelukron/hermes-scripts/commit/5e2d3f7e534723a68f7e7dd9cda16c95bf6b25db))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d827fbe`](https://github.com/pelukron/hermes-scripts/commit/d827fbed82ee268d1b9a268cbdcb17afb700dd72))
+
+
 ## v0.25.0 (2026-09-28)
 
 ### ✨ Features
