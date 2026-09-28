@@ -303,3 +303,173 @@ class TestEdicionDelFeed:
                 "Tigres", "confirmadas", ["tigres.com.mx"], [], ["rumor"], EDICION_MX
             )
         assert capturado["url"].endswith("&hl=es-419&gl=MX&ceid=MX:es-419")
+
+
+# dedupe por historia (#386)
+
+
+def _nota(titulo: str, *, fuente: str = "Medio", oficial=False, confiable=False) -> NewsItem:
+    return NewsItem(
+        title=titulo,
+        link=f"https://ejemplo.com/{abs(hash(titulo))}",
+        source=fuente,
+        oficial=oficial,
+        confiable=confiable,
+        origin="gn",
+        category="confirmadas",
+    )
+
+
+class TestStoryTokens:
+    def test_quita_relleno_y_palabras_cortas(self):
+        assert news_utils.story_tokens("What we learned from the NFL news of the Titans") == {
+            "learned",
+            "titans",
+        }
+
+    def test_titulo_vacio(self):
+        assert news_utils.story_tokens("") == set()
+
+
+class TestStorySimilar:
+    def test_el_mismo_partido_contado_por_dos_medios(self):
+        a = news_utils.story_tokens(
+            "What we learned from Tennessee Titans' 12-7 loss to New York Giants"
+        )
+        b = news_utils.story_tokens("What we learned from New York Giants' 12-7 win over Titans")
+        assert news_utils.story_similar(a, b)
+
+    def test_dos_noticias_distintas_del_mismo_equipo(self):
+        a = news_utils.story_tokens(
+            "Titans face offensive line injury concerns heading into Week 4"
+        )
+        b = news_utils.story_tokens("Titans open as 11-point underdogs vs. Ravens in Week 4")
+        assert not news_utils.story_similar(a, b)
+
+    def test_sin_palabras_no_hay_historia(self):
+        assert not news_utils.story_similar(set(), set())
+
+
+class TestDedupeByStory:
+    def test_colapsa_el_partido_cubierto_por_tres_medios(self):
+        items = [
+            _nota("What we learned from Tennessee Titans' 12-7 loss to New York Giants"),
+            _nota("🎥 Highlights: New York Giants 12, Tennessee Titans 7"),
+            _nota("What we learned from New York Giants' 12-7 win over Tennessee Titans"),
+        ]
+        assert len(news_utils.dedupe_by_story(items)) == 1
+
+    def test_deja_en_pie_el_mismo_partido_contado_desde_otro_angulo(self):
+        """Medido en #386: el análisis del ataque no es la misma nota que el resumen.
+
+        Con cifras en las palabras (medido hoy) este ángulo se queda: fusionarlo
+        era perder información, que es justo lo que el operador reportó.
+        """
+        items = [
+            _nota("What we learned from Tennessee Titans' 12-7 loss to New York Giants"),
+            _nota("What we learned from New York Giants' 12-7 win over Tennessee Titans"),
+            _nota("Tennessee Titans' offense stalls in loss to New York Giants in Week 3"),
+        ]
+        assert len(news_utils.dedupe_by_story(items)) == 2
+
+    def test_no_se_traga_el_angulo_distinto(self):
+        """Medido en #386: a 0.45-0.50 este ángulo se lo comía el grupo del partido."""
+        items = [
+            _nota("What we learned from Tennessee Titans' 12-7 loss to New York Giants"),
+            _nota("What we learned from New York Giants' 12-7 win over Tennessee Titans"),
+            _nota("Tennessee Titans QB Cam Ward talks about late INT vs. New York Giants"),
+        ]
+        quedan = news_utils.dedupe_by_story(items)
+        assert len(quedan) == 2
+        assert any("late INT" in i.title for i in quedan)
+
+    def test_conserva_la_fuente_de_mejor_rango(self):
+        """El medio confiable le gana al desconocido, aunque llegue después."""
+        items = [
+            _nota("NY Giants beat Tennessee Titans 12-7 -- but lose Brian Burns to knee injury"),
+            _nota(
+                "Giants hold on to beat the Titans 12-7 but lose Brian Burns to a knee injury",
+                fuente="ABC News",
+                confiable=True,
+            ),
+        ]
+        quedan = news_utils.dedupe_by_story(items)
+        assert len(quedan) == 1
+        assert quedan[0].source == "ABC News"
+
+    def test_lo_oficial_le_gana_al_medio_confiable(self):
+        items = [
+            _nota("Jeffery Simmons Press Conference Titans", confiable=True),
+            _nota("Jeffery Simmons Press Conference Titans", oficial=True, fuente="Titans"),
+        ]
+        quedan = news_utils.dedupe_by_story(items)
+        assert len(quedan) == 1
+        assert quedan[0].source == "Titans"
+
+    def test_respeta_el_orden_de_la_primera_aparicion(self):
+        items = [
+            _nota("Titans open as 11-point underdogs vs. Ravens in Week 4"),
+            _nota("What we learned from Tennessee Titans' 12-7 loss to New York Giants"),
+            _nota("What we learned from New York Giants' 12-7 win over Titans"),
+            _nota("Titans stock report after Week 3 loss"),
+        ]
+        quedan = news_utils.dedupe_by_story(items)
+        assert quedan[0].title.startswith("Titans open as")
+        assert len(quedan) == 3
+
+    def test_los_titulares_sin_palabras_significativas_no_se_juntan(self):
+        items = [_nota("12-7"), _nota("3-2"), _nota("NFL 24")]
+        assert len(news_utils.dedupe_by_story(items)) == 3
+
+    def test_lista_vacia(self):
+        assert news_utils.dedupe_by_story([]) == []
+
+
+# feeds RSS directos (#386)
+
+
+class TestFetchRssFeed:
+    def test_items_con_su_fuente_y_su_categoria(self):
+        entradas = [
+            {
+                "title": "Dolphins RB De'Von Achane out for season",
+                "link": "https://www.cbssports.com/nfl/news/achane",
+                "published_parsed": None,
+            }
+        ]
+        with patch("feedparser.parse", return_value=Mock(entries=entradas)):
+            items = news_utils.fetch_rss_feed(
+                "https://www.cbssports.com/rss/headlines/nfl/",
+                "CBS Sports",
+                "liga",
+                [],
+                ["cbssports.com"],
+                ["rumor"],
+            )
+        assert len(items) == 1
+        assert items[0].source == "CBS Sports"
+        assert items[0].origin == "rss:CBS Sports"
+        assert items[0].category == "liga"
+        assert items[0].confiable is True
+        assert items[0].link == "https://www.cbssports.com/nfl/news/achane"
+
+    def test_sin_titulo_o_sin_enlace_se_descarta(self):
+        entradas = [{"title": "", "link": "https://x/1"}, {"title": "Sin enlace", "link": ""}]
+        with patch("feedparser.parse", return_value=Mock(entries=entradas)):
+            assert news_utils.fetch_rss_feed("https://x", "FOX", "liga", [], [], []) == []
+
+    def test_un_feed_caido_no_tumba_el_reporte(self):
+        with patch("feedparser.parse", side_effect=RuntimeError("boom")):
+            items = news_utils.fetch_rss_feed("https://x", "FOX Sports", "liga", [], [], [])
+        assert len(items) == 1
+        assert items[0].title.startswith("[Error feed FOX Sports (liga)")
+        assert items[0].category == "liga"
+
+    def test_el_tope_de_items_es_configurable(self):
+        entradas = [
+            {"title": f"Asunto {i}", "link": f"https://x/{i}", "published_parsed": None}
+            for i in range(30)
+        ]
+        with patch("feedparser.parse", return_value=Mock(entries=entradas)):
+            items = news_utils.fetch_rss_feed("https://x", "FOX", "liga", [], [], [], limit=5)
+        assert len(items) == 5

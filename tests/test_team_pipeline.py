@@ -1,5 +1,6 @@
 """Seam de TeamPipeline: un ensamble, dos configs, y un guard contra la deriva."""
 
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -298,3 +299,376 @@ def test_los_vivos_no_declaran_extra_section():
 
     assert RAYADOS.extra_section is None
     assert TIGRES.extra_section is None
+
+
+# dedupe por historia en el ensamble (#386): opt-in, Rayados y Tigres intactos
+
+
+def _misma_historia(n: int) -> list[NewsItem]:
+    """n medios contando el mismo partido, con titulares distintos entre sí."""
+    titulares = [
+        "What we learned from Tennessee Titans' 12-7 loss to New York Giants",
+        "🎥 Highlights: New York Giants 12, Tennessee Titans 7",
+        "What we learned from New York Giants' 12-7 win over Tennessee Titans",
+    ]
+    return [
+        NewsItem(
+            title=titulares[i % len(titulares)],
+            link=f"https://ejemplo.com/partido-{i}",
+            source=f"Medio-{i}",
+            confiable=True,
+            origin="gn",
+            category="confirmadas",
+        )
+        for i in range(n)
+    ]
+
+
+def _renglones(bloque: str) -> list[str]:
+    return [line for line in bloque.splitlines() if line.startswith("- ")]
+
+
+def test_sin_la_bandera_la_repeticion_sigue_igual(tmp_path):
+    """Rayados y Tigres no declaran `dedupe_story`: su salida no cambia (#386)."""
+    assert _config().dedupe_story is False
+    blocks = _report(_config(history_name="sin-historia.json"), _misma_historia(3), tmp_path)
+    assert len(_renglones(_confirmado(blocks))) == 3
+
+
+def test_con_la_bandera_la_misma_historia_sale_una_vez(tmp_path):
+    blocks = _report(
+        _config(history_name="con-historia.json", dedupe_story=True),
+        _misma_historia(4),
+        tmp_path,
+    )
+    renglones = _renglones(_confirmado(blocks))
+    assert len(renglones) == 1
+    assert "12-7" in renglones[0]
+
+
+def test_la_bandera_no_junta_noticias_distintas(tmp_path):
+    distintas = [
+        NewsItem(
+            title="Titans face offensive line injury concerns heading into Week 4",
+            link="https://ejemplo.com/a",
+            source="Medio",
+            confiable=True,
+            origin="gn",
+            category="confirmadas",
+        ),
+        NewsItem(
+            title="Titans open as 11-point underdogs vs. Ravens in Week 4",
+            link="https://ejemplo.com/b",
+            source="Medio",
+            confiable=True,
+            origin="gn",
+            category="confirmadas",
+        ),
+    ]
+    blocks = _report(_config(history_name="distintas.json", dedupe_story=True), distintas, tmp_path)
+    assert len(_renglones(_confirmado(blocks))) == 2
+
+
+def test_el_canal_de_los_titans_declara_la_bandera():
+    from scripts.titans_daily import CONFIG as TITANS
+
+    assert TITANS.dedupe_story is True
+    from scripts.resumen_rayados_diario import CONFIG as RAYADOS
+    from scripts.resumen_tigres_diario import CONFIG as TIGRES
+
+    assert RAYADOS.dedupe_story is False
+    assert TIGRES.dedupe_story is False
+
+
+# sección única del equipo con etiqueta por línea (#386)
+
+
+def _report_dos_listas(
+    config: TeamConfig,
+    confirmadas: list[NewsItem],
+    rumores: list[NewsItem],
+    tmp_path: Path,
+) -> list[str]:
+    def fetch_google(query: str, category: str) -> list[NewsItem]:
+        return rumores if category == "rumores" else confirmadas
+
+    return build_report(
+        config,
+        history_path=str(tmp_path / config.history_name),
+        fetch_google_news=fetch_google,
+        fetch_official=list,
+        enrich_official=lambda found: found,
+    )
+
+
+def _item(titulo: str, *, oficial=False, confiable=False, categoria="confirmadas") -> NewsItem:
+    return NewsItem(
+        title=titulo,
+        link=f"https://ejemplo.com/{titulo[:20].replace(' ', '-')}",
+        source="Medio",
+        oficial=oficial,
+        confiable=confiable,
+        origin="gn",
+        category=categoria,
+    )
+
+
+def _seccion_equipo(blocks: list[str]) -> str:
+    return next(b for b in blocks if "EL EQUIPO" in b or "TENNESSEE TITANS" in b)
+
+
+def test_sin_la_bandera_siguen_los_dos_bloques(tmp_path):
+    assert _config().single_section is False
+    blocks = _report(_config(history_name="dos-bloques.json"), _notas(2), tmp_path)
+    assert len(blocks) == 3
+    assert "CONFIRMADO" in blocks[1] and "RUMORES" in blocks[2]
+
+
+def test_con_la_bandera_sale_una_seccion_con_etiqueta_por_linea(tmp_path):
+    blocks = _report_dos_listas(
+        _config(history_name="una-seccion.json", single_section=True),
+        [
+            _item("Firma oficial del pateador Titán", oficial=True),
+            _item("Reporte del partido del domingo Titán", confiable=True),
+        ],
+        [_item("Rumor de cambio por el receptor Titán", categoria="rumores")],
+        tmp_path,
+    )
+    assert len(blocks) == 2
+    seccion = _seccion_equipo(blocks)
+    assert seccion.splitlines()[0].startswith("**🏈 EL EQUIPO** (3)")
+    renglones = _renglones(seccion)
+    assert len(renglones) == 3
+    assert renglones[0].startswith("- 🎽 ")
+    assert renglones[1].startswith("- ✓ ")
+    assert renglones[2].startswith("- 📰 ")
+    assert "CONFIRMADO" not in seccion and "RUMORES" not in seccion
+
+
+def test_la_seccion_unica_anuncia_el_recorte(tmp_path):
+    """Con techo de items, el contador dice cuántas historias quedaron fuera."""
+    blocks = _report_dos_listas(
+        _config(history_name="recorte-unico.json", single_section=True, announce_overflow=True),
+        [_item(f"Asunto-{i:04d} relleno que no colapsa") for i in range(12)],
+        [],
+        tmp_path,
+    )
+    assert _seccion_equipo(blocks).splitlines()[0].startswith("**🏈 EL EQUIPO** (8 de 12)")
+
+
+def test_la_seccion_unica_convive_con_la_liga(tmp_path):
+    blocks = _report_dos_listas(
+        _config_liga(history_name="unica-con-liga.json", single_section=True),
+        [_item("Nota del equipo Titán sin repetir")],
+        [],
+        tmp_path,
+    )
+    assert len(blocks) == 3
+    assert blocks[1].splitlines()[0].startswith("**🏈 LIGA**")
+    assert "EL EQUIPO" in blocks[2]
+
+
+def test_el_canal_de_los_titans_declara_la_seccion_unica():
+    from scripts.resumen_rayados_diario import CONFIG as RAYADOS
+    from scripts.resumen_tigres_diario import CONFIG as TIGRES
+    from scripts.titans_daily import CONFIG as TITANS
+
+    assert TITANS.single_section is True
+    assert "TENNESSEE TITANS" in TITANS.team_section_title
+    assert RAYADOS.single_section is False
+    assert TIGRES.single_section is False
+
+
+def test_los_rumores_no_desaparecen_cuando_la_seccion_se_llena(tmp_path):
+    """Sin reserva, ocho confirmadas dejaban la etiqueta 📰 invisible para siempre."""
+    confirmadas = [_item(f"Asunto-{i:04d}-abc relleno que no colapsa") for i in range(12)]
+    rumores = [
+        _item(f"Rumor-{i:04d}-xyz relleno distinto que no colapsa", categoria="rumores")
+        for i in range(3)
+    ]
+    seccion = _seccion_equipo(
+        _report_dos_listas(
+            _config(history_name="reserva.json", single_section=True, announce_overflow=True),
+            confirmadas,
+            rumores,
+            tmp_path,
+        )
+    )
+    renglones = _renglones(seccion)
+    assert len(renglones) == 8, "el techo sigue siendo 8"
+    assert renglones[-1].startswith("- 📰 "), "el rumor del final conserva su hueco"
+    assert sum(1 for line in renglones if line.startswith("- 📰 ")) == 2, "un tercio del techo"
+    assert seccion.splitlines()[0].startswith("**🏈 EL EQUIPO** (8 de 15)")
+
+
+# la jornada por feeds directos y el techo por presupuesto (#386)
+
+
+def _report_jornada(
+    config: TeamConfig,
+    equipo: list[NewsItem],
+    jornada: list[NewsItem],
+    tmp_path: Path,
+) -> list[str]:
+    def fetch_google(query: str, category: str) -> list[NewsItem]:
+        return equipo if category == "confirmadas" else []
+
+    def fetch_rss(url: str, source: str, category: str) -> list[NewsItem]:
+        return [i for i in jornada if i.category == category]
+
+    return build_report(
+        config,
+        history_path=str(tmp_path / config.history_name),
+        fetch_google_news=fetch_google,
+        fetch_official=list,
+        enrich_official=lambda found: found,
+        fetch_rss=fetch_rss,
+    )
+
+
+def _config_jornada(**overrides) -> TeamConfig:
+    return _config(
+        extra_section=ExtraSection(
+            titulo="**🏈 JORNADA** ({count})",
+            categoria="liga",
+            feeds=(("FOX Sports", "https://fox.example/rss"),),
+        ),
+        **overrides,
+    )
+
+
+def _notas_jornada(n: int) -> list[NewsItem]:
+    return [
+        NewsItem(
+            title=f"Jornada-{i:04d} resultado que no colapsa",
+            link=f"https://fox.example/nfl/{i}",
+            source="FOX Sports",
+            confiable=True,
+            origin="rss:FOX Sports",
+            category="liga",
+        )
+        for i in range(n)
+    ]
+
+
+def test_la_jornada_sale_de_los_feeds_directos(tmp_path):
+    blocks = _report_jornada(
+        _config_jornada(history_name="jornada-feeds.json"),
+        _notas(1),
+        _notas_jornada(3),
+        tmp_path,
+    )
+    jornada = next(b for b in blocks if "JORNADA" in b)
+    assert jornada.splitlines()[0].startswith("**🏈 JORNADA** (3)")
+    assert "FOX Sports" in jornada
+    assert all(line.startswith("- ") for line in jornada.splitlines()[2:])
+
+
+def test_sin_feeds_ni_query_la_seccion_sale_vacia(tmp_path):
+    """Sin fuentes declaradas no hay items: el bloque avisa, no inventa."""
+    blocks = _report_jornada(
+        _config_jornada(history_name="jornada-vacia.json").__class__(
+            **{
+                **{
+                    k: getattr(_config_jornada(), k) for k in _config_jornada().__dataclass_fields__
+                },
+                "extra_section": ExtraSection(titulo="**🏈 JORNADA** ({count})"),
+                "history_name": "jornada-vacia.json",
+            }
+        ),
+        _notas(1),
+        _notas_jornada(3),
+        tmp_path,
+    )
+    jornada = next(b for b in blocks if "JORNADA" in b)
+    assert "Sin novedades de la liga" in jornada
+
+
+def test_sin_techo_el_bloque_llena_el_presupuesto(tmp_path):
+    """max_items=None (#386): el techo lo pone el presupuesto del mensaje."""
+    notas = [_item(f"Asunto-{i:04d}-abc relleno corto") for i in range(20)]
+    blocks = _report(
+        _config(history_name="presupuesto.json", max_items=None, announce_overflow=True),
+        notas,
+        tmp_path,
+    )
+    seccion = _confirmado(blocks)
+    renglones = _renglones(seccion)
+    assert len(renglones) > 8, "con techo fijo salían 8"
+    assert len(seccion) <= 3000, "el bloque se pasa del presupuesto del mensaje"
+    assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (20)")
+
+
+def test_con_techo_declarado_el_recorte_no_cambia(tmp_path):
+    """Rayados y Tigres declaran 8: su recorte y su contador siguen igual."""
+    blocks = _report(
+        _config(history_name="techo-fijo.json", max_items=8, announce_overflow=True),
+        [_item(f"Asunto-{i:04d}-abc relleno que no colapsa") for i in range(20)],
+        tmp_path,
+    )
+    seccion = _confirmado(blocks)
+    assert len(_renglones(seccion)) == 8
+    assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (8 de 20)")
+
+
+# el filtro de titulares que el equipo no quiere ver (#386)
+
+
+def test_sin_palabras_excluidas_todo_sale_igual(tmp_path):
+    """Opt-in: sin `exclude_keywords` un titular de cuotas sale como siempre."""
+    notas = [_item("NFL MVP odds: el favorito del ano"), _item("Titans firman a un linebacker")]
+    blocks = _report(_config(history_name="sin-filtro.json"), notas, tmp_path)
+    seccion = _confirmado(blocks)
+    assert "odds" in seccion
+    assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (2)")
+
+
+def test_las_palabras_excluidas_se_caen_del_reporte(tmp_path):
+    notas = [
+        _item("NFL Week 4 early odds: Chiefs road favorites"),
+        _item("Use DraftKings promo code to get $150 in bonus bets"),
+        _item("Giants star pass rusher tore his ACL against Titans"),
+    ]
+    blocks = _report(
+        _config(history_name="con-filtro.json", exclude_keywords=["odds", "bets"]), notas, tmp_path
+    )
+    seccion = _confirmado(blocks)
+    assert "early odds" not in seccion, "la cuota se cae"
+    assert "bonus bets" not in seccion, "el promo de apuestas se cae"
+    assert "tore his ACL" in seccion, "la noticia de verdad se queda"
+    assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (1)")
+
+
+def test_el_filtro_no_marca_los_items_como_vistos(tmp_path):
+    """Lo descartado no es "visto": es ruido, y mañana se vuelve a medir igual."""
+    notas = [_item("NFL MVP odds: el favorito del ano"), _item("Titans firman a un linebacker")]
+    _report(
+        _config(history_name="filtro-historial.json", exclude_keywords=["odds"]),
+        notas,
+        tmp_path,
+    )
+    # El historial guarda URLs, no títulos.
+    guardado = json.loads((tmp_path / "filtro-historial.json").read_text(encoding="utf-8"))
+    assert any("Titans-firman" in url for url in guardado), "la noticia sí se marca vista"
+    assert not any("odds" in url.lower() for url in guardado), "el ruido no entra al historial"
+
+
+def test_el_bloque_nunca_pasa_del_presupuesto(tmp_path):
+    """El presupuesto es de la sección montada, no de la estimación.
+
+    Con un límite muy justo la cabecera, el subtítulo y los emojis se llevan
+    caracteres que la aritmética no ve; el bloque se suelta titulares hasta
+    caber.
+    """
+    config = _config(
+        history_name="presupuesto-exacto.json",
+        max_items=None,
+        announce_overflow=True,
+        telegram_max_chars=400,
+    )
+    notas = [_item(f"Asunto-{i:04d}-abc relleno que no colapsa") for i in range(10)]
+    blocks = _report(config, notas, tmp_path)
+    seccion = _confirmado(blocks)
+    assert len(seccion) <= 400, f"la sección se pasa: {len(seccion)}c"
+    assert len(_renglones(seccion)) >= 1, "alguna línea tiene que salir"
+    assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (")

@@ -79,6 +79,7 @@ RUMOR_KEYWORDS: list[str] = [
 ]
 
 GoogleFetch = Callable[[str, str], list]
+RssFetch = Callable[..., list]
 OfficialFetch = Callable[[], list]
 Enrich = Callable[[list], list]
 Request = Callable[..., Any]
@@ -91,11 +92,17 @@ class ExtraSection:
     El `titulo` lleva `{count}` (lo rellena `_section`); la `query` abre con
     frase citada, igual que `queries` (AND y paréntesis dejan el feed en 0);
     la `categoria` etiqueta los NewsItem para el fetch.
+
+    `feeds` son feeds RSS propios — `(nombre, url)` — para las fuentes que no
+    pasan por Google News: sus enlaces son tres veces más cortos, así que caben
+    tres veces más titulares por mensaje (#386). La sección puede venir de
+    `feeds`, de `query` o de las dos cosas; sin ninguna de las dos no hay items.
     """
 
     titulo: str
-    query: str
+    query: str = ""
     categoria: str = "confirmadas"
+    feeds: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -110,10 +117,26 @@ class TeamConfig:
     prefilter_official: bool
     announce_overflow: bool
     edition: dict[str, str]
-    max_items: int = 8
+    # Techo de líneas por sección. `None` = lo fija el presupuesto del mensaje
+    # (`telegram_max_chars`), que es lo que pide #386 para el canal: más
+    # titulares por mensaje sin romper el contrato de 1 mensaje = 1 trozo.
+    max_items: Optional[int] = 8
+    # Colapsa la misma historia contada por varios medios (#386). Opt-in: sin
+    # declararla, el reporte sale igual que siempre (Rayados y Tigres).
+    dedupe_story: bool = False
+    # Una sola sección del equipo con etiqueta por línea (🎽/✓/📰) en vez de los
+    # bloques CONFIRMADO + RUMORES (#386). Opt-in; `team_section_title` lleva
+    # `{count}` igual que el título de `extra_section`.
+    single_section: bool = False
+    team_section_title: str = "**🏈 EL EQUIPO** ({count})"
     telegram_max_chars: int = TELEGRAM_MAX_CHARS
     sitios_confiables: list[str] = field(default_factory=lambda: list(SITIOS_CONFIABLES))
     rumor_keywords: list[str] = field(default_factory=lambda: list(RUMOR_KEYWORDS))
+    # Titulares que el equipo no quiere ver, por palabra en el título (#386).
+    # En los feeds directos el medio publica la previa y la cuota a la vez, así
+    # que se cae la línea, no la fuente. Opt-in y vacío por defecto: Rayados y
+    # Tigres no cambian.
+    exclude_keywords: list[str] = field(default_factory=list)
     extra_section: Optional[ExtraSection] = None
 
 
@@ -301,12 +324,35 @@ def _google_items(config: TeamConfig, fetch_google_news: GoogleFetch) -> list:
     return filter_by_max_age(confirmadas + rumores)
 
 
-def _extra_items(config: TeamConfig, fetch_google_news: GoogleFetch) -> list:
-    """Los items de la sección de liga. Vacío si el equipo no la declara."""
+def _sin_ruido(items: list, config: TeamConfig) -> list:
+    """Descarta los titulares que el equipo no quiere ver (apuestas, sobre todo).
+
+    Filtra por título, no por fuente: el medio que publica la previa publica
+    también la cuota, y lo que se cae es la línea. Se aplica antes del historial
+    porque estos items no son "vistos": son ruido que no se va a mostrar nunca.
+    """
+    if not config.exclude_keywords:
+        return items
+    patron = re.compile("|".join(re.escape(k) for k in config.exclude_keywords), re.IGNORECASE)
+    return [i for i in items if not patron.search(i.title)]
+
+
+def _extra_items(config: TeamConfig, fetch_google_news: GoogleFetch, fetch_rss: RssFetch) -> list:
+    """Los items de la sección de liga. Vacío si el equipo no la declara.
+
+    Las fuentes directas van primero: son las que traen las novedades de la
+    jornada con enlaces cortos, y `_section` llena el bloque en orden.
+    """
     if config.extra_section is None:
         return []
-    items = fetch_google_news(config.extra_section.query, config.extra_section.categoria)
-    time.sleep(1)
+    seccion = config.extra_section
+    items: list = []
+    for nombre, url in seccion.feeds:
+        items += fetch_rss(url, nombre, seccion.categoria)
+        time.sleep(1)
+    if seccion.query:
+        items += fetch_google_news(seccion.query, seccion.categoria)
+        time.sleep(1)
     return filter_by_max_age(items)
 
 
@@ -359,6 +405,95 @@ def _tag_rumor(item: news_utils.NewsItem) -> str:
     return "📰"
 
 
+def _tag_equipo(item: news_utils.NewsItem) -> str:
+    """Etiqueta por línea de la sección única: oficial, confirmado o rumor.
+
+    Usa los mismos criterios que `news_utils.classify` para mandar un item a
+    rumores (categoría de la consulta o título que huele a rumor): si divergen,
+    la etiqueta diría una cosa y la lista otra.
+    """
+    if item.oficial:
+        return "🎽"
+    if item.category == "rumores" or item.rumor:
+        return "📰"
+    return "✓"
+
+
+def _linea(item: news_utils.NewsItem, tag_for: Callable[[news_utils.NewsItem], str]) -> str:
+    return news_utils.format_item_line(tag_for(item), item, item.link)
+
+
+def _primeros_que_caben(
+    items: list, tag_for: Callable[[news_utils.NewsItem], str], presupuesto: int
+) -> list:
+    """Prefijo de items cuyas líneas caben en el presupuesto de caracteres."""
+    mostrados: list = []
+    usado = 0
+    for item in items:
+        largo = len(_linea(item, tag_for)) + 1
+        if usado + largo > presupuesto:
+            break
+        mostrados.append(item)
+        usado += largo
+    return mostrados
+
+
+def _showed(
+    items: list,
+    tag_for: Callable[[news_utils.NewsItem], str],
+    config: TeamConfig,
+    limite: int,
+    reserve: int = 0,
+) -> list:
+    """Las líneas que salen en la sección.
+
+    Con `max_items` declarado manda ese techo; con `max_items=None` manda el
+    presupuesto del mensaje, que es lo que el canal de los Titans pide: más
+    titulares por mensaje sin romper el 1 mensaje = 1 trozo (ADR 0005).
+
+    `reserve` (los rumores del final de la lista) se queda con hasta un tercio
+    de las líneas: sin ese hueco, un bloque lleno de confirmadas dejaba la
+    etiqueta 📰 invisible para siempre.
+    """
+    if config.max_items is not None:
+        techo = config.max_items
+        cola = min(reserve, techo // 3) if reserve else 0
+        if cola and len(items) > techo:
+            return items[: techo - cola] + items[-cola:]
+        return items[:techo]
+    mostrados = _primeros_que_caben(items, tag_for, limite)
+    if not reserve or len(mostrados) >= len(items):
+        return mostrados
+    cola = min(reserve, len(mostrados) // 3)
+    if not cola:
+        return mostrados
+    reservados = items[-cola:]
+    hueco = sum(len(_linea(i, tag_for)) + 1 for i in reservados)
+    cabeza = items[: len(items) - cola]
+    return _primeros_que_caben(cabeza, tag_for, max(limite - hueco, 0)) + reservados
+
+
+def _bloque(
+    heading: str,
+    subtitle: str,
+    items: list,
+    shown: list,
+    tag_for: Callable[[news_utils.NewsItem], str],
+    config: TeamConfig,
+    empty: str = "",
+) -> str:
+    """Bloque de Telegram de una sección con las líneas ya decididas."""
+    lines = [
+        heading.format(count=_count_label(items, shown, config.announce_overflow)),
+        subtitle,
+    ]
+    if not shown:
+        lines.append(empty)
+    else:
+        lines += [news_utils.format_item_line(tag_for(i), i, i.link) for i in shown]
+    return "\n".join(lines)
+
+
 def _section(
     heading: str,
     subtitle: str,
@@ -366,18 +501,23 @@ def _section(
     tag_for: Callable[[news_utils.NewsItem], str],
     empty: str,
     config: TeamConfig,
+    reserve: int = 0,
 ) -> str:
-    shown = items[: config.max_items]
-    lines = [
-        heading.format(count=_count_label(items, shown, config.announce_overflow)),
-        subtitle,
-    ]
-    if not shown:
-        lines.append(empty)
-        return "\n".join(lines)
-    for item in shown:
-        lines.append(news_utils.format_item_line(tag_for(item), item, item.link))
-    return "\n".join(lines)
+    """Bloque de Telegram de una sección.
+
+    El presupuesto se estima descontando cabecera y subtítulo (con el contador
+    más largo posible), y después se comprueba sobre el bloque ya montado:
+    estimar por aritmética se queda corto con emojis y con el contador real, y
+    el presupuesto del mensaje es una regla de entrega, no una sugerencia.
+    """
+    cabecera = heading.format(count=_count_label(items, items, config.announce_overflow))
+    limite = config.telegram_max_chars - len(cabecera) - len(subtitle) - 2
+    shown = _showed(items, tag_for, config, limite, reserve)
+    bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
+    while len(bloque) > config.telegram_max_chars and len(shown) > 1:
+        shown = shown[:-1]
+        bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
+    return bloque
 
 
 def _render(
@@ -419,6 +559,22 @@ def _render(
         for i in news_utils.dedupe_by_title(rumores)
         if news_utils.canonical_title(i.title) not in vistos
     ]
+    if config.single_section:
+        # Una sola sección del equipo (#386): las confirmadas primero y los
+        # rumores al final, cada línea con su etiqueta. Sale un bloque en vez de
+        # dos, así que el presupuesto del mensaje se gasta en contenido.
+        bloques.append(
+            _section(
+                config.team_section_title,
+                "*🎽 oficial · ✓ confirmado · 📰 rumor*",
+                confirmadas + rumores,
+                _tag_equipo,
+                "*No se encontraron noticias del equipo en las últimas 48h.*\n",
+                config,
+                reserve=len(rumores),
+            )
+        )
+        return bloques
     bloques.append(
         _section(
             "**✅ CONFIRMADO** ({count})",
@@ -449,6 +605,7 @@ def build_report(
     fetch_google_news: GoogleFetch,
     fetch_official: OfficialFetch,
     enrich_official: Enrich,
+    fetch_rss: RssFetch = news_utils.fetch_rss_feed,
 ) -> list[str]:
     """Ensambla los bloques de Telegram para un equipo.
 
@@ -457,10 +614,15 @@ def build_report(
     parte a su bloque propio antes del render: el dedupe por título corre sobre
     los tres juntos y nada sale repetido entre liga y equipo.
     """
-    google = _google_items(config, fetch_google_news)
-    official = _official_items(config, fetch_official, enrich_official)
-    extra = _extra_items(config, fetch_google_news)
+    google = _sin_ruido(_google_items(config, fetch_google_news), config)
+    official = _sin_ruido(_official_items(config, fetch_official, enrich_official), config)
+    extra = _sin_ruido(_extra_items(config, fetch_google_news, fetch_rss), config)
     kept = _without_history(history_path, google + official + extra)
+    # El dedupe va después del historial a propósito: así los duplicados que
+    # descarta ya quedaron marcados como vistos y no vuelven mañana a pelearse
+    # el mismo hueco (#386).
+    if config.dedupe_story:
+        kept = news_utils.dedupe_by_story(kept)
     confirmadas, rumores = news_utils.classify(
         kept, config.sitios_oficiales, config.sitios_confiables
     )
@@ -546,6 +708,16 @@ def expose(
             config.edition,
         )
 
+    def fetch_rss(url: str, source: str, category: str) -> list:
+        return news_utils.fetch_rss_feed(
+            url,
+            source,
+            category,
+            config.sitios_oficiales,
+            config.sitios_confiables,
+            config.rumor_keywords,
+        )
+
     def fetch_official() -> list:
         return official_impl(ns["retry_request"])
 
@@ -568,6 +740,7 @@ def expose(
             fetch_google_news=ns["fetch_google_news"],
             fetch_official=ns[official_name],
             enrich_official=ns[enrich_name],
+            fetch_rss=ns["fetch_rss"],
         )
 
     ns["is_oficial"] = is_oficial
@@ -575,6 +748,7 @@ def expose(
     ns["is_confiable"] = is_confiable
     ns["smells_like_rumor"] = smells_like_rumor
     ns["fetch_google_news"] = fetch_google_news
+    ns["fetch_rss"] = fetch_rss
     ns[official_name] = fetch_official
     ns[detail_name] = fetch_one
     ns[enrich_name] = enrich
