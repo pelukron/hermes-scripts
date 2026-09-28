@@ -1,7 +1,7 @@
 ---
 name: project-manager
 description: "Use when crear o editar un issue, abrir un PR o auditar el backlog: checklist de calidad medido (DoD, priority/size, un issue = un PR, aristas y labels de bloqueo, codificación, avance del epic, intake)."
-version: 1.1.0
+version: 1.1.1
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
@@ -109,37 +109,48 @@ desbloqueó (el `Closes #N` del PR o el sha del merge).
 
 ### 6. El cuerpo no está corrupto
 
-Medido el 2026-09-27: #281 tiene **67** secuencias de codificación rota y es la fuente de verdad de un epic cuyo
-tema es justamente el dialecto de entrega. Ningún gate lo ve: el texto se lee entero y las secuencias pasan por
-contenido.
+Medido el 2026-09-27: el cuerpo del epic de mensajes traía **83** secuencias de codificación rota y es la fuente
+de verdad de un epic cuyo tema es justamente el dialecto de entrega. Ningún gate lo ve: el texto se lee entero y
+las secuencias pasan por contenido.
+
+La clase de abajo es la que salió de contar ese cuerpo: la primera versión de este punto contaba **67**, porque
+se le escapaban `│` (11 veces), `╖` (2) y `▒` (1). Los caracteres **legítimos** quedan fuera a propósito: los `━`
+y `─` que separan los avisos del contrato no cuentan.
+
+```bash
+gh issue list -R pelukron/hermes-scripts --state open --limit 100 --json number,title,body \
+  --jq '.[] | "\(.number)\t\((.body // "" | [scan("[├║╔╗╚╝║│┬┴┌┐└┘╖╕╣╢▒░≡Γ∩⌐]")] | length))\t\(.title[0:45])"' \
+  | sort -k2 -nr
+```
 
 Se cuenta **por issue** y el número decide: un ejemplo citado a propósito deja una o dos secuencias (medido: 3 en
 #377), decenas repartidas por el cuerpo son corrupción.
 
-```bash
-gh issue list -R pelukron/hermes-scripts --state open --limit 100 --json number,title,body \
-  --jq '.[] | "\(.number)\t\((.body // "" | [scan("[├║Γ≡⌐╗╝┌┐└┘]")] | length))\t\(.title[0:45])"' \
-  | sort -k2 -nr
-```
-
 Un issue corrupto se reescribe con `gh issue edit --body-file` **sin reproducir** los caracteres rotos en el
-texto nuevo: citarlos los planta otra vez (medido: el ejemplo de este párrafo dejó 3 en #377).
+texto nuevo: citarlos los planta otra vez (medido: el ejemplo de este párrafo dejó 3 en #377). Y no hay que
+adivinar el texto: la corrupción es UTF-8 leído como CP437, así que se revierte sola —
+`body.encode("cp437").decode("utf-8")` (medido en ese mismo cuerpo: 83 → 0 secuencias, 0 caracteres de
+reemplazo, los mismos bytes de texto). Si algún carácter no está en CP437, el `encode` falla y hay que arreglar
+ese tramo a mano: el fallo es la señal, no un obstáculo.
 
 ### 7. El epic no miente sobre su avance
 
-Medido el 2026-09-27: #322 tiene **4 de sus 6 hijos CLOSED** (#323, #324, #326, #327) y **0** marcas `[x]`; su
-cuerpo entero va en **una sola línea**, así que se renderiza como un párrafo. Un epic sin marcar dice «no ha
-empezado» cuando ya va por la mitad.
+Medido el 2026-09-27, en las dos direcciones: #322 tenía **4 de sus 6 hijos CLOSED** (#323, #324, #326, #327) con
+**0** marcas `[x]`, y su cuerpo entero iba en **una sola línea**; y #281 apareció como desincronizado por citar
+`#278` y `#280` como historia, cuando su mapa de tickets estaba perfecto. Por eso el comando lee **sólo la sección
+del mapa de tickets**, no cualquier `#N` del cuerpo.
 
 ```bash
-# estado real de los hijos que el epic cita, contra las marcas del checklist
-gh issue view <N> -R pelukron/hermes-scripts --json body --jq '.body' \
-  | grep -o '#[0-9]\+' | tr -d '#' | sort -u \
-  | while read -r h; do
-      printf "#%s %s\n" "$h" "$(gh issue view "$h" -R pelukron/hermes-scripts --json state --jq .state)"
+BODY="$(gh issue view <N> -R pelukron/hermes-scripts --json body --jq '.body')"
+printf '%s\n' "$BODY" \
+  | awk '/^#{2,3} *(Mapa de tickets|Hijos)/{on=1;next} /^#{2,3} /{on=0} on' \
+  | grep -oP '^- \[[ x]\] *#\K[0-9]+' | while read -r h; do
+      marca=$(printf '%s\n' "$BODY" | grep -oP "^- \[[ x]\] *#$h\b" | grep -oP '\[[ x]\]')
+      est=$(gh issue view "$h" -R pelukron/hermes-scripts --json state --jq .state)
+      [ "$est" = CLOSED ] && [ "$marca" != "[x]" ] && echo "DESINC: #$h CLOSED sin marcar"
+      [ "$est" != CLOSED ] && [ "$marca" = "[x]" ] && echo "DESINC: #$h abierto pero marcado"
     done
-gh issue view <N> -R pelukron/hermes-scripts --json body --jq '.body' | grep -c '\[x\]'   # marcas
-gh issue view <N> -R pelukron/hermes-scripts --json body --jq '.body' | wc -l             # 1 = colapsado
+printf '%s\n' "$BODY" | wc -l   # 1 = cuerpo colapsado en una línea
 ```
 
 El repo **no** usa sub-issues nativos (`gh api repos/pelukron/hermes-scripts/issues/<N>/sub_issues` vuelve
@@ -148,14 +159,16 @@ su casilla en el epic.
 
 ### 8. El issue nace cumpliendo (intake)
 
-Medido el 2026-09-27: los cuatro templates del repo aplican labels **planas** — `bug-report.yml:4: [bug]`,
-`feature-request.yml:4: [enhancement]`, y `bug.md`/`feature.md` piden `["bug"|"enhancement", "needs-triage"]` —
-ninguno fija `priority:`/`size:` ni assignee, y **`needs-triage` no existe** en el repo (32 labels): GitHub la
-ignora en silencio. El campo de criterios de los `.yml` tampoco es obligatorio. O sea que un issue nacido de la
-web viola el punto 2, y media vez el 1, hasta que alguien lo arregle a mano.
+Medido el 2026-09-27 y refrescado tras el corte #379: los tres templates que quedan (`bug-report.yml`,
+`feature-request.yml`, `epic.yml`) aplican el vocabulario con emoji, fijan `priority:`/`size:` y asignan a
+`@pelukron`; los legacy `bug.md`/`feature.md` —que aplicaban las labels **planas** de GitHub y pedían
+`needs-triage`, una label que no existe en el repo (32 labels), así que GitHub la ignoraba en silencio— se
+retiraron. `tests/test_plantillas_de_issue.py` falla si un template aplica una label que no está declarada en la
+tabla `## Labels` de `PROJECT_MANAGEMENT.md`, si no fija tipo/`priority:`/`size:`, si no asigna, o si vuelven a
+aparecer plantillas `.md`.
 
 ```bash
-grep -rn "labels:" .github/ISSUE_TEMPLATE/*.yml .github/ISSUE_TEMPLATE/*.md
+grep -rn "labels:" .github/ISSUE_TEMPLATE/*.yml
 gh label list -R pelukron/hermes-scripts --limit 100 --json name --jq '.[].name'
 ```
 
@@ -196,6 +209,9 @@ cierra el issue.
 - **`gh pr list --state open` devuelve vacío y miente** (medido: 4 PRs abiertos): usa `--state all`.
 - **El resumen de dependencias a nivel repo viene vacío** y no significa «no hay dependencias»: el dato es el
   `issue_dependencies_summary` **del issue**.
+- **El medidor también miente**: si un conteo no cuadra con lo que ves al leer el cuerpo, sospecha de la clase de
+  caracteres o de la sección que estás barriendo **antes** de reportar. Medido: la clase estrecha contaba 67
+  donde había 83, y el barrido de todos los `#N` marcaba epics sincronizados.
 - **La label de bloqueo es vocabulario del repo, no del estándar**: léela con `gh label list --limit 100` (el
   default de 30 la esconde) y usa el nombre que el repo tenga; una label nueva sólo se crea si no hay ninguna
   para ese estado.
