@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.25.0 (2026-09-28)
+
+### ✨ Features
+
+- Declarar la seccion de liga NFL en titans-daily (#371)
+  ([#375](https://github.com/pelukron/hermes-scripts/pull/375),
+  [`776d209`](https://github.com/pelukron/hermes-scripts/commit/776d209460c02bfadd00290aed475b899dc6b3dc))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`bb30e5b`](https://github.com/pelukron/hermes-scripts/commit/bb30e5b5e4fc98f5aa8ab8c4deb575c38008b43a))
+
+
 ## v0.24.0 (2026-09-27)
 
 ### ✨ Features
