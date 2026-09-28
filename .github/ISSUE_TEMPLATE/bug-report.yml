@@ -1,11 +1,15 @@
 name: 🐛 Bug Report
 description: Reportar un bug o error
 title: "fix: "
-labels: [bug]
+labels: ["🐛 bug", "priority: p2 · medium", "size: S"]
+assignees: [pelukron]
 body:
   - type: markdown
     attributes:
-      value: "## Describe el bug"
+      value: |
+        El intake aplica `🐛 bug`, `priority: p2 · medium` y `size: S` por defecto: son el
+        punto de partida, no una promesa. Si el bug es más grave o más grande, corrige las
+        labels al crear (`gh issue edit <N> --add-label "priority: p1 · high"`).
   - type: textarea
     id: description
     attributes:

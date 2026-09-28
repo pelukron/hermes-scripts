@@ -1,11 +1,16 @@
 name: ✨ Feature Request
 description: Proponer una nueva funcionalidad o mejora
 title: "feat: "
-labels: [enhancement]
+labels: ["✨ enhancement", "priority: p2 · medium", "size: S"]
+assignees: [pelukron]
 body:
   - type: markdown
     attributes:
-      value: "## Describe la feature"
+      value: |
+        El intake aplica `✨ enhancement`, `priority: p2 · medium` y `size: S` por defecto.
+        El dropdown de abajo es para que quede escrito en el cuerpo, pero **GitHub no convierte
+        la respuesta en label**: si la prioridad no es p2, corrígela al crear
+        (`gh issue edit <N> --add-label "priority: p1 · high"`).
   - type: textarea
     id: problem
     attributes:
@@ -30,11 +35,13 @@ body:
   - type: dropdown
     id: priority
     attributes:
-      label: Prioridad
+      label: Prioridad declarada
+      description: Queda en el cuerpo; la label la aplica el intake por defecto.
       options:
-        - Baja
-        - Media
-        - Alta
+        - priority: p0 · critical
+        - priority: p1 · high
+        - priority: p2 · medium
+        - priority: p3 · low
     validations:
       required: true
   - type: textarea

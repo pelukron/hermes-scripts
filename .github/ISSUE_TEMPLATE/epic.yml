@@ -1,0 +1,47 @@
+name: 👑 Epic
+description: Issue padre que agrupa hijos con checklist (ver PROJECT_MANAGEMENT.md §Epic Issues)
+title: "[Epic] "
+labels: ["👑 epic", "priority: p2 · medium", "size: L"]
+assignees: [pelukron]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Un epic es un issue padre: lleva el label `👑 epic`, agrupa a sus hijos en un checklist
+        y **marca la casilla de cada hijo al cerrarlo** (el repo no usa sub-issues nativos, así
+        que ese checklist es la única fuente del avance). El workflow lo añade al board al
+        quedar el label.
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+      description: Qué queda resuelto cuando el epic cierra, en una o dos frases.
+    validations:
+      required: true
+  - type: textarea
+    id: alcance
+    attributes:
+      label: Alcance
+      description: Qué entra y qué queda fuera, con su motivo.
+    validations:
+      required: true
+  - type: textarea
+    id: hijos
+    attributes:
+      label: Hijos (checklist)
+      description: Un renglón por hijo, con su número de issue.
+      value: |
+        - [ ] #
+        - [ ] #
+    validations:
+      required: true
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definición de terminado del epic
+      description: Los criterios que tienen que estar en verde para cerrar el padre.
+      value: |
+        - [ ] Todos los hijos cerrados
+        - [ ] Checklist sincronizado con el estado real de los hijos
+    validations:
+      required: true
