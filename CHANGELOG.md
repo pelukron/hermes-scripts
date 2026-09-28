@@ -4,6 +4,32 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.0 (2026-09-28)
+
+### ✨ Features
+
+- Dedupe por historia en el canal de los Titans
+  ([#386](https://github.com/pelukron/hermes-scripts/pull/386),
+  [`0283597`](https://github.com/pelukron/hermes-scripts/commit/02835975989aab00fd75eb600a6f56373d3ebede))
+
+- El canal de los Titans con dos secciones (equipo y jornada) y el presupuesto como tope (#386)
+  ([#387](https://github.com/pelukron/hermes-scripts/pull/387),
+  [`b6643df`](https://github.com/pelukron/hermes-scripts/commit/b6643df378d0f9e45da19e2f1f6646580db4056b))
+
+- Filtro de apuestas y presupuesto exacto en el canal de los Titans
+  ([#386](https://github.com/pelukron/hermes-scripts/pull/386),
+  [`7b8e8cf`](https://github.com/pelukron/hermes-scripts/commit/7b8e8cf84315bd6fbfd726cbd994c41462a42755))
+
+- La jornada de los Titans por feeds directos y el techo por presupuesto
+  ([#386](https://github.com/pelukron/hermes-scripts/pull/386),
+  [`cf89f37`](https://github.com/pelukron/hermes-scripts/commit/cf89f377d703ebb44d0261c58512cd28f7414acd))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`3d93dd8`](https://github.com/pelukron/hermes-scripts/commit/3d93dd8fca0ae8b93be445008eb90f397db18e31))
+
+
 ## v0.25.5 (2026-09-28)
 
 ### 📝 Docs
