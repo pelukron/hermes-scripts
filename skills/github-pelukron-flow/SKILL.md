@@ -20,6 +20,10 @@ Conventions de este usuario y repo. Combina `gh`, `git` y `bin/bump-and-pr.sh`.
 Un issue abierto **no** significa trabajo por hacer: puede tener ya rama, worktree y PR. Validar primero con este
 chequeo, o se implementa dos veces lo mismo (medido: a punto de rehacer #210 y #216 cuando ambos ya tenían PR abierto).
 
+**Qué tiene que ser verdad del issue que se publica** (issue hueco, metadata `priority:`/`size:`, un issue = un PR,
+aristas de bloqueo nativas y la label `🚧 blocked` que sobrevive): eso vive en la skill **`project-manager`**, y se
+lee antes de crear o editar un issue y antes de abrir un PR. Aquí queda el flujo; allí, la calidad del tablero.
+
 ```bash
 gh pr list -R pelukron/REPO --state all --limit 20 \
   --json number,state,headRefName,title \

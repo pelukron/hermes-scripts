@@ -26,6 +26,10 @@
         {
           "path": "~/.hermes/skills/devops/telegram-notify-config",
           "expect": "skills/telegram-notify-config"
+        },
+        {
+          "path": "~/.hermes/skills/github/project-manager",
+          "expect": "skills/project-manager"
         }
       ]
     }
