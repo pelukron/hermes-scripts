@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.25.4 (2026-09-28)
+
+### 🐛 Fixes
+
+- Los puntos 6 y 7 del checklist subcuentan el mojibake y confunden citas con hijos
+  ([#382](https://github.com/pelukron/hermes-scripts/pull/382),
+  [`f95a1a7`](https://github.com/pelukron/hermes-scripts/commit/f95a1a716dde36e2d4641caa4bd6a42102073fcd))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9771d9f`](https://github.com/pelukron/hermes-scripts/commit/9771d9f3846239b4895966965f6d10933c692d10))
+
+
 ## v0.25.3 (2026-09-28)
 
 ### 🐛 Fixes
