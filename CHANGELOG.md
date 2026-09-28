@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.25.5 (2026-09-28)
+
+### 📝 Docs
+
+- Versiona los adapters de skills externas y el medidor de índice
+  ([#384](https://github.com/pelukron/hermes-scripts/pull/384),
+  [`6d0a5fa`](https://github.com/pelukron/hermes-scripts/commit/6d0a5fab7d09b0663c03c6ff6133caecfcbd499c))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d771853`](https://github.com/pelukron/hermes-scripts/commit/d7718533041a1d8c5f2e461bc6ad651b0cfb4493))
+
+
 ## v0.25.4 (2026-09-28)
 
 ### 🐛 Fixes
