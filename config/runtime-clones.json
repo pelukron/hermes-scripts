@@ -30,6 +30,22 @@
         {
           "path": "~/.hermes/skills/github/project-manager",
           "expect": "skills/project-manager"
+        },
+        {
+          "path": "~/.hermes/skills/software-development/superpowers-receiving-code-review",
+          "expect": "skills/superpowers-receiving-code-review"
+        },
+        {
+          "path": "~/.hermes/skills/software-development/ecc-context-budget",
+          "expect": "skills/ecc-context-budget"
+        },
+        {
+          "path": "~/.hermes/skills/software-development/ecc-handoff-memory",
+          "expect": "skills/ecc-handoff-memory"
+        },
+        {
+          "path": "~/.hermes/skills/productivity/external-skills",
+          "expect": "skills/external-skills"
         }
       ]
     }
