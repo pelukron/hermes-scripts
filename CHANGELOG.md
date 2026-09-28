@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.25.2 (2026-09-28)
+
+### 📝 Docs
+
+- Checklist de project-manager con endpoint correcto y 3 chequeos nuevos
+  ([#378](https://github.com/pelukron/hermes-scripts/pull/378),
+  [`26ec139`](https://github.com/pelukron/hermes-scripts/commit/26ec139156f68fb533ec3ed802a1d19e6b2da90e))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`334ff81`](https://github.com/pelukron/hermes-scripts/commit/334ff81790ef8db85e8895531aa768f7c7d10c5e))
+
+
 ## v0.25.1 (2026-09-28)
 
 ### 📝 Docs

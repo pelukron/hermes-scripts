@@ -1,7 +1,7 @@
 ---
 name: project-manager
-description: "Use when crear o editar un issue, abrir un PR o auditar el backlog: checklist de calidad medido (DoD, priority/size, un issue = un PR, aristas y labels de bloqueo)."
-version: 1.0.0
+description: "Use when crear o editar un issue, abrir un PR o auditar el backlog: checklist de calidad medido (DoD, priority/size, un issue = un PR, aristas y labels de bloqueo, codificación, avance del epic, intake)."
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, macos, windows]
@@ -23,7 +23,7 @@ abajo se afirma con un comando.
 
 ## Cuándo se usa
 
-- Antes de **crear o editar** un issue y antes de **abrir un PR**: la pasada de los cinco puntos.
+- Antes de **crear o editar** un issue y antes de **abrir un PR**: la pasada de los ocho puntos.
 - En el **barrido del backlog**, con corte decidido o sin él.
 - Al **mergear el bloqueador** de otro issue: la label y la arista se quitan en ese mismo movimiento (punto 5).
 
@@ -31,7 +31,7 @@ abajo se afirma con un comando.
 `github-pelukron-flow`; ni para decidir el orden del backlog (`backlog-routing`); ni para rellenar un issue que
 ya nació hueco (`github-issue-enricher`). Aquí se mide el tablero y se apunta a esas skills.
 
-## Los cinco puntos
+## Los ocho puntos
 
 ### 1. El issue no está hueco
 
@@ -79,14 +79,17 @@ gh pr list -R pelukron/hermes-scripts --state all --limit 200 \
 
 La prosa envejece y nadie la barre: #356 decía «Dependencia dura: esto no puede salir antes de mergear #352»,
 #364 lista «#354/#355» y #328 «Depende del wizard» — ninguna es una arista que GitHub pueda vigilar. La API
-nativa **está disponible** en este repo (`issue_dependencies_summary`, hoy en 0/0).
+nativa **está disponible** en este repo, pero se lee **por issue**: el resumen a nivel repo
+(`gh api repos/<owner>/<repo> --jq .issue_dependencies_summary`) viene **vacío** (medido el 2026-09-27) y creerle
+es un fallo silencioso — no dice «no hay dependencias», dice que el campo no está ahí.
 
 ```bash
 # declarar el bloqueo (idempotente: repetirlo no duplica)
 gh api -X POST repos/pelukron/hermes-scripts/issues/<N>/dependencies/blocked_by \
   -f issue_id="$(gh api repos/pelukron/hermes-scripts/issues/<bloqueador> --jq .id)"
-# verificar leyendo de vuelta el servidor
+# verificar leyendo de vuelta el servidor, POR ISSUE
 gh api repos/pelukron/hermes-scripts/issues/<N>/dependencies/blocked_by --jq '.[].number'
+gh api repos/pelukron/hermes-scripts/issues/<N> --jq .issue_dependencies_summary
 ```
 
 En el cuerpo la arista se **nombra** («Bloqueado por #352 hasta su merge»), y la verdad vive en la API.
@@ -104,17 +107,76 @@ gh issue list -R pelukron/hermes-scripts --state all --limit 100 --label "🚧 b
 Al mergear el bloqueador, el mismo movimiento quita la label, quita la arista y anota en el issue qué lo
 desbloqueó (el `Closes #N` del PR o el sha del merge).
 
+### 6. El cuerpo no está corrupto
+
+Medido el 2026-09-27: #281 tiene **67** secuencias de codificación rota y es la fuente de verdad de un epic cuyo
+tema es justamente el dialecto de entrega. Ningún gate lo ve: el texto se lee entero y las secuencias pasan por
+contenido.
+
+Se cuenta **por issue** y el número decide: un ejemplo citado a propósito deja una o dos secuencias (medido: 3 en
+#377), decenas repartidas por el cuerpo son corrupción.
+
+```bash
+gh issue list -R pelukron/hermes-scripts --state open --limit 100 --json number,title,body \
+  --jq '.[] | "\(.number)\t\((.body // "" | [scan("[├║Γ≡⌐╗╝┌┐└┘]")] | length))\t\(.title[0:45])"' \
+  | sort -k2 -nr
+```
+
+Un issue corrupto se reescribe con `gh issue edit --body-file` **sin reproducir** los caracteres rotos en el
+texto nuevo: citarlos los planta otra vez (medido: el ejemplo de este párrafo dejó 3 en #377).
+
+### 7. El epic no miente sobre su avance
+
+Medido el 2026-09-27: #322 tiene **4 de sus 6 hijos CLOSED** (#323, #324, #326, #327) y **0** marcas `[x]`; su
+cuerpo entero va en **una sola línea**, así que se renderiza como un párrafo. Un epic sin marcar dice «no ha
+empezado» cuando ya va por la mitad.
+
+```bash
+# estado real de los hijos que el epic cita, contra las marcas del checklist
+gh issue view <N> -R pelukron/hermes-scripts --json body --jq '.body' \
+  | grep -o '#[0-9]\+' | tr -d '#' | sort -u \
+  | while read -r h; do
+      printf "#%s %s\n" "$h" "$(gh issue view "$h" -R pelukron/hermes-scripts --json state --jq .state)"
+    done
+gh issue view <N> -R pelukron/hermes-scripts --json body --jq '.body' | grep -c '\[x\]'   # marcas
+gh issue view <N> -R pelukron/hermes-scripts --json body --jq '.body' | wc -l             # 1 = colapsado
+```
+
+El repo **no** usa sub-issues nativos (`gh api repos/pelukron/hermes-scripts/issues/<N>/sub_issues` vuelve
+vacío, medido ese día): el checklist del cuerpo es la única fuente. Al cerrar un hijo, el mismo movimiento marca
+su casilla en el epic.
+
+### 8. El issue nace cumpliendo (intake)
+
+Medido el 2026-09-27: los cuatro templates del repo aplican labels **planas** — `bug-report.yml:4: [bug]`,
+`feature-request.yml:4: [enhancement]`, y `bug.md`/`feature.md` piden `["bug"|"enhancement", "needs-triage"]` —
+ninguno fija `priority:`/`size:` ni assignee, y **`needs-triage` no existe** en el repo (32 labels): GitHub la
+ignora en silencio. El campo de criterios de los `.yml` tampoco es obligatorio. O sea que un issue nacido de la
+web viola el punto 2, y media vez el 1, hasta que alguien lo arregle a mano.
+
+```bash
+grep -rn "labels:" .github/ISSUE_TEMPLATE/*.yml .github/ISSUE_TEMPLATE/*.md
+gh label list -R pelukron/hermes-scripts --limit 100 --json name --jq '.[].name'
+```
+
+Si un template pide una label que no existe, o no fija `priority:`/`size:`, se corrige **el template** antes de
+publicar el issue: arreglar issue por issue deja el siguiente roto.
+
 ## El barrido, en un paso
 
-Corre los cinco comandos y reporta los conteos con su issue nombrado: huecos, metadata incompleta, aristas en
-prosa, labels `🚧 blocked` zombis y PRs duplicados por issue. El paso está completo cuando los cinco renglones de
-abajo están en cero, o cuando cada excepción tiene su motivo escrito dentro del issue y su corte abierto.
+Corre los ocho comandos y reporta los conteos con su issue nombrado: huecos, metadata incompleta, aristas en
+prosa, labels `🚧 blocked` zombis, PRs duplicados por issue, cuerpos corruptos, avance de los epics y el intake.
+El paso está completo cuando los ocho renglones de abajo están en cero, o cuando cada excepción tiene su motivo
+escrito dentro del issue y su corte abierto.
 
 - [ ] Cero issues abiertos sin DoD ni casilla.
 - [ ] Cero issues abiertos sin `priority:` y sin `size:`.
 - [ ] Cero issues abiertos con el bloqueo sólo en prosa (`blocked_by` en 0 y el cuerpo afirmando dependencia).
 - [ ] Cero labels `🚧 blocked` en issues cerrados o ya desbloqueados.
 - [ ] Cero issues con más de un PR que los cierre.
+- [ ] Cero cuerpos abiertos con decenas de secuencias de codificación rota.
+- [ ] Cero epics cuyo checklist contradiga el estado de sus hijos.
+- [ ] Cero labels inexistentes pedidas por un template, y ningún template sin `priority:`/`size:`.
 
 ## Verificación
 
@@ -123,7 +185,7 @@ Cada punto se prueba con su comando, **leyendo del servidor** y nunca por el rc:
 ```bash
 gh issue view <N> -R pelukron/hermes-scripts --json body,labels,assignees \
   --jq '{body:(.body|length),labels:[.labels[].name],assignees:[.assignees[].login]}'
-gh api repos/pelukron/hermes-scripts/issues/<N>/dependencies/blocked_by --jq '.[].number'
+gh api repos/pelukron/hermes-scripts/issues/<N> --jq .issue_dependencies_summary   # por issue, no por repo
 ```
 
 En el PR, el `Closes #N` del cuerpo lo verifica el check `closes` del CI: sin ese check en verde, el merge no
@@ -132,6 +194,8 @@ cierra el issue.
 ## Pitfalls
 
 - **`gh pr list --state open` devuelve vacío y miente** (medido: 4 PRs abiertos): usa `--state all`.
+- **El resumen de dependencias a nivel repo viene vacío** y no significa «no hay dependencias»: el dato es el
+  `issue_dependencies_summary` **del issue**.
 - **La label de bloqueo es vocabulario del repo, no del estándar**: léela con `gh label list --limit 100` (el
   default de 30 la esconde) y usa el nombre que el repo tenga; una label nueva sólo se crea si no hay ninguna
   para ese estado.
