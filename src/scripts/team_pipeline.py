@@ -132,6 +132,11 @@ class TeamConfig:
     telegram_max_chars: int = TELEGRAM_MAX_CHARS
     sitios_confiables: list[str] = field(default_factory=lambda: list(SITIOS_CONFIABLES))
     rumor_keywords: list[str] = field(default_factory=lambda: list(RUMOR_KEYWORDS))
+    # Titulares que el equipo no quiere ver, por palabra en el título (#386).
+    # En los feeds directos el medio publica la previa y la cuota a la vez, así
+    # que se cae la línea, no la fuente. Opt-in y vacío por defecto: Rayados y
+    # Tigres no cambian.
+    exclude_keywords: list[str] = field(default_factory=list)
     extra_section: Optional[ExtraSection] = None
 
 
@@ -319,6 +324,19 @@ def _google_items(config: TeamConfig, fetch_google_news: GoogleFetch) -> list:
     return filter_by_max_age(confirmadas + rumores)
 
 
+def _sin_ruido(items: list, config: TeamConfig) -> list:
+    """Descarta los titulares que el equipo no quiere ver (apuestas, sobre todo).
+
+    Filtra por título, no por fuente: el medio que publica la previa publica
+    también la cuota, y lo que se cae es la línea. Se aplica antes del historial
+    porque estos items no son "vistos": son ruido que no se va a mostrar nunca.
+    """
+    if not config.exclude_keywords:
+        return items
+    patron = re.compile("|".join(re.escape(k) for k in config.exclude_keywords), re.IGNORECASE)
+    return [i for i in items if not patron.search(i.title)]
+
+
 def _extra_items(config: TeamConfig, fetch_google_news: GoogleFetch, fetch_rss: RssFetch) -> list:
     """Los items de la sección de liga. Vacío si el equipo no la declara.
 
@@ -455,6 +473,27 @@ def _showed(
     return _primeros_que_caben(cabeza, tag_for, max(limite - hueco, 0)) + reservados
 
 
+def _bloque(
+    heading: str,
+    subtitle: str,
+    items: list,
+    shown: list,
+    tag_for: Callable[[news_utils.NewsItem], str],
+    config: TeamConfig,
+    empty: str = "",
+) -> str:
+    """Bloque de Telegram de una sección con las líneas ya decididas."""
+    lines = [
+        heading.format(count=_count_label(items, shown, config.announce_overflow)),
+        subtitle,
+    ]
+    if not shown:
+        lines.append(empty)
+    else:
+        lines += [news_utils.format_item_line(tag_for(i), i, i.link) for i in shown]
+    return "\n".join(lines)
+
+
 def _section(
     heading: str,
     subtitle: str,
@@ -466,23 +505,19 @@ def _section(
 ) -> str:
     """Bloque de Telegram de una sección.
 
-    El presupuesto de las líneas descuenta la cabecera y el subtítulo, y se
-    calcula con el contador más largo posible: el `{count}` real nunca ocupa
-    más, así que el bloque no puede pasarse del presupuesto por un dígito.
+    El presupuesto se estima descontando cabecera y subtítulo (con el contador
+    más largo posible), y después se comprueba sobre el bloque ya montado:
+    estimar por aritmética se queda corto con emojis y con el contador real, y
+    el presupuesto del mensaje es una regla de entrega, no una sugerencia.
     """
     cabecera = heading.format(count=_count_label(items, items, config.announce_overflow))
     limite = config.telegram_max_chars - len(cabecera) - len(subtitle) - 2
     shown = _showed(items, tag_for, config, limite, reserve)
-    lines = [
-        heading.format(count=_count_label(items, shown, config.announce_overflow)),
-        subtitle,
-    ]
-    if not shown:
-        lines.append(empty)
-        return "\n".join(lines)
-    for item in shown:
-        lines.append(news_utils.format_item_line(tag_for(item), item, item.link))
-    return "\n".join(lines)
+    bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
+    while len(bloque) > config.telegram_max_chars and len(shown) > 1:
+        shown = shown[:-1]
+        bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
+    return bloque
 
 
 def _render(
@@ -579,9 +614,9 @@ def build_report(
     parte a su bloque propio antes del render: el dedupe por título corre sobre
     los tres juntos y nada sale repetido entre liga y equipo.
     """
-    google = _google_items(config, fetch_google_news)
-    official = _official_items(config, fetch_official, enrich_official)
-    extra = _extra_items(config, fetch_google_news, fetch_rss)
+    google = _sin_ruido(_google_items(config, fetch_google_news), config)
+    official = _sin_ruido(_official_items(config, fetch_official, enrich_official), config)
+    extra = _sin_ruido(_extra_items(config, fetch_google_news, fetch_rss), config)
     kept = _without_history(history_path, google + official + extra)
     # El dedupe va después del historial a propósito: así los duplicados que
     # descarta ya quedaron marcados como vistos y no vuelven mañana a pelearse

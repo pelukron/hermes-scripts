@@ -51,6 +51,12 @@ class TestConfigTitans:
     def test_objetivo_en_ingles_sin_rumor(self):
         assert smells_like_rumor("Titans win 24-17 over Colts") is False
 
+    def test_filtro_de_apuestas_declarado(self):
+        """#386: los momios de los feeds directos no llenan la jornada."""
+        assert "odds" in CONFIG.exclude_keywords
+        assert "betting" in CONFIG.exclude_keywords
+        assert "pick" not in CONFIG.exclude_keywords, "en singular da falsos positivos (Draft Pick)"
+
     def test_dominio_oficial_cuenta_como_confirmado(self):
         assert is_oficial("https://www.tennesseetitans.com/news/titans-sign-db") is True
         assert is_oficial("https://www.espn.com/nfl/story/_/id/1/titans") is False

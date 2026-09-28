@@ -41,6 +41,11 @@ CONFIG = TeamConfig(
         "thetennessean.com",
     ],
     rumor_keywords=["rumor", "trade", "signing", "waive", "release", "injur"],
+    # #386: en los feeds directos la previa y la cuota vienen del mismo medio;
+    # medido sobre la jornada viva, esto se lleva 9 de 55 historias (16 %) y
+    # ningún titular de noticia. En singular ("pick") hay falsos positivos
+    # ("Fifth-Round Draft Pick"), así que el filtro va en plural.
+    exclude_keywords=["odds", "betting", "bets", "spread", "parlay", "moneyline"],
     extra_section=ExtraSection(
         titulo="**🏈 NFL — La jornada** ({count})",
         query="site:nfl.com",

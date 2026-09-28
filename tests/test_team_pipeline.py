@@ -1,5 +1,6 @@
 """Seam de TeamPipeline: un ensamble, dos configs, y un guard contra la deriva."""
 
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -608,3 +609,66 @@ def test_con_techo_declarado_el_recorte_no_cambia(tmp_path):
     seccion = _confirmado(blocks)
     assert len(_renglones(seccion)) == 8
     assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (8 de 20)")
+
+
+# el filtro de titulares que el equipo no quiere ver (#386)
+
+
+def test_sin_palabras_excluidas_todo_sale_igual(tmp_path):
+    """Opt-in: sin `exclude_keywords` un titular de cuotas sale como siempre."""
+    notas = [_item("NFL MVP odds: el favorito del ano"), _item("Titans firman a un linebacker")]
+    blocks = _report(_config(history_name="sin-filtro.json"), notas, tmp_path)
+    seccion = _confirmado(blocks)
+    assert "odds" in seccion
+    assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (2)")
+
+
+def test_las_palabras_excluidas_se_caen_del_reporte(tmp_path):
+    notas = [
+        _item("NFL Week 4 early odds: Chiefs road favorites"),
+        _item("Use DraftKings promo code to get $150 in bonus bets"),
+        _item("Giants star pass rusher tore his ACL against Titans"),
+    ]
+    blocks = _report(
+        _config(history_name="con-filtro.json", exclude_keywords=["odds", "bets"]), notas, tmp_path
+    )
+    seccion = _confirmado(blocks)
+    assert "early odds" not in seccion, "la cuota se cae"
+    assert "bonus bets" not in seccion, "el promo de apuestas se cae"
+    assert "tore his ACL" in seccion, "la noticia de verdad se queda"
+    assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (1)")
+
+
+def test_el_filtro_no_marca_los_items_como_vistos(tmp_path):
+    """Lo descartado no es "visto": es ruido, y mañana se vuelve a medir igual."""
+    notas = [_item("NFL MVP odds: el favorito del ano"), _item("Titans firman a un linebacker")]
+    _report(
+        _config(history_name="filtro-historial.json", exclude_keywords=["odds"]),
+        notas,
+        tmp_path,
+    )
+    # El historial guarda URLs, no títulos.
+    guardado = json.loads((tmp_path / "filtro-historial.json").read_text(encoding="utf-8"))
+    assert any("Titans-firman" in url for url in guardado), "la noticia sí se marca vista"
+    assert not any("odds" in url.lower() for url in guardado), "el ruido no entra al historial"
+
+
+def test_el_bloque_nunca_pasa_del_presupuesto(tmp_path):
+    """El presupuesto es de la sección montada, no de la estimación.
+
+    Con un límite muy justo la cabecera, el subtítulo y los emojis se llevan
+    caracteres que la aritmética no ve; el bloque se suelta titulares hasta
+    caber.
+    """
+    config = _config(
+        history_name="presupuesto-exacto.json",
+        max_items=None,
+        announce_overflow=True,
+        telegram_max_chars=400,
+    )
+    notas = [_item(f"Asunto-{i:04d}-abc relleno que no colapsa") for i in range(10)]
+    blocks = _report(config, notas, tmp_path)
+    seccion = _confirmado(blocks)
+    assert len(seccion) <= 400, f"la sección se pasa: {len(seccion)}c"
+    assert len(_renglones(seccion)) >= 1, "alguna línea tiene que salir"
+    assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (")
