@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.25.3 (2026-09-28)
+
+### 🐛 Fixes
+
+- Intake web con labels del vocabulario, priority/size y template de epic
+  ([#380](https://github.com/pelukron/hermes-scripts/pull/380),
+  [`692c50d`](https://github.com/pelukron/hermes-scripts/commit/692c50d4c8f0ff42942a2a34154bd8a50d875808))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`df99917`](https://github.com/pelukron/hermes-scripts/commit/df99917b348ac0d553d5a31cdab964074aba5fc0))
+
+
 ## v0.25.2 (2026-09-28)
 
 ### 📝 Docs
