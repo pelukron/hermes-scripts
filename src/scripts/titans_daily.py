@@ -21,11 +21,16 @@ CONFIG = TeamConfig(
         ),
     },
     sitios_oficiales=["tennesseetitans.com"],
+    # El techo lo fija el presupuesto del mensaje, no un 8 fijo: con enlaces
+    # cortos caben ~3× titulares (#386).
+    max_items=None,
     header_title="🏈 **Tennessee Titans — Noticias del día**",
     sources_line="Fuentes: Google News RSS (edición US) + tennesseetitans.com",
     prefilter_official=True,
     announce_overflow=True,
     dedupe_story=True,
+    single_section=True,
+    team_section_title="**🏈 TENNESSEE TITANS** ({count})",
     edition={"hl": "en-US", "gl": "US", "ceid": "US:en"},
     sitios_confiables=[
         "espn.com",
@@ -37,9 +42,17 @@ CONFIG = TeamConfig(
     ],
     rumor_keywords=["rumor", "trade", "signing", "waive", "release", "injur"],
     extra_section=ExtraSection(
-        titulo="**🏈 NFL — La liga** ({count})",
-        query='"NFL" OR "NFL news" OR "NFL scores"',
+        titulo="**🏈 NFL — La jornada** ({count})",
+        query="site:nfl.com",
         categoria="liga",
+        feeds=(
+            (
+                "FOX Sports",
+                "https://api.foxsports.com/v1/rss"
+                "?partnerKey=zBaFxRyGKCfxBagJG9b8pqLyndmvo7UU&tag=nfl",
+            ),
+            ("CBS Sports", "https://www.cbssports.com/rss/headlines/nfl/"),
+        ),
     ),
 )
 

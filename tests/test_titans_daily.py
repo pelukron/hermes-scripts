@@ -55,15 +55,15 @@ class TestConfigTitans:
         assert is_oficial("https://www.tennesseetitans.com/news/titans-sign-db") is True
         assert is_oficial("https://www.espn.com/nfl/story/_/id/1/titans") is False
 
-    def test_seccion_liga_declarada(self):
-        """#371: el canal lleva contexto de liga en bloque propio."""
+    def test_seccion_jornada_declarada(self):
+        """#386: la jornada sale de feeds directos (FOX, CBS) más NFL.com."""
         extra = CONFIG.extra_section
         assert extra is not None
         assert "{count}" in extra.titulo
         assert extra.categoria == "liga"
-        assert extra.query.startswith('"')
-        assert "(" not in extra.query and ")" not in extra.query
-        assert " AND " not in extra.query
+        assert [nombre for nombre, _ in extra.feeds] == ["FOX Sports", "CBS Sports"]
+        assert all(url.startswith("https://") for _, url in extra.feeds)
+        assert extra.query == "site:nfl.com"
 
 
 class TestFetchTitansOfficial:
@@ -104,33 +104,65 @@ def _mk_liga(i: int) -> NewsItem:
     )
 
 
-def test_reporte_cuatro_bloques_con_techo():
-    """#371: header + liga + CONFIRMADO + RUMORES; el mensaje cabe en 1 trozo."""
+def _mk_rumor(i: int) -> NewsItem:
+    return NewsItem(
+        title=f"Receptor estrella pide salir segun rumores {i}",
+        link=f"https://ejemplo.com/rumor/{i}",
+        source="Blog",
+        origin="gn",
+        category="rumores",
+    )
+
+
+def test_reporte_tres_bloques_con_techo():
+    """#386: header + jornada + la sección única del equipo; el mensaje cabe en 1 trozo."""
     confirmadas = [_mk_confirmada(i) for i in range(12)]
     liga = [_mk_liga(i) for i in range(3)]
-    por_categoria = {"confirmadas": confirmadas, "rumores": [], "liga": liga}
+    rumores = [_mk_rumor(0)]
+    por_categoria = {"confirmadas": confirmadas, "rumores": rumores, "liga": liga}
     with (
         patch("hermes_common.HistoryManager") as mock_hist_cls,
         patch.object(mod, "fetch_google_news") as mock_gn,
+        patch.object(mod, "fetch_rss") as mock_rss,
         patch.object(mod, "fetch_titans_official") as mock_official,
     ):
         mock_hist_cls.return_value.exists.return_value = False
         mock_gn.side_effect = lambda q, cat: list(por_categoria.get(cat, []))
+        titulares = {
+            "FOX Sports": "Achane se pierde la temporada con el cruzado roto",
+            "CBS Sports": "Mayfield sale con el pulgar dislocado",
+        }
+        mock_rss.side_effect = lambda url, source, cat: [
+            NewsItem(
+                title=titulares[source],
+                link=f"https://{source.split()[0].lower()}.com/nfl/1",
+                source=source,
+                confiable=True,
+                origin=f"rss:{source}",
+                category=cat,
+            )
+        ]
         mock_official.return_value = []
         blocks = mod.build_report_blocks()
 
-    assert len(blocks) == 4
+    assert len(blocks) == 3
     assert "Tennessee Titans" in blocks[0]
-    bloque_liga = [b for b in blocks if "La liga" in b][0]
-    assert blocks.index(bloque_liga) == 1
-    assert "NFL league note 0" in bloque_liga
-    conf = [b for b in blocks if "CONFIRMADO" in b][0]
-    assert "RUMORES" in blocks[3]
-    assert "NFL league note 0" not in conf, "la liga no se repite en el bloque del equipo"
-    bullets = [line for line in conf.splitlines() if line.startswith("- ")]
-    assert len(bullets) <= 8
-    header = conf.splitlines()[0]
-    assert " de " in header, f"header {header!r} debería indicar el total recortado"
+    bloque_jornada = [b for b in blocks if "La jornada" in b][0]
+    assert blocks.index(bloque_jornada) == 1
+    assert "Achane se pierde la temporada" in bloque_jornada
+    assert "Mayfield sale con el pulgar" in bloque_jornada
+    equipo = [b for b in blocks if "TENNESSEE TITANS" in b][0]
+    assert "CONFIRMADO" not in equipo and "RUMORES" not in equipo
+    bullets = [line for line in equipo.splitlines() if line.startswith("- ")]
+    # Techo por presupuesto (#386): con los enlaces cortos de la prueba caben
+    # las 13, así que el contador ya no se queda en 8 y no hay " de ".
+    assert len(bullets) == 13
+    # 12 confirmadas + 1 rumor: el rumor va al final de la sección única y le
+    # queda su hueco, así que la etiqueta 📰 sí se ve.
+    assert bullets[-1].startswith("- 📰 ")
+    assert "Receptor estrella" in bullets[-1]
+    header = equipo.splitlines()[0]
+    assert header == "**🏈 TENNESSEE TITANS** (13)"
     mensaje = "\n---\n".join(blocks)
     assert telegram_chunks(mensaje) <= 1, f"mensaje pasa de 1 trozo: {len(mensaje)}"
     assert len(ISO_DATE.findall(mensaje)) <= 1, "el mensaje repite fecha"

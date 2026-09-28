@@ -592,6 +592,73 @@ def fetch_google_news(
         ]
 
 
+def fetch_rss_feed(
+    url: str,
+    source: str,
+    category: str,
+    sitios_oficiales: list,
+    sitios_confiables: list,
+    rumor_keywords: list,
+    limit: int = 25,
+) -> list:
+    """Items de un feed RSS propio, sin pasar por Google News.
+
+    Los reportes de equipo toman la jornada de feeds directos (FOX, CBS): sus
+    enlaces miden 58-134 caracteres frente a los 240-470 de las URLs de
+    redirección de Google News, así que caben tres veces más titulares por
+    mensaje con el mismo presupuesto (medido en #386).
+
+    Args:
+        url: URL del feed.
+        source: Nombre del medio, para la columna de fuente.
+        category: Categoría del reporte a la que pertenecen los items.
+        sitios_oficiales: Dominios oficiales del equipo.
+        sitios_confiables: Dominios de medios establecidos.
+        rumor_keywords: Palabras que indican rumor.
+        limit: Tope de items del feed que se leen (el de Google News es 15).
+
+    Returns:
+        list[NewsItem]: Items del feed. En caso de error, un solo item con
+        mensaje de error, igual que `fetch_google_news`.
+    """
+    import feedparser
+
+    items: list[NewsItem] = []
+    try:
+        feed = feedparser.parse(url)
+        for entry in feed.entries[:limit]:
+            title = entry.get("title", "").strip()
+            link = entry.get("link", "").strip()
+            if not title or not link:
+                continue
+            items.append(
+                NewsItem(
+                    title=title,
+                    link=link,
+                    source=source,
+                    oficial=is_oficial(link, sitios_oficiales),
+                    confiable=is_confiable(source, link, sitios_oficiales, sitios_confiables),
+                    rumor=smells_like_rumor(title, rumor_keywords),
+                    origin=f"rss:{source}",
+                    category=category,
+                    published=parse_published(
+                        entry.get("published_parsed")
+                        or entry.get("published")
+                        or entry.get("updated")
+                    ),
+                )
+            )
+        return items
+    except Exception as e:
+        return [
+            NewsItem(
+                title=f"[Error feed {source} ({category}): {str(e)[:80]}]",
+                origin=f"rss:{source}",
+                category=category,
+            )
+        ]
+
+
 def classify(all_items: list, sitios_oficiales: list, sitios_confiables: list) -> tuple:
     """Clasifica items en confirmadas y rumores.
 

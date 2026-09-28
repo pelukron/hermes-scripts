@@ -423,3 +423,53 @@ class TestDedupeByStory:
 
     def test_lista_vacia(self):
         assert news_utils.dedupe_by_story([]) == []
+
+
+# feeds RSS directos (#386)
+
+
+class TestFetchRssFeed:
+    def test_items_con_su_fuente_y_su_categoria(self):
+        entradas = [
+            {
+                "title": "Dolphins RB De'Von Achane out for season",
+                "link": "https://www.cbssports.com/nfl/news/achane",
+                "published_parsed": None,
+            }
+        ]
+        with patch("feedparser.parse", return_value=Mock(entries=entradas)):
+            items = news_utils.fetch_rss_feed(
+                "https://www.cbssports.com/rss/headlines/nfl/",
+                "CBS Sports",
+                "liga",
+                [],
+                ["cbssports.com"],
+                ["rumor"],
+            )
+        assert len(items) == 1
+        assert items[0].source == "CBS Sports"
+        assert items[0].origin == "rss:CBS Sports"
+        assert items[0].category == "liga"
+        assert items[0].confiable is True
+        assert items[0].link == "https://www.cbssports.com/nfl/news/achane"
+
+    def test_sin_titulo_o_sin_enlace_se_descarta(self):
+        entradas = [{"title": "", "link": "https://x/1"}, {"title": "Sin enlace", "link": ""}]
+        with patch("feedparser.parse", return_value=Mock(entries=entradas)):
+            assert news_utils.fetch_rss_feed("https://x", "FOX", "liga", [], [], []) == []
+
+    def test_un_feed_caido_no_tumba_el_reporte(self):
+        with patch("feedparser.parse", side_effect=RuntimeError("boom")):
+            items = news_utils.fetch_rss_feed("https://x", "FOX Sports", "liga", [], [], [])
+        assert len(items) == 1
+        assert items[0].title.startswith("[Error feed FOX Sports (liga)")
+        assert items[0].category == "liga"
+
+    def test_el_tope_de_items_es_configurable(self):
+        entradas = [
+            {"title": f"Asunto {i}", "link": f"https://x/{i}", "published_parsed": None}
+            for i in range(30)
+        ]
+        with patch("feedparser.parse", return_value=Mock(entries=entradas)):
+            items = news_utils.fetch_rss_feed("https://x", "FOX", "liga", [], [], [], limit=5)
+        assert len(items) == 5
