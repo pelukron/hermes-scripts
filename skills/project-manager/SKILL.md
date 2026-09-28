@@ -1,6 +1,6 @@
 ---
 name: project-manager
-description: "Use when publicar o auditar issues y PRs del backlog: checklist de calidad con los casos medidos de este parque."
+description: "Use when crear o editar un issue, abrir un PR o auditar el backlog: checklist de calidad medido (DoD, priority/size, un issue = un PR, aristas y labels de bloqueo)."
 version: 1.0.0
 author: Hermes Agent
 license: MIT
@@ -13,16 +13,25 @@ metadata:
 
 # Project manager — calidad del backlog antes de publicar
 
-Este es el rol que se lee **antes de escribir en GitHub**, no después: al crear o editar un issue, al abrir un
-PR, al cerrar un item y en el barrido del backlog. El flujo de git (worktree por issue, gate, push/PR, ruleset,
-`install-cron`) vive en `github-pelukron-flow`; aquí sólo está **qué tiene que ser verdad del issue y del PR**
-para que el tablero sirva.
+El rol que se lee **antes de escribir en GitHub**: al crear o editar un issue, al abrir un PR, al cerrar un item
+y en el barrido del backlog. Aquí está **qué tiene que ser verdad** del issue y del PR para que el tablero sirva;
+el flujo de git no vive aquí.
 
-Por qué existe un checklist y no basta la prosa: en este repo un estándar escrito sólo en prosa se volvió a
-romper. Los contextos huérfanos del ruleset se documentaron y diez días después se repitieron (#290 → #304).
-Cuando un caso se puede afirmar con un comando, el comando va aquí.
+Por qué hay un checklist y no basta la prosa: un estándar escrito sólo en prosa se vuelve a romper — los
+contextos huérfanos del ruleset se documentaron y diez días después se repitieron (#290 → #304). Cada punto de
+abajo se afirma con un comando.
 
-## El checklist (5 puntos)
+## Cuándo se usa
+
+- Antes de **crear o editar** un issue y antes de **abrir un PR**: la pasada de los cinco puntos.
+- En el **barrido del backlog**, con corte decidido o sin él.
+- Al **mergear el bloqueador** de otro issue: la label y la arista se quitan en ese mismo movimiento (punto 5).
+
+**No la uses para** el flujo de git —worktree por issue, gate, push/PR, ruleset, `install-cron`—, que vive en
+`github-pelukron-flow`; ni para decidir el orden del backlog (`backlog-routing`); ni para rellenar un issue que
+ya nació hueco (`github-issue-enricher`). Aquí se mide el tablero y se apunta a esas skills.
+
+## Los cinco puntos
 
 ### 1. El issue no está hueco
 
@@ -36,16 +45,16 @@ gh issue list -R pelukron/hermes-scripts --state open --limit 100 \
   --jq '.[] | select((.body // "") | test("DoD|\\[ \\]") | not) | "\(.number)\t\(.body|length)\t\(.title)"'
 ```
 
-Remedio: el DoD se escribe **antes** de implementar. Si el issue nació con el cuerpo de plantilla vacío
+El DoD se escribe **antes** de implementar. Si el issue nació con el cuerpo de plantilla vacío
 (`bin/bump-and-pr.sh --worktree` lo deja así, medido en #336), se reescribe con `gh issue edit --body-file` y se
-**lee de vuelta** (`gh issue view <N> --json body`): el rc de `gh issue edit` no prueba nada.
+lee de vuelta (`gh issue view <N> --json body`): el rc no prueba nada.
 
 ### 2. La metadata del issue está completa
 
 - `priority: p0..p3` y `size: XS..XL` son obligatorios: sin ellos el orden del backlog es opinión.
 - Asignado a `@pelukron` (convención al crear en estos repos).
-- Una sola label de tipo (`📚 documentation`, `🐛 bug`, `🔧 chore`…), con el emoji **en la label** y nunca en el
-  título del PR (`commitlint` de `hygiene.yml` ancla la regex al inicio).
+- Una sola label de tipo (`📚 documentation`, `🐛 bug`, `🔧 chore`…), con el emoji **en la label**: en el título
+  del PR lo que ancla `commitlint` de `hygiene.yml` es el tipo conventional al inicio.
 
 Medido el 2026-09-27: #367, el issue que define esta calidad, era el **único** abierto sin `priority:` ni
 `size:`, y nació sin assignee. El estándar se aplica primero a quien lo escribe.
@@ -53,7 +62,7 @@ Medido el 2026-09-27: #367, el issue que define esta calidad, era el **único** 
 ### 3. Un issue, un PR (nunca dos)
 
 Dos PRs para el mismo issue se pisan o se pierden: medido **dos veces** en este repo — #362 (PR 363 `MERGED`
-vs 365 `CLOSED`) y #317 (PR 318 `MERGED` vs 321 `CLOSED`). No es anécdota, es el patrón que se repite.
+vs 365 `CLOSED`) y #317 (PR 318 `MERGED` vs 321 `CLOSED`).
 
 ```bash
 gh pr list -R pelukron/hermes-scripts --state all --limit 200 \
@@ -61,10 +70,10 @@ gh pr list -R pelukron/hermes-scripts --state all --limit 200 \
   --jq '.[] | select((.body // "") | test("Closes #<N>\\b")) | "\(.number)\t\(.state)\t\(.headRefName)"'
 ```
 
-- `--state open` **miente** (medido: vacío con 4 PRs abiertos): siempre `--state all`.
-- Si ya hay PR para el issue, no se abre otro: el trabajo pendiente es **el merge del humano**, no un corte.
-- El PR duplicado que se cierra no se borra en silencio: se cierra con un comentario que apunte al que sí
-  mergeó, para que el rastro quede en el issue.
+- `--state open` devuelve vacío y miente (medido: vacío con 4 PRs abiertos): usa `--state all`.
+- Si ya hay PR para el issue, el trabajo pendiente es **el merge del humano**, no un corte: lo que falte va como
+  commit en esa misma rama.
+- El PR duplicado se cierra con un comentario que apunte al que sí mergeó, para que el rastro quede en el issue.
 
 ### 4. Bloqueo declarado como arista, no como prosa
 
@@ -80,8 +89,7 @@ gh api -X POST repos/pelukron/hermes-scripts/issues/<N>/dependencies/blocked_by 
 gh api repos/pelukron/hermes-scripts/issues/<N>/dependencies/blocked_by --jq '.[].number'
 ```
 
-En el cuerpo la arista se **nombra** («Bloqueado por #352 hasta su merge»), pero la verdad está en la API. Una
-arista sólo en prosa es una arista que se queda puesta.
+En el cuerpo la arista se **nombra** («Bloqueado por #352 hasta su merge»), y la verdad vive en la API.
 
 ### 5. La label `🚧 blocked` se quita en el mismo cambio que desbloquea
 
@@ -93,37 +101,43 @@ gh issue list -R pelukron/hermes-scripts --state all --limit 100 --label "🚧 b
   --json number,state,title --jq '.[] | "\(.number)\t\(.state)\t\(.title)"'
 ```
 
-Remedio: al mergear el bloqueador, en el **mismo** movimiento se quita la label y la arista, y se anota en el
-issue qué lo desbloqueó (el `Closes #N` del PR o el sha del merge). Una label de bloqueo que sobrevive miente
-igual que una arista en prosa.
+Al mergear el bloqueador, el mismo movimiento quita la label, quita la arista y anota en el issue qué lo
+desbloqueó (el `Closes #N` del PR o el sha del merge).
 
-## Barrido completo del backlog (una pasada)
+## El barrido, en un paso
 
-Correr los comandos de los cinco puntos y reportar: issues huecos, metadata incompleta, aristas en prosa,
-labels `🚧 blocked` zombis y PRs duplicados por issue. Silencio = no hay nada que publicar ni que corregir.
+Corre los cinco comandos y reporta los conteos con su issue nombrado: huecos, metadata incompleta, aristas en
+prosa, labels `🚧 blocked` zombis y PRs duplicados por issue. El paso está completo cuando los cinco renglones de
+abajo están en cero, o cuando cada excepción tiene su motivo escrito dentro del issue y su corte abierto.
 
-## DoD de una pasada de calidad
-
-- [ ] Cero issues abiertos sin DoD ni casilla (o el motivo declarado dentro del issue).
+- [ ] Cero issues abiertos sin DoD ni casilla.
 - [ ] Cero issues abiertos sin `priority:` y sin `size:`.
 - [ ] Cero issues abiertos con el bloqueo sólo en prosa (`blocked_by` en 0 y el cuerpo afirmando dependencia).
 - [ ] Cero labels `🚧 blocked` en issues cerrados o ya desbloqueados.
 - [ ] Cero issues con más de un PR que los cierre.
 
+## Verificación
+
+Cada punto se prueba con su comando, **leyendo del servidor** y nunca por el rc:
+
+```bash
+gh issue view <N> -R pelukron/hermes-scripts --json body,labels,assignees \
+  --jq '{body:(.body|length),labels:[.labels[].name],assignees:[.assignees[].login]}'
+gh api repos/pelukron/hermes-scripts/issues/<N>/dependencies/blocked_by --jq '.[].number'
+```
+
+En el PR, el `Closes #N` del cuerpo lo verifica el check `closes` del CI: sin ese check en verde, el merge no
+cierra el issue.
+
 ## Pitfalls
 
-- **`gh pr list --state open` puede devolver vacío y mentir** (medido: 4 PRs abiertos): `--state all`.
-- **La label de bloqueo es vocabulario del repo, no del estándar**: se lee con `gh label list --limit 100` (el
-  default de 30 la esconde) y en otro repo puede llamarse distinto. No se crea una label nueva por gusto.
-- **No re-documentar lo que ya vive en `github-pelukron-flow`**: el issue hueco que deja `--worktree` y el
-  apilado de ramas ya están ahí (#337). Este checklist **apunta** al flujo, no lo copia: dos copias divergen
-  (medido con la skill `write-review-loop`: 95 líneas de drift).
-- **El rc no es evidencia**: tras cualquier escritura (issue, label, arista) se **lee de vuelta** el objeto.
-- **El agente no mergea ni da por hechas las bajas**: PRs y reportes; el merge y el cierre del issue los hace
+- **`gh pr list --state open` devuelve vacío y miente** (medido: 4 PRs abiertos): usa `--state all`.
+- **La label de bloqueo es vocabulario del repo, no del estándar**: léela con `gh label list --limit 100` (el
+  default de 30 la esconde) y usa el nombre que el repo tenga; una label nueva sólo se crea si no hay ninguna
+  para ese estado.
+- **Apunta al flujo en vez de copiarlo**: el issue hueco de `--worktree` y el apilado de ramas ya viven en
+  `github-pelukron-flow` (#337); este checklist enlaza esa sección y añade lo que falta. Dos copias divergen
+  (medido con `write-review-loop`: 95 líneas).
+- **El rc no es evidencia**: tras cualquier escritura a GitHub —issue, label, arista— lee de vuelta el objeto.
+- **El agente publica y reporta**: los PRs y los avisos los hace el agente; el merge y el cierre del issue,
   `@pelukron`.
-
-## Relación con las otras skills
-
-- `github-pelukron-flow` — el flujo: worktree por issue, gate, push/PR, ruleset, `install-cron`.
-- `backlog-routing` — el orden y el porqué cuando toca decidir qué se trabaja.
-- `github-issue-enricher` — cómo se rellena un issue hueco que ya está abierto.
