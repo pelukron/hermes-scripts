@@ -298,3 +298,82 @@ def test_los_vivos_no_declaran_extra_section():
 
     assert RAYADOS.extra_section is None
     assert TIGRES.extra_section is None
+
+
+# dedupe por historia en el ensamble (#386): opt-in, Rayados y Tigres intactos
+
+
+def _misma_historia(n: int) -> list[NewsItem]:
+    """n medios contando el mismo partido, con titulares distintos entre sí."""
+    titulares = [
+        "What we learned from Tennessee Titans' 12-7 loss to New York Giants",
+        "🎥 Highlights: New York Giants 12, Tennessee Titans 7",
+        "What we learned from New York Giants' 12-7 win over Tennessee Titans",
+    ]
+    return [
+        NewsItem(
+            title=titulares[i % len(titulares)],
+            link=f"https://ejemplo.com/partido-{i}",
+            source=f"Medio-{i}",
+            confiable=True,
+            origin="gn",
+            category="confirmadas",
+        )
+        for i in range(n)
+    ]
+
+
+def _renglones(bloque: str) -> list[str]:
+    return [line for line in bloque.splitlines() if line.startswith("- ")]
+
+
+def test_sin_la_bandera_la_repeticion_sigue_igual(tmp_path):
+    """Rayados y Tigres no declaran `dedupe_story`: su salida no cambia (#386)."""
+    assert _config().dedupe_story is False
+    blocks = _report(_config(history_name="sin-historia.json"), _misma_historia(3), tmp_path)
+    assert len(_renglones(_confirmado(blocks))) == 3
+
+
+def test_con_la_bandera_la_misma_historia_sale_una_vez(tmp_path):
+    blocks = _report(
+        _config(history_name="con-historia.json", dedupe_story=True),
+        _misma_historia(4),
+        tmp_path,
+    )
+    renglones = _renglones(_confirmado(blocks))
+    assert len(renglones) == 1
+    assert "12-7" in renglones[0]
+
+
+def test_la_bandera_no_junta_noticias_distintas(tmp_path):
+    distintas = [
+        NewsItem(
+            title="Titans face offensive line injury concerns heading into Week 4",
+            link="https://ejemplo.com/a",
+            source="Medio",
+            confiable=True,
+            origin="gn",
+            category="confirmadas",
+        ),
+        NewsItem(
+            title="Titans open as 11-point underdogs vs. Ravens in Week 4",
+            link="https://ejemplo.com/b",
+            source="Medio",
+            confiable=True,
+            origin="gn",
+            category="confirmadas",
+        ),
+    ]
+    blocks = _report(_config(history_name="distintas.json", dedupe_story=True), distintas, tmp_path)
+    assert len(_renglones(_confirmado(blocks))) == 2
+
+
+def test_el_canal_de_los_titans_declara_la_bandera():
+    from scripts.titans_daily import CONFIG as TITANS
+
+    assert TITANS.dedupe_story is True
+    from scripts.resumen_rayados_diario import CONFIG as RAYADOS
+    from scripts.resumen_tigres_diario import CONFIG as TIGRES
+
+    assert RAYADOS.dedupe_story is False
+    assert TIGRES.dedupe_story is False

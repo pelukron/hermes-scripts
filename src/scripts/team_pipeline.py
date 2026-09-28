@@ -111,6 +111,9 @@ class TeamConfig:
     announce_overflow: bool
     edition: dict[str, str]
     max_items: int = 8
+    # Colapsa la misma historia contada por varios medios (#386). Opt-in: sin
+    # declararla, el reporte sale igual que siempre (Rayados y Tigres).
+    dedupe_story: bool = False
     telegram_max_chars: int = TELEGRAM_MAX_CHARS
     sitios_confiables: list[str] = field(default_factory=lambda: list(SITIOS_CONFIABLES))
     rumor_keywords: list[str] = field(default_factory=lambda: list(RUMOR_KEYWORDS))
@@ -461,6 +464,11 @@ def build_report(
     official = _official_items(config, fetch_official, enrich_official)
     extra = _extra_items(config, fetch_google_news)
     kept = _without_history(history_path, google + official + extra)
+    # El dedupe va después del historial a propósito: así los duplicados que
+    # descarta ya quedaron marcados como vistos y no vuelven mañana a pelearse
+    # el mismo hueco (#386).
+    if config.dedupe_story:
+        kept = news_utils.dedupe_by_story(kept)
     confirmadas, rumores = news_utils.classify(
         kept, config.sitios_oficiales, config.sitios_confiables
     )

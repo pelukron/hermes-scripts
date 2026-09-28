@@ -25,6 +25,7 @@ CONFIG = TeamConfig(
     sources_line="Fuentes: Google News RSS (edición US) + tennesseetitans.com",
     prefilter_official=True,
     announce_overflow=True,
+    dedupe_story=True,
     edition={"hl": "en-US", "gl": "US", "ceid": "US:en"},
     sitios_confiables=[
         "espn.com",

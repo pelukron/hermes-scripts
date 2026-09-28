@@ -273,6 +273,168 @@ def dedupe_by_title(
     return out
 
 
+# Solapamiento de palabras (Jaccard) desde el que dos titulares cuentan como la
+# misma historia contada por dos medios. Medido en #386 sobre los feeds vivos
+# (29 items del canal de los Titans): 0.55 colapsa el partido Giants-Titans en un
+# renglón (4 medios) y deja en pie el ángulo distinto («Cam Ward talks about late
+# INT»), que a 0.45-0.50 se lo tragaba el grupo del partido. El emparejamiento
+# compara contra el ancla del grupo (su primer item) y no contra cualquier
+# miembro: así un grupo no crece por encadenamiento (A~B, B~C) hasta tragarse
+# notas que sólo se parecen al vecino.
+STORY_THRESHOLD = 0.55
+
+# Relleno de titular: palabras que no distinguen una historia de otra.
+STORY_STOPWORDS = frozenset(
+    {
+        "about",
+        "after",
+        "again",
+        "against",
+        "also",
+        "been",
+        "both",
+        "could",
+        "does",
+        "done",
+        "down",
+        "each",
+        "even",
+        "ever",
+        "from",
+        "have",
+        "here",
+        "into",
+        "just",
+        "late",
+        "latest",
+        "like",
+        "made",
+        "make",
+        "many",
+        "more",
+        "most",
+        "much",
+        "must",
+        "near",
+        "need",
+        "news",
+        "only",
+        "other",
+        "over",
+        "report",
+        "reports",
+        "said",
+        "same",
+        "says",
+        "should",
+        "since",
+        "some",
+        "such",
+        "than",
+        "that",
+        "their",
+        "them",
+        "then",
+        "there",
+        "these",
+        "they",
+        "this",
+        "those",
+        "through",
+        "under",
+        "until",
+        "update",
+        "updates",
+        "very",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "while",
+        "will",
+        "with",
+        "would",
+        "your",
+    }
+)
+
+
+def story_tokens(title: str) -> set[str]:
+    """Palabras significativas de un titular, para emparejar historias.
+
+    Args:
+        title: Titular tal cual llega del feed.
+
+    Returns:
+        set[str]: Palabras de 4+ letras en minúsculas sin el relleno de titular,
+        más los números: una cifra distingue «Week 3» de «Week 4» y un marcador
+        de otro, y sin ella dos notas de semanas distintas se emparejaban.
+    """
+    limpio = re.sub(r"[^a-z0-9áéíóúñ ]+", " ", (title or "").lower())
+    return {w for w in limpio.split() if (len(w) >= 4 and w not in STORY_STOPWORDS) or w.isdigit()}
+
+
+def story_similar(a: set[str], b: set[str], threshold: float = STORY_THRESHOLD) -> bool:
+    """¿Dos conjuntos de palabras cuentan la misma historia?
+
+    Args:
+        a: Palabras de un titular (ver `story_tokens`).
+        b: Palabras del otro.
+        threshold: Solapamiento mínimo (Jaccard) para darlas por la misma nota.
+
+    Returns:
+        bool: True si el solapamiento llega al umbral. Dos conjuntos vacíos no
+        se emparejan: sin palabras no hay historia que comparar.
+    """
+    union = a | b
+    if not union:
+        return False
+    return len(a & b) / len(union) >= threshold
+
+
+def _story_rank(item: NewsItem) -> int:
+    """Rango de la fuente: 0 oficial, 1 medio confiable, 2 el resto."""
+    if item.oficial:
+        return 0
+    if item.confiable:
+        return 1
+    return 2
+
+
+def dedupe_by_story(items: list[NewsItem], threshold: float = STORY_THRESHOLD) -> list[NewsItem]:
+    """Colapsa la misma historia contada por varios medios en un solo item.
+
+    Dos titulares son la misma historia cuando comparten palabras
+    significativas (`story_similar`). De cada grupo se conserva el item de mejor
+    rango (oficial > medio confiable > resto) y el orden de salida es el de la
+    primera aparición del grupo. Los items sin palabras significativas (un
+    titular vacío, por ejemplo) nunca se agrupan: se conservan todos.
+
+    El grupo se compara contra su ancla (las palabras del primer item que lo
+    abrió), no contra cada miembro: sin eso, A~B y B~C acaban juntando A con C
+    aunque no se parezcan, y el grupo se traga notas distintas del mismo tema.
+
+    Args:
+        items: Lista de NewsItem ya filtrados por título.
+        threshold: Umbral para `story_similar`.
+
+    Returns:
+        list[NewsItem]: Un item por historia.
+    """
+    grupos: list[dict] = []
+    for item in items:
+        tokens = story_tokens(item.title)
+        for grupo in grupos:
+            if tokens and story_similar(tokens, grupo["ancla"], threshold):
+                if _story_rank(item) < _story_rank(grupo["item"]):
+                    grupo["item"] = item
+                break
+        else:
+            grupos.append({"ancla": tokens, "item": item})
+    return [grupo["item"] for grupo in grupos]
+
+
 def clean_title(title: str) -> str:
     """Limpia título: quita source suffix, escapa [] para Markdown.
 
