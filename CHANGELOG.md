@@ -4,6 +4,24 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.3 (2026-09-29)
+
+### 📝 Docs
+
+- La skill del flujo documenta dos tropiezos del worktree
+  ([#392](https://github.com/pelukron/hermes-scripts/pull/392),
+  [`f0a6059`](https://github.com/pelukron/hermes-scripts/commit/f0a60591a3b6ba474681cb65dc865954817e12fb))
+
+- La skill del flujo no documenta dos tropiezos del worktree (targets.local.json y bin/gh-pr) (#392)
+  ([#393](https://github.com/pelukron/hermes-scripts/pull/393),
+  [`87f0935`](https://github.com/pelukron/hermes-scripts/commit/87f0935e11e0f50b97159a341b3e7f61233ef0f5))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`0153241`](https://github.com/pelukron/hermes-scripts/commit/015324150ed1e129c82c6458ca9873940a6a02e4))
+
+
 ## v0.26.2 (2026-09-29)
 
 ### 🐛 Fixes
