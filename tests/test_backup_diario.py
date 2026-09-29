@@ -189,9 +189,24 @@ class TestBackupConfigNoPesaDeMas:
     Con el corpus real de ~/.hermes (node 320 MB, backups 302 MB, bin 89 MB,
     retired-wal 110 MB, audits 44 MB, lsp 34 MB) el tarball llegaba a ~965 MB y
     gzip no terminaba en los 600 s del runner de cron: quedaba truncado.
+
+    Medido el 2026-09-28 (#388): el update semanal reinstalo tools/ (1.67 GB:
+    ffmpeg, python, chromium, node, uv, tirith, npm, ripgrep) e installs/ (851 MB)
+    y el tarball volvio a truncarse dos noches. PESADOS es la lista medida del
+    host, no una copia parcial de EXCLUDED_NAMES.
     """
 
-    PESADOS = ("node", "backups", "bin", "lsp", "lazy-target", "audits", ".curator_backups")
+    PESADOS = (
+        "node",
+        "tools",
+        "installs",
+        "backups",
+        "bin",
+        "lsp",
+        "lazy-target",
+        "audits",
+        ".curator_backups",
+    )
 
     def test_excluye_directorios_pesados_y_artefactos(self, tmp_path):
         hermes_dir = tmp_path / ".hermes"
