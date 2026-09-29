@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.2 (2026-09-29)
+
+### 🐛 Fixes
+
+- El backup diario se trunca otra vez (timeout 600s) por empaquetar tools/ e installs/ (#388)
+  ([#391](https://github.com/pelukron/hermes-scripts/pull/391),
+  [`fbd2bb0`](https://github.com/pelukron/hermes-scripts/commit/fbd2bb07498b739f2d5af84509a5e5bab65f0e4a))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`1dd4799`](https://github.com/pelukron/hermes-scripts/commit/1dd479911f947a7238a5d26a9c974e72ecd7e781))
+
+
 ## v0.26.1 (2026-09-29)
 
 ### 🐛 Fixes
