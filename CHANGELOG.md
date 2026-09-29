@@ -4,6 +4,24 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.1 (2026-09-29)
+
+### 🐛 Fixes
+
+- El vigilante de skills declaradas miente (manifiesto obsoleto y ceguera a los symlinks) (#389)
+  ([#390](https://github.com/pelukron/hermes-scripts/pull/390),
+  [`66929bf`](https://github.com/pelukron/hermes-scripts/commit/66929bfc84b91135f1d58af2a801fd7ccd1fb829))
+
+- El vigilante de skills declaradas miente (manifiesto obsoleto y symlinks)
+  ([#389](https://github.com/pelukron/hermes-scripts/pull/389),
+  [`5d4ec5e`](https://github.com/pelukron/hermes-scripts/commit/5d4ec5eff96df488f6ff3807de35b96042651037))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`a57bf26`](https://github.com/pelukron/hermes-scripts/commit/a57bf263afbc4f54da8fbd933030a915dbb37838))
+
+
 ## v0.26.0 (2026-09-28)
 
 ### ✨ Features
