@@ -26,6 +26,11 @@ CHANGELOG = repo_root() / "CHANGELOG.md"
 # bin 89 MB, state.db.retired-wal-* 154 MB, audits 44 MB, lsp 34 MB. Con ellos
 # dentro el tarball llegaba a ~965 MB y gzip no terminaba en los 600 s del
 # runner de cron: el archivo quedaba truncado y el job salia en error (#144).
+# Medido otra vez el 2026-09-28: el update semanal reinstalo tools/ (1.67 GB:
+# ffmpeg, python, chromium, node, uv, tirith, npm, ripgrep) e installs/ (851 MB)
+# y el tarball volvio a truncarse en dos noches seguidas (#388). La lista se
+# mide contra el host cada vez: los binarios de runtime reinstalables quedan
+# fuera y lo unico que viaja es configuracion.
 EXCLUDED_NAMES = frozenset(
     {
         "state.db",
@@ -37,6 +42,8 @@ EXCLUDED_NAMES = frozenset(
         "state-snapshots",
         "logs",
         "node",
+        "tools",
+        "installs",
         "backups",
         "bin",
         "lsp",
