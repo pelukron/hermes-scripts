@@ -1,7 +1,7 @@
 ---
 name: github-pelukron-flow
 description: Flujo de trabajo GitHub para repos pelukron (Hermes scripts). Maneja auth, bump-and-pr, limpieza de ramas, pushes con token temporal, ajustes de CI y el entorno por sistema (Windows/PowerShell y Linux).
-version: 1.2.0
+version: 1.3.0
 author: Hermes Agent
 license: MIT
 platforms: [linux, windows]
@@ -118,6 +118,12 @@ bin/install-cron.sh --check     # sólo deben quedar los extras como info
 - En el código del job, nunca `subprocess.run(["uv", ...])`: el resolver es `hermes_common.uv_bin()`. Y el DoD lo
   cierran las corridas programadas, no la corrida a mano.
 - El clone es de runtime: `curl`/pruebas destructivas contra él no; los cambios de código van por PR.
+- **Estos comandos son del clon, no del worktree.** `check-drift.sh`, `install-cron.sh --check` e
+  `install-cron.sh` leen `cron/targets.local.json`, que **no se versiona** (ADR 0003 punto 4): desde un
+  worktree nuevo el comando muere con
+  `ManifestError: destino '${notify}' sin resolver` y el error se lee como drift del manifiesto cuando no lo
+  es. Medido el 2026-09-29 al verificar el #389 desde su worktree: el verde de esos comandos se comprueba
+  desde `~/hermes-scripts`, donde el archivo sí vive.
 - **Nada de `uv run` ni del gate dentro del clon de runtime.** `uv` reescribe `uv.lock` (el `version` del paquete
   editable que el bot de release acaba de subir en `main`) y el job hace `pull --ff-only`: al día siguiente el
   clone contesta `Aborting` y `runtime-sync` reporta `pull fallo` para un clon que estaba bien. El trabajo va en
@@ -499,6 +505,21 @@ The branch name becomes `<type>/<slug>`, the issue gets an emoji label automatic
 contains `Closes #N` and copies the same labels.
 See [references/github-cli-helpers.md](references/github-cli-helpers.md) and [references/emoji-label-mapping.md](references/emoji-label-mapping.md), plus templates
 [templates/gh-issue.sh](templates/gh-issue.sh), [templates/gh-pr.sh](templates/gh-pr.sh) for copy-pasteable versions.
+
+**Pitfall — desde un worktree, `bin/gh-pr` no corre.** El script hace `git checkout <rama>` y git contesta que
+no puede porque esa rama **ya está tomada por el worktree** donde estás trabajando. Abre el PR a mano desde el
+worktree:
+
+```bash
+gh pr create -R pelukron/hermes-scripts \
+  --title "<tipo>: <descripción> (#N)" \
+  --body-file <archivo> \
+  --label "<tipo>" --label "priority: ..." --label "size: ..." \
+  --base main --head <rama>
+```
+
+El `(#N)` del título y el `Closes #N` del cuerpo no son adorno: `bin/gh-pr` los añade por ti, `gh pr create`
+**no**. Medido el 2026-09-29 al abrir los PR #390 y #391 (los dos, desde su worktree).
 
 ## `bin/gh-issue` pitfalls
 
