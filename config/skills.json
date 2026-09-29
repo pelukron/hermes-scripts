@@ -11,11 +11,6 @@
       "name": "hermes-automation-cron",
       "category": "devops",
       "why": "como se declaran, instalan y entregan los jobs de Hermes"
-    },
-    {
-      "name": "external-skills",
-      "category": "productivity",
-      "why": "adopcion de skills de terceros (clon + adapter)"
     }
   ]
 }

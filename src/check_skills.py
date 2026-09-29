@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -46,17 +48,42 @@ def load_required(path: Path) -> list[dict[str, Any]]:
     return requeridas
 
 
+def skill_files(raiz: Path) -> Iterator[Path]:
+    """`SKILL.md` desplegados bajo `raiz`, siguiendo los symlinks.
+
+    Un skill del despliegue es un enlace al clon que lo versiona
+    (`config/runtime-clones.json`), y `Path.rglob` **no entra en directorios enlazados** (Python
+    3.13): medido el 2026-09-28, de 211 `SKILL.md` desplegados el chequeo veia 203, y las 8 que se
+    le escapaban incluian `external-skills` (#389). El set de destinos reales ya visitados corta
+    los enlaces circulares, y los ocultos (`.archive/`, `.curator_backups/`) quedan fuera: una
+    copia archivada no es una skill disponible.
+
+    Args:
+        raiz: Directorio `skills` del `$HERMES_HOME` a inspeccionar.
+
+    Yields:
+        Path: cada `SKILL.md` encontrado.
+    """
+    vistos: set[str] = set()
+    for actual, dirs, files in os.walk(raiz, followlinks=True):
+        real = os.path.realpath(actual)
+        if real in vistos:
+            dirs[:] = []
+            continue
+        vistos.add(real)
+        dirs[:] = [nombre for nombre in dirs if not nombre.startswith(".")]
+        if "SKILL.md" in files:
+            yield Path(actual) / "SKILL.md"
+
+
 def nombres_instalados(home: Path) -> set[str]:
     """`name:` del frontmatter de cada SKILL.md desplegado, sin archivados ni backups.
 
-    La identidad de una skill es su frontmatter, no la carpeta: una copia dentro de
-    `.archive/` o `.curator_backups/` no cuenta como disponible.
+    La identidad de una skill es su frontmatter, no la carpeta.
     """
     raiz = home / "skills"
     nombres: set[str] = set()
-    for path in raiz.rglob("SKILL.md"):
-        if any(part.startswith(".") for part in path.relative_to(raiz).parts):
-            continue
+    for path in skill_files(raiz):
         encontrado = NAME_RE.search(path.read_text(encoding="utf-8", errors="replace"))
         if encontrado:
             nombres.add(encontrado.group(1))
