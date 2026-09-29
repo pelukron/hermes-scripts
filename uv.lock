@@ -1422,7 +1422,7 @@ wheels = [
 
 [[package]]
 name = "resumen-noticias-diario"
-version = "0.26.2"
+version = "0.26.3"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
