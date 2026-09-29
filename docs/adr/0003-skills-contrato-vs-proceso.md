@@ -87,3 +87,25 @@ pelea con los symlinks del repo.
 **Sigue pendiente del punto 2 original:** extraer `hygiene` y `write-review-loop` a `skills/` con su
 protocolo común. Medido el 2026-09-22: siguen duplicadas y divergiendo (38 líneas en empleo vs 71 en
 exámenes; sólo 8 coinciden por posición).
+
+## Revisión 2026-09-28 — una declarada deja de serlo cuando el repo la versiona
+
+`external-skills` entró en `skills/` (#384, con su enlace declarado en `config/runtime-clones.json`) y salió de
+`config/skills.json` (#389). El punto 2 del alcance es una frontera, no una lista de deseos: una entrada que
+cruza el borde es una contradicción, no vigilancia extra.
+
+Efecto medido mientras duró: el job `cron-drift-check` reportaba como ausente una skill desplegada, con un
+remedio («reinstalar las skills») que no podía arreglarlo — un aviso con falso positivo entrena a ignorar el
+canal, que es lo que el aviso existe para evitar.
+
+Causa doble, medida ese día:
+
+1. **El manifiesto quedó obsoleto** al versionarse la skill sin quitar su entrada.
+2. **El chequeo no veía las skills desplegadas por symlink**: `Path.rglob` no entra en directorios enlazados
+   (203 `SKILL.md` vistos contra 211 siguiendo enlaces, con las 8 enlazadas invisibles). Sólo una estaba
+   declarada, así que sólo una hacía ruido; una skill de contrato declarada en el futuro nacería con el mismo
+   falso positivo.
+
+Las dos quedan cerradas con test: el recorrido sigue enlaces (cortando ciclos) y ninguna entrada del manifiesto
+puede ser una skill que este repo versiona o enlaza. Lista vigente: `repo-ci-gate-replication`,
+`hermes-automation-cron`.
