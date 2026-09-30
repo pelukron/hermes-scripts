@@ -3,6 +3,7 @@
 
 import gzip
 import logging
+import os
 import sqlite3
 import tarfile
 import time
@@ -56,6 +57,13 @@ EXCLUDED_NAMES = frozenset(
 EXCLUDED_PREFIXES = ("state.db.retired-wal-",)
 EXCLUDED_SUFFIXES = (".lock",)
 MAX_TAR_BYTES = 200 * 1024 * 1024
+# Un artefacto se escribe con este sufijo y se renombra al terminar (#397): si el
+# runner mata el proceso a los 600 s, lo que queda es un `.part` incompleto y nunca
+# un `hermes_<fecha>.tar.gz` truncado que la rotación retenga como respaldo valido.
+PART_SUFFIX = ".part"
+# Una corrida viva renombra su `.part` antes de terminar y el runner la mata a los
+# 600 s, asi que un `.part` mas viejo que esto es de una corrida muerta: basura.
+PART_MAX_AGE_SECONDS = 3600
 
 
 def is_excluded(name):
@@ -118,20 +126,25 @@ def dump_sqlite(state_db, backup_dir, date_str):
         return None
 
     dump_path = backup_dir / f"state_{date_str}.sql.gz"
+    part_path = dump_path.with_name(dump_path.name + PART_SUFFIX)
     try:
         conn = sqlite3.connect(str(state_db))
         try:
             # Streaming: state.db ya pasa de 60 MB y materializar el dump
             # completo (lista + join) costaba ~100 MB de pico en RAM.
-            with gzip.open(dump_path, "wt", encoding="utf-8") as f:
+            with gzip.open(part_path, "wt", encoding="utf-8") as f:
                 for statement in conn.iterdump():
                     f.write(statement)
                     f.write("\n")
         finally:
             conn.close()
+        # El nombre definitivo aparece solo cuando el archivo esta cerrado y completo
+        # (#397): con el rename atomico un kill a mitad no deja un `.sql.gz` truncado.
+        os.replace(part_path, dump_path)
         log.info(f"✓ state.db dump → {dump_path} ({dump_path.stat().st_size} bytes)")
         return dump_path
     except Exception as e:
+        part_path.unlink(missing_ok=True)
         log.error(f"✗ state.db dump ERROR: {e}")
         return None
 
@@ -148,11 +161,17 @@ def backup_config(hermes_dir, backup_dir, date_str):
         Path: Path to the created tarball.
     """
     tar_path = backup_dir / f"hermes_{date_str}.tar.gz"
-    with tarfile.open(tar_path, "w:gz") as tar:
-        for item in sorted(hermes_dir.iterdir()):
-            if is_excluded(item.name):
-                continue
-            tar.add(item, arcname=f".hermes/{item.name}")
+    part_path = tar_path.with_name(tar_path.name + PART_SUFFIX)
+    try:
+        with tarfile.open(part_path, "w:gz") as tar:
+            for item in sorted(hermes_dir.iterdir()):
+                if is_excluded(item.name):
+                    continue
+                tar.add(item, arcname=f".hermes/{item.name}")
+        os.replace(part_path, tar_path)
+    except Exception:
+        part_path.unlink(missing_ok=True)
+        raise
     log.info(f"✓ hermes config → {tar_path} ({tar_path.stat().st_size} bytes)")
     return tar_path
 
@@ -196,6 +215,31 @@ def rotate_backups(backup_dir, retention_days=7):
     remaining = len(list(backup_dir.glob("*.gz")))
     log.info(f"✓ rotación: {deleted} borrados, {remaining} retenidos")
     return deleted, remaining
+
+
+def cleanup_part_files(backup_dir, max_age_seconds=PART_MAX_AGE_SECONDS):
+    """Delete `.part` leftovers from a killed run (#397).
+
+    Un `.part` es siempre un artefacto incompleto: la corrida viva lo renombra antes
+    de terminar y el runner la mata a los 600 s. Se dejan fuera de `rotate_backups()`
+    (su glob `*.gz` no los ve) y se borran aqui cuando ya pasaron su ventana, para no
+    tocar el de una corrida en curso.
+
+    Args:
+        backup_dir: Directorio de respaldos.
+        max_age_seconds: Edad minima para considerar huerfano un `.part`.
+
+    Returns:
+        int: Numero de `.part` borrados.
+    """
+    cutoff = time.time() - max_age_seconds
+    deleted = 0
+    for f in backup_dir.glob(f"*{PART_SUFFIX}"):
+        if f.stat().st_mtime < cutoff:
+            f.unlink()
+            deleted += 1
+    log.info(f"✓ .part huérfanos: {deleted} borrados (> {max_age_seconds // 60} min)")
+    return deleted
 
 
 def release_note_unreleased(changelog_path):
@@ -242,6 +286,7 @@ def main():
     tarball = backup_config(HERMES, BACKUP_DIR, date_str)
     cleanup_bak_files(HERMES)
     rotate_backups(BACKUP_DIR)
+    cleanup_part_files(BACKUP_DIR)
 
     corrupt = verify_artifacts([dump, tarball])
     if corrupt:
