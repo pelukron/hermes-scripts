@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.5 (2026-10-02)
+
+### 🐛 Fixes
+
+- El backup escribe en .part y renombra al cerrar (#397)
+  ([#398](https://github.com/pelukron/hermes-scripts/pull/398),
+  [`999d78c`](https://github.com/pelukron/hermes-scripts/commit/999d78c645235a0fabaf95c431ceb5b227ef946c))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`6672e65`](https://github.com/pelukron/hermes-scripts/commit/6672e65baf4817edbdf752c696862159cbbfdd7b))
+
+
 ## v0.26.4 (2026-10-02)
 
 ### 🐛 Fixes
