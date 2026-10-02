@@ -4,6 +4,28 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.4 (2026-10-02)
+
+### 🐛 Fixes
+
+- El gate cae por CVE nuevas en las dependencias del lock (urllib3 2.7.0, virtualenv 21.6.1) (#399)
+  ([#400](https://github.com/pelukron/hermes-scripts/pull/400),
+  [`62f5f71`](https://github.com/pelukron/hermes-scripts/commit/62f5f7120aecf4809edbab13eb27a3bdfe81ecfe))
+
+- Urllib3 a 2.8.0 por 3 CVE nuevas que tumban el gate
+  ([#399](https://github.com/pelukron/hermes-scripts/pull/399),
+  [`3244da4`](https://github.com/pelukron/hermes-scripts/commit/3244da4429c68dc49619a447716e1cafccc7952f))
+
+- Virtualenv a 21.14.1 por 4 PYSEC nuevas que tumban el gate
+  ([#399](https://github.com/pelukron/hermes-scripts/pull/399),
+  [`b5fc26e`](https://github.com/pelukron/hermes-scripts/commit/b5fc26e8f87407761c69cd8f5d6a0ae8caa5b6d2))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`ba08a2b`](https://github.com/pelukron/hermes-scripts/commit/ba08a2b2dada31077ec1db3812047fea1c49e09f))
+
+
 ## v0.26.3 (2026-09-29)
 
 ### 📝 Docs
