@@ -392,3 +392,173 @@ class TestBackupConfigSymlinks:
         )
         assert restored.exists()
         assert "github-pelukron-flow" in restored.joinpath("SKILL.md").read_text(encoding="utf-8")
+
+
+class TestEscrituraAtomica:
+    """Un kill a mitad de escritura no puede dejar el nombre definitivo (#397).
+
+    El runner del cron mata el proceso a los 600 s. Con el archivo abierto sobre su
+    ruta final, el tarball y el dump quedaban truncados **con su nombre definitivo** y
+    la rotacion los retenia como respaldos validos (medido el 2026-09-27 y 28).
+    """
+
+    def _hermes_minimo(self, tmp_path):
+        hermes_dir = tmp_path / ".hermes"
+        hermes_dir.mkdir()
+        (hermes_dir / "skills").mkdir()
+        (hermes_dir / "skills" / "keep.md").write_text("skill content")
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+        return hermes_dir, backup_dir
+
+    def _state_db(self, tmp_path):
+        db_path = tmp_path / "state.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("CREATE TABLE t (id INTEGER)")
+        conn.commit()
+        conn.close()
+        return db_path
+
+    def test_tarball_escribe_en_part_y_renombra_al_cerrar(self, tmp_path, monkeypatch):
+        hermes_dir, backup_dir = self._hermes_minimo(tmp_path)
+        final = backup_dir / "hermes_2026-09-29.tar.gz"
+        abiertos = []
+        real_open = _mod.tarfile.open
+
+        def espia(path, *args, **kwargs):
+            abiertos.append(Path(path))
+            assert not final.exists(), "el nombre definitivo existe antes de cerrar el tarball"
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr(_mod.tarfile, "open", espia)
+        result = _mod.backup_config(hermes_dir, backup_dir, "2026-09-29")
+
+        assert abiertos and abiertos[0].name.endswith(_mod.PART_SUFFIX)
+        assert result == final
+        assert result.is_file()
+        # El espia sigue puesto: se restaura antes de leer el tarball ya renombrado.
+        monkeypatch.setattr(_mod.tarfile, "open", real_open)
+        with tarfile.open(result, "r:gz") as tar:
+            assert ".hermes/skills/keep.md" in tar.getnames()
+        assert list(backup_dir.glob(f"*{_mod.PART_SUFFIX}")) == []
+
+    def test_dump_escribe_en_part_y_renombra_al_cerrar(self, tmp_path, monkeypatch):
+        db_path = self._state_db(tmp_path)
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+        final = backup_dir / "state_2026-09-29.sql.gz"
+        abiertos = []
+        real_open = _mod.gzip.open
+
+        def espia(path, *args, **kwargs):
+            abiertos.append(Path(path))
+            assert not final.exists(), "el nombre definitivo existe antes de cerrar el dump"
+            return real_open(path, *args, **kwargs)
+
+        monkeypatch.setattr(_mod.gzip, "open", espia)
+        result = _mod.dump_sqlite(db_path, backup_dir, "2026-09-29")
+
+        assert abiertos and abiertos[0].name.endswith(_mod.PART_SUFFIX)
+        assert result == final
+        assert result.is_file()
+        assert list(backup_dir.glob(f"*{_mod.PART_SUFFIX}")) == []
+
+    def test_tarball_no_deja_nada_si_la_escritura_muere(self, tmp_path, monkeypatch):
+        hermes_dir, backup_dir = self._hermes_minimo(tmp_path)
+
+        def revienta(path, *args, **kwargs):
+            Path(path).write_bytes(b"basura incompleta")
+            raise RuntimeError("kill simulado")
+
+        monkeypatch.setattr(_mod.tarfile, "open", revienta)
+        with pytest.raises(RuntimeError):
+            _mod.backup_config(hermes_dir, backup_dir, "2026-09-29")
+
+        assert not (backup_dir / "hermes_2026-09-29.tar.gz").exists()
+        assert list(backup_dir.glob(f"*{_mod.PART_SUFFIX}")) == []
+
+    def test_dump_no_deja_nada_si_la_escritura_muere(self, tmp_path, monkeypatch):
+        db_path = self._state_db(tmp_path)
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+
+        def revienta(path, *args, **kwargs):
+            Path(path).write_text("parcial")
+            raise RuntimeError("kill simulado")
+
+        monkeypatch.setattr(_mod.gzip, "open", revienta)
+        assert _mod.dump_sqlite(db_path, backup_dir, "2026-09-29") is None
+
+        assert not (backup_dir / "state_2026-09-29.sql.gz").exists()
+        assert list(backup_dir.glob(f"*{_mod.PART_SUFFIX}")) == []
+
+
+class TestPartHuerfanos:
+    """Los `.part` de una corrida muerta se limpian y no cuentan como respaldo (#397)."""
+
+    def test_borra_los_viejos_y_deja_los_nuevos(self, tmp_path):
+        import os as os_module
+
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+        viejo = backup_dir / "state_2026-09-28.sql.gz.part"
+        viejo.write_text("parcial")
+        nuevo = backup_dir / "state_2026-09-29.sql.gz.part"
+        nuevo.write_text("parcial")
+        old_time = time.time() - (2 * 3600)
+        os_module.utime(str(viejo), (old_time, old_time))
+
+        assert _mod.cleanup_part_files(backup_dir, max_age_seconds=3600) == 1
+        assert not viejo.exists()
+        assert nuevo.exists()
+
+    def test_rotate_no_borra_ni_cuenta_los_part(self, tmp_path):
+        import os as os_module
+
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+        valido = backup_dir / "hermes_2026-09-29.tar.gz"
+        valido.write_bytes(b"x")
+        part_viejo = backup_dir / "hermes_2026-09-27.tar.gz.part"
+        part_viejo.write_bytes(b"y")
+        old_time = time.time() - (10 * 86400)
+        os_module.utime(str(part_viejo), (old_time, old_time))
+
+        deleted, remaining = _mod.rotate_backups(backup_dir, retention_days=7)
+
+        assert deleted == 0
+        # El `.part` no cuenta como respaldo retenido ni lo borra la rotacion:
+        # de el se encarga cleanup_part_files().
+        assert remaining == 1
+        assert part_viejo.exists()
+        assert _mod.cleanup_part_files(backup_dir, max_age_seconds=3600) == 1
+        assert not part_viejo.exists()
+
+    def test_main_limpia_los_part_huerfanos(self, tmp_path, monkeypatch, capsys):
+        import os as os_module
+
+        hermes_dir = tmp_path / ".hermes"
+        hermes_dir.mkdir()
+        backup_dir = hermes_dir / "backup" / "daily"
+        backup_dir.mkdir(parents=True)
+        db_path = hermes_dir / "state.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("CREATE TABLE t (id INTEGER)")
+        conn.commit()
+        conn.close()
+        changelog = tmp_path / "CHANGELOG.md"
+        changelog.write_text("## [Unreleased]\n", encoding="utf-8")
+
+        huerfano = backup_dir / "state_2026-09-28.sql.gz.part"
+        huerfano.write_text("parcial")
+        old_time = time.time() - (3 * 3600)
+        os_module.utime(str(huerfano), (old_time, old_time))
+
+        monkeypatch.setattr(_mod, "HERMES", hermes_dir)
+        monkeypatch.setattr(_mod, "BACKUP_DIR", backup_dir)
+        monkeypatch.setattr(_mod, "STATE_DB", db_path)
+        monkeypatch.setattr(_mod, "CHANGELOG", changelog)
+
+        assert _mod.main() == 0
+        assert not huerfano.exists()
+        assert "Backup OK" in capsys.readouterr().out
