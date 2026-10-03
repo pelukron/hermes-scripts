@@ -4,6 +4,29 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.6 (2026-10-03)
+
+### 📝 Docs
+
+- Apunta a las skills ya instaladas sin copiarlas
+  ([#405](https://github.com/pelukron/hermes-scripts/pull/405),
+  [`b0f6469`](https://github.com/pelukron/hermes-scripts/commit/b0f64696b6433b15fe6ef6ade61c8ea35d7fee77))
+
+- Baja los textos y apunta a ellos sin reescribirlos
+  ([`b736a5e`](https://github.com/pelukron/hermes-scripts/commit/b736a5e28f544d96260d97e6662e4fb18cf88e5d))
+
+- Deja la referencia y quita la copia de las skills
+  ([`2679633`](https://github.com/pelukron/hermes-scripts/commit/2679633c1c7aef2f9995f52a81cba43f4cb5c7e1))
+
+- Versiona los cuatro adapters que quedaron fuera de #384
+  ([`01f65cb`](https://github.com/pelukron/hermes-scripts/commit/01f65cb67f0dbcc085eecfdf59dc63b9cdce80a7))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`28a6dbe`](https://github.com/pelukron/hermes-scripts/commit/28a6dbe2737d95d3ab1587d9af42f4b869596fad))
+
+
 ## v0.26.5 (2026-10-02)
 
 ### 🐛 Fixes
