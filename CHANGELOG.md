@@ -4,6 +4,58 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.13 (2026-10-03)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`bc42868`](https://github.com/pelukron/hermes-scripts/commit/bc42868ea7d407bcb9b9bf395f9a33c7f845f6c9))
+
+- **deps**: Bump github/codeql-action/init from c23de5a82f64bb08c6d9f28844551440ca298e76 to
+  1c5b675653bb5c22dbe9b12b556ec555138e09fd
+  ([#403](https://github.com/pelukron/hermes-scripts/pull/403),
+  [`5da04b0`](https://github.com/pelukron/hermes-scripts/commit/5da04b0c5b52d80c6c8dce8723c617549f7f9701))
+
+
+## v0.26.12 (2026-10-03)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9d36fec`](https://github.com/pelukron/hermes-scripts/commit/9d36fecd4d682db9843f70c5cd91d081851a1744))
+
+- **deps**: Bump github/codeql-action/analyze from c23de5a82f64bb08c6d9f28844551440ca298e76 to
+  1c5b675653bb5c22dbe9b12b556ec555138e09fd
+  ([#401](https://github.com/pelukron/hermes-scripts/pull/401),
+  [`5e99c6e`](https://github.com/pelukron/hermes-scripts/commit/5e99c6e83eac91e304a1c3ee9d87949ed9eddbd5))
+
+
+## v0.26.11 (2026-10-03)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`f684c64`](https://github.com/pelukron/hermes-scripts/commit/f684c6473f556f8c22b9bd0955cc72f64949d5ac))
+
+- **deps**: Bump github/codeql-action/autobuild from c23de5a82f64bb08c6d9f28844551440ca298e76 to
+  1c5b675653bb5c22dbe9b12b556ec555138e09fd
+  ([#402](https://github.com/pelukron/hermes-scripts/pull/402),
+  [`b9d7e0a`](https://github.com/pelukron/hermes-scripts/commit/b9d7e0af07d6af2a8d0a6a0ae49467772a0472f2))
+
+
+## v0.26.10 (2026-10-03)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9a5df98`](https://github.com/pelukron/hermes-scripts/commit/9a5df98f2c9103ab76a0bcc44b89d0f6a2020649))
+
+- **deps**: Bump astral-sh/setup-uv from 94527f2e458b27549849d47d273a16bec83a01e9 to
+  37802adc94f370d6bfd71619e3f0bf239e1f3b78
+  ([#404](https://github.com/pelukron/hermes-scripts/pull/404),
+  [`7aa035c`](https://github.com/pelukron/hermes-scripts/commit/7aa035cbea0a2024761c8bb705a19fe42a72c5ca))
+
+
 ## v0.26.9 (2026-10-03)
 
 ### 🔧 Infra
