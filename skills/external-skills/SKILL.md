@@ -107,9 +107,20 @@ bash ~/hermes-scripts/bin/update-external-skills.sh   # recorre ~/.hermes/skills
 |---|---|---|
 | `mattpocock-grill` | mattpocock/grilling | ✅ |
 | `mattpocock-grill-docs` | mattpocock/grill-with-docs + domain-modeling | ✅ |
-| `anthropic-silent-failure-hunter` | claude-plugins-official → pr-review-toolkit/silent-failure-hunter | ✅ 2026-09-27 |
-| `anthropic-claude-md-improver` | claude-plugins-official → claude-md-management/claude-md-improver | ✅ 2026-09-27 |
 | `superpowers-receiving-code-review` | obra/superpowers → skills/receiving-code-review | ✅ 2026-09-27 |
+
+## Referencias ya instaladas
+
+No se copian a este repo: ya están en el perfil. Se lee la skill instalada. Esta tabla sólo dice
+cuándo y qué de este repo el original no sabe.
+
+| Cuándo | Skill instalada | Qué cambia aquí |
+|---|---|---|
+| Un diff traga un error | `silent-failure-hunter` | El silencio de un job `no_agent` en verde es el contrato. No hay Sentry ni `errorIds.ts`. |
+| Auditar el contexto que carga el agente | `claude-md-improver` | El archivo es `AGENTS.md`, no `CLAUDE.md`. |
+| Añadir una skill a este repo | `hermes-agent-skill-authoring` | El path de aquí es `skills/<nombre>/SKILL.md` más el enlace en `config/runtime-clones.json`. El manual describe el otro repo. |
+
+`resuming-interrupted-work` no se versiona. Retomar un corte sigue en `ecc-handoff-memory`.
 
 ## Pitfalls
 
