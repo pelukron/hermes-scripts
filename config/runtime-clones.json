@@ -46,22 +46,6 @@
         {
           "path": "~/.hermes/skills/productivity/external-skills",
           "expect": "skills/external-skills"
-        },
-        {
-          "path": "~/.hermes/skills/productivity/resuming-interrupted-work",
-          "expect": "skills/resuming-interrupted-work"
-        },
-        {
-          "path": "~/.hermes/skills/software-development/anthropic-silent-failure-hunter",
-          "expect": "skills/anthropic-silent-failure-hunter"
-        },
-        {
-          "path": "~/.hermes/skills/software-development/anthropic-claude-md-improver",
-          "expect": "skills/anthropic-claude-md-improver"
-        },
-        {
-          "path": "~/.hermes/skills/software-development/hermes-agent-skill-authoring",
-          "expect": "skills/hermes-agent-skill-authoring"
         }
       ]
     }
