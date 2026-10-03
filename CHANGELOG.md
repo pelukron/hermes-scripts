@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.14 (2026-10-03)
+
+### 🐛 Fixes
+
+- Declara el item que la cuota deja fuera
+  ([#408](https://github.com/pelukron/hermes-scripts/pull/408),
+  [`e74b5b7`](https://github.com/pelukron/hermes-scripts/commit/e74b5b75d5b599975d3c6da8070364ea6ff4d0fa))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`51fd3ed`](https://github.com/pelukron/hermes-scripts/commit/51fd3edbfa48eaaf73fa5ab541333d1d14147968))
+
+
 ## v0.26.13 (2026-10-03)
 
 ### 📦 Chores
