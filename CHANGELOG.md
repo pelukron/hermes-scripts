@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.7 (2026-10-03)
+
+### 🔧 Infra
+
+- Regenera uv.lock para el bump de python-semantic-release
+  ([`2f1faf1`](https://github.com/pelukron/hermes-scripts/commit/2f1faf1143539571bd0ce1e159d2d5240986d5dd))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d61dfe4`](https://github.com/pelukron/hermes-scripts/commit/d61dfe4832763039c37854cca55534121132d2c1))
+
+- **deps-dev**: Bump python-semantic-release from 10.6.2 to 10.7.0
+  ([#395](https://github.com/pelukron/hermes-scripts/pull/395),
+  [`6ea0088`](https://github.com/pelukron/hermes-scripts/commit/6ea008872a2cd661f692a849b16d0178cf135ad0))
+
+
 ## v0.26.6 (2026-10-03)
 
 ### 📝 Docs
