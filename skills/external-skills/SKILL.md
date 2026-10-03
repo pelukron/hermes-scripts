@@ -107,8 +107,10 @@ bash ~/hermes-scripts/bin/update-external-skills.sh   # recorre ~/.hermes/skills
 |---|---|---|
 | `mattpocock-grill` | mattpocock/grilling | ✅ |
 | `mattpocock-grill-docs` | mattpocock/grill-with-docs + domain-modeling | ✅ |
-| `anthropic-silent-failure-hunter` | claude-plugins-official → pr-review-toolkit/silent-failure-hunter | ✅ 2026-09-27 |
-| `anthropic-claude-md-improver` | claude-plugins-official → claude-md-management/claude-md-improver | ✅ 2026-09-27 |
+| `anthropic-silent-failure-hunter` | claude-plugins-official → pr-review-toolkit/silent-failure-hunter | versionado en `skills/` (#385) |
+| `anthropic-claude-md-improver` | claude-plugins-official → claude-md-management/claude-md-improver | versionado en `skills/` (#385) |
+| `hermes-agent-skill-authoring` | NousResearch/hermes-agent | versionado en `skills/` (#385); el parche del perfil no estaba en el corte |
+| `resuming-interrupted-work` | manual de sesiones de hermes-agent | versionado en `skills/` (#385); la fusión de 265 líneas del perfil no estaba |
 | `superpowers-receiving-code-review` | obra/superpowers → skills/receiving-code-review | ✅ 2026-09-27 |
 
 ## Pitfalls
