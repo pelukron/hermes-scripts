@@ -33,6 +33,8 @@ uv sync
 uv run pre-commit install
 ```
 
+El montaje guiado, de clon fresco a gate verde, es `bin/setup-wizard.sh`. Lo que pide y los fallos del gate: [`docs/MONTAR.md`](docs/MONTAR.md). Qué llega, cuándo y a qué destino: [`docs/USUARIO.md`](docs/USUARIO.md).
+
 ## Cron jobs (instalación declarativa)
 
 Los jobs de cron viven en [`cron/jobs.json`](cron/jobs.json) (fuente de verdad: qué corre,

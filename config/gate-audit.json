@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "_doc": "Exenciones del gate-audit: un check que no aplica se declara con su motivo. Lo que no está aquí y falta, es un hueco. Medido en #394.",
+  "exemptions": [
+    {
+      "repo": "diego-moreno",
+      "check": "codeowners",
+      "why": "El ruleset master Gate no exige review de code owner; un CODEOWNERS no cambia ninguna conducta."
+    },
+    {
+      "repo": "diego-moreno",
+      "check": "changelog",
+      "why": "No hay releases ni tags: el sitio publica por push a master."
+    },
+    {
+      "repo": "diego-moreno",
+      "check": "precommit",
+      "why": "Sin ecosistema que enganchar; el AGENTS.md prohíbe añadir tooling."
+    },
+    {
+      "repo": "diego-moreno",
+      "check": "prepush",
+      "why": "El gate corre en CI y en local como node scripts/gate.mjs."
+    }
+  ]
+}
