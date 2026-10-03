@@ -1,6 +1,6 @@
 # Instalación
 
-De cero a tus cron jobs corriendo, sin editar nada a mano.
+De cero a tus cron jobs corriendo, sin editar nada a mano. El clon y el gate los deja verdes `bin/setup-wizard.sh` ([`MONTAR.md`](MONTAR.md)). Lo que cada job entrega está en [`USUARIO.md`](USUARIO.md).
 
 ## Requisitos
 

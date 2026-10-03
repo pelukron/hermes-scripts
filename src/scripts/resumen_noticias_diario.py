@@ -68,6 +68,7 @@ __all__ = [
     "fetch_currencies",
     "fetch_rss",
     "load_feeds",
+    "nota_de_cuota",
     "nota_de_recorte",
 ]
 
@@ -250,6 +251,7 @@ def build_subsection_block(
     fetched: list,
     seen_urls: set,
     cuota: int | None = None,
+    descartes: list | None = None,
 ) -> str:
     """Arma el bloque Markdown de una subsección, acotado a `cuota` caracteres.
 
@@ -296,6 +298,7 @@ def build_subsection_block(
         if candidatos:
             candidatas.append(
                 {
+                    "nombre": source_name,
                     "bullet": f"• *{sin_parentesis(source_name)}*",
                     "items": candidatos,
                     "abierto": False,
@@ -310,6 +313,10 @@ def build_subsection_block(
             # El bullet viaja con su primer item; los siguientes entran de uno en uno.
             extra = 1 if fuente["abierto"] else len(fuente["bullet"]) + 1
             if usado + extra + len(linea) + 1 > tope:
+                # No cabe este ítem. La ronda siguiente prueba el que sigue (#361);
+                # el que se quedó fuera se cuenta para que el mensaje lo diga (#355).
+                if descartes is not None:
+                    descartes.append((sub_name, fuente["nombre"]))
                 continue
             if not fuente["abierto"]:
                 lineas.append(fuente["bullet"])
@@ -320,7 +327,7 @@ def build_subsection_block(
     return "\n".join(lineas) if len(lineas) > 1 else ""
 
 
-def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE):
+def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descartes=None):
     """Emite las secciones que caben en el presupuesto de entrega (#212, #278).
 
     Args:
@@ -355,7 +362,9 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE):
             if cuota_sub <= 0:
                 continue
             fetched = fetch(sources)
-            block = build_subsection_block(sub_name, sources, fetched, seen_urls, cuota=cuota_sub)
+            block = build_subsection_block(
+                sub_name, sources, fetched, seen_urls, cuota=cuota_sub, descartes=descartes
+            )
             if block:
                 section_lines.append(block)
                 disponible -= len(block) + 1
@@ -367,6 +376,42 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE):
         usado += len(texto) + 1
         time.sleep(1)
     return omitidas
+
+
+def nota_de_cuota(descartes: list) -> str:
+    """Una línea con los ítems que no cupieron, por subsección y fuente.
+
+    Vacío si no se descartó nada: el cron entrega stdout y una línea de más
+    sería un aviso falso. Itálicas con `*`, nunca `_`. Si no cabe en
+    `MAX_CHARS_LINEA`, cierra con `+N más` en vez de partir la línea.
+    """
+    if not descartes:
+        return ""
+    orden_sub: list[str] = []
+    por_sub: dict[str, list[str]] = {}
+    conteo: dict[tuple[str, str], int] = {}
+    for sub, fuente in descartes:
+        clave = (sub, fuente)
+        if clave not in conteo:
+            conteo[clave] = 0
+            if sub not in por_sub:
+                orden_sub.append(sub)
+                por_sub[sub] = []
+            por_sub[sub].append(fuente)
+        conteo[clave] += 1
+    partes = []
+    for sub in orden_sub:
+        fuentes = ", ".join(f"{fuente} {conteo[(sub, fuente)]}" for fuente in por_sub[sub])
+        partes.append(f"{sin_parentesis(sub)} — {fuentes}")
+    corte = list(partes)
+    while corte:
+        resto = len(partes) - len(corte)
+        marca = f" +{resto} más" if resto else ""
+        linea = f"*fuera de cuota: {'; '.join(corte)}{marca}*"
+        if len(linea) <= MAX_CHARS_LINEA:
+            return linea + "\n"
+        corte.pop()
+    return ""
 
 
 def nota_de_recorte(omitidas):
@@ -388,9 +433,14 @@ def main():
     # Ojo: aquí NO se sanea la línea completa. `sin_parentesis` sobre el texto
     # emitido se come los paréntesis del enlace `[titulo](url)` y lo rompe: el
     # saneo vive en titulares, nombres de fuente y subsección (#212).
-    omitidas = emitir_secciones(feeds, fetch_all_rss, log.info)
+    descartes: list = []
+    omitidas = emitir_secciones(feeds, fetch_all_rss, log.info, descartes=descartes)
     if omitidas:
         log.info(nota_de_recorte(omitidas))
+        time.sleep(1)
+    nota = nota_de_cuota(descartes)
+    if nota:
+        log.info(nota)
         time.sleep(1)
 
     # Footer stats
