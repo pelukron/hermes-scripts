@@ -19,8 +19,7 @@ from typing import Any, Callable
 
 import defusedxml.ElementTree as ET  # noqa: N817
 
-from healthcheck import load_ping_url, ping
-from hermes_common import report_failure, state_dir, uv_bin
+from hermes_common import load_ping_url, ping, report_failure, state_dir, uv_bin
 
 try:
     from src import regression_ledger as _ledger

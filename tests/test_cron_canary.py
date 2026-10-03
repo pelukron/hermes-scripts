@@ -8,12 +8,33 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 import cron_canary as cc  # noqa: E402
+import cron_manifest as mf  # noqa: E402
 
 
 def test_allow_y_deny_no_se_solapan():
     assert not set(cc.ALLOW_LIST) & set(cc.DENY_LIST)
     assert "monitor-ram-mexico" in cc.ALLOW_LIST
     assert "backup-diario" in cc.DENY_LIST
+
+
+def test_allow_y_deny_resuelven_a_entrypoints_o_jobs_del_parque():
+    """Cada entrada es un entrypoint de `[project.scripts]` o un job del manifiesto (#325).
+
+    Medido al escribir el guard: la lista traía `polymarket-diario` (entrypoint que corre
+    como subproceso del diario, sin job propio) y `sync-runtime` (entrypoint del job
+    `runtime-sync`): ninguna de las dos es un nombre de job, así que un guard contra
+    `cron/jobs.json` a secas habría fallado por el motivo equivocado.
+    """
+    scripts = mf.load_project_scripts(REPO)
+    jobs = {job.name for job in mf.parse_jobs(mf.load_manifest(REPO / "cron" / "jobs.json"))}
+    entradas = [*cc.ALLOW_LIST, *cc.DENY_LIST]
+    assert cc.entradas_sin_resolver(entradas, scripts, jobs) == []
+
+
+def test_el_guard_del_canary_caza_un_entrypoint_retirado():
+    """La prueba de que el guard mira algo: un nombre inventado sí se reporta."""
+    entradas = [*cc.ALLOW_LIST, "entrypoint-retirado"]
+    assert cc.entradas_sin_resolver(entradas, set(), set()) == list(entradas)
 
 
 def test_payload_cabe_en_un_mensaje():

@@ -13,10 +13,17 @@ import os
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from hermes_common import report_failure, state_dir, uv_bin
+from hermes_common import (
+    TELEGRAM_UTF16_LIMIT,
+    report_failure,
+    state_dir,
+    utf16_len,
+    uv_bin,
+)
 
 try:
     from src import regression_ledger as _ledger
@@ -42,12 +49,18 @@ ALLOW_LIST = (
 )
 
 STEP_TIMEOUT = 300
-TELEGRAM_UTF16_LIMIT = 4096
 CANARY_TEXT = "cron-canary ok"
 
 
-def utf16_len(text: str) -> int:
-    return len(text.encode("utf-16-le")) // 2
+def entradas_sin_resolver(entradas: Iterable[str], scripts: set[str], jobs: set[str]) -> list[str]:
+    """Entradas de la allow/deny list que ya no resuelven a nada del parque.
+
+    Una entrada es el nombre de un entrypoint (`uv run <nombre>`, de ``[project.scripts]``)
+    o el de un job del manifiesto. Sin este guard un entrypoint retirado sigue corriendo en
+    el sandbox como si fuera del parque: el canary afirma algo que ya no existe (#325).
+    """
+    declarados = set(scripts) | set(jobs)
+    return [nombre for nombre in entradas if nombre not in declarados]
 
 
 # Libro que Hermes reescribe al guardar o al cerrar una corrida (cron/jobs.py:
