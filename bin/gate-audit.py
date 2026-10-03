@@ -26,7 +26,10 @@ sys.path.insert(0, str(REPO))
 from src.gate_audit import (  # noqa: E402
     BACKLOG_REPOS,
     DEFAULT_OWNER,
+    ExemptionError,
+    apply_exemptions,
     collect,
+    load_exemptions,
     render_alert,
     render_digest,
     render_markdown,
@@ -61,7 +64,13 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError:
         pass
     args = parse_args(argv)
+    try:
+        exemptions = load_exemptions(REPO / "config" / "gate-audit.json")
+    except ExemptionError as exc:
+        print(f"gate-audit: {exc}", file=sys.stderr)
+        return 2
     records = collect(args.owner, args.repos)
+    apply_exemptions(records, exemptions)
     summary = summarize(records)
     out_path = REPO / args.out
     if not args.no_write:
