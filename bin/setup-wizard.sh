@@ -39,6 +39,7 @@ ayuda() {
     echo ""
     echo "No hace: cron (usa bin/install-cron.sh), secretos ni targets.local."
     echo "Si un paso falla, corrige lo que indica y re-ejecuta: retoma donde quedó."
+    echo "Al terminar: docs/MONTAR.md (montaje y gate) y docs/USUARIO.md (qué llega)."
 }
 
 dry_run=0
@@ -178,7 +179,7 @@ if [ "$sin_gate" -eq 1 ]; then
     echo "  ➖ Omitido por --sin-gate: corre 'bash bin/gate.sh' cuando quieras el verde."
 else
     bash bin/gate.sh || falla "el gate quedó rojo." \
-        "corrige lo que marque el gate y re-ejecuta bin/setup-wizard.sh."
+        "corrige lo que marque el gate (docs/MONTAR.md) y re-ejecuta bin/setup-wizard.sh."
 fi
 
 echo ""
@@ -190,4 +191,7 @@ echo "  Este wizard NO hizo (fuera de alcance):"
 echo "  - cron: instala los jobs con bin/install-cron.sh"
 echo "  - secretos: solo comprobó GITHUB_TOKEN, no creó ni rotó ninguno"
 echo "  - targets.local: cada operador lo define en su máquina"
+echo ""
+echo "  Montaje y fallos del gate: docs/MONTAR.md"
+echo "  Qué llega, cuándo y a dónde: docs/USUARIO.md"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
