@@ -43,6 +43,22 @@ def test_el_name_del_frontmatter_coincide_con_la_carpeta():
         )
 
 
+def test_la_referencia_no_copia_la_skill_instalada():
+    """#385: la skill ya instalada no se versiona otra vez. El puntero vive en AGENTS.md."""
+    copiadas = (
+        "anthropic-silent-failure-hunter",
+        "anthropic-claude-md-improver",
+        "hermes-agent-skill-authoring",
+        "resuming-interrupted-work",
+    )
+    for nombre in copiadas:
+        assert not (REPO / "skills" / nombre).exists(), f"{nombre} ya está instalada"
+    assert not (REPO / "vendor" / "skills").exists()
+    agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
+    assert "Referencias ya instaladas" in agents
+    assert "vendor/skills" not in agents
+
+
 def test_ninguna_skill_del_sistema_lleva_ids_de_canal():
     """ADR 0003 punto 4: ids, tokens y destinos no se versionan en el repo público."""
     for path in sorted((REPO / "skills").rglob("SKILL.md")):
