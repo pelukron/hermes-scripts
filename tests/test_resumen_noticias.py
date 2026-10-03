@@ -368,6 +368,39 @@ class TestNoticieroGlobal:
         assert "Corto" in block
         assert "• *Reuters*" in block
 
+    def test_el_item_que_no_cabe_queda_contado_por_fuente(self):
+        """#355: la ronda siguiente salva la fuente, y el ítem que no cupo se declara."""
+        sources = [("Reuters", "https://reuters.example/rss"), ("AP", "https://ap.example/rss")]
+        enorme = "Titular enorme " + "x" * 200
+        fetched = [
+            [(enorme, "https://example.com/" + "u" * 200), ("Corto", "https://example.com/c1")],
+            [("También largo " + "y" * 200, "https://example.com/" + "a" * 200)],
+        ]
+        descartes: list = []
+        with patch.object(mod, "MAX_CHARS_POR_SUBSECCION", 220):
+            block = mod.build_subsection_block(
+                "Wires", sources, fetched, set(), descartes=descartes
+            )
+        assert "Corto" in block
+        assert descartes == [("Wires", "Reuters"), ("Wires", "AP")]
+        nota = mod.nota_de_cuota(descartes)
+        assert nota == "*fuera de cuota: Wires — Reuters 1, AP 1*\n"
+        assert "_" not in nota
+        assert nota.strip().count("\n") == 0
+        assert len(nota.strip()) <= mod.MAX_CHARS_LINEA
+
+    def test_sin_descartes_la_nota_de_cuota_calla(self):
+        assert mod.nota_de_cuota([]) == ""
+
+    def test_la_nota_de_cuota_no_pasa_el_tope_de_linea(self):
+        pares = [(f"Sección {i} con nombre largo", f"Fuente {i}") for i in range(400)]
+        nota = mod.nota_de_cuota(pares)
+        assert len(nota.strip()) <= mod.MAX_CHARS_LINEA
+        assert nota.strip().count("\n") == 0
+        assert "+" in nota and "más" in nota
+        assert nota.startswith("*fuera de cuota:")
+        assert nota.strip().endswith("*")
+
     def test_dedupe_cross_seccion(self):
         seen: set = set()
         sources_a = [("Reuters", "https://reuters.example/rss")]
