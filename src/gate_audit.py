@@ -4,6 +4,9 @@ Dos capas separadas:
 
 1. Puras (sin red ni filesystem): ``summarize``, ``render_markdown``,
    ``gaps``, ``render_digest`` y ``orphan_contexts``. Reciben registros ya colectados.
+   Un check en ``na`` (motivo por clave) no aplica: no es hueco ni cuenta como aprobado.
+   El manifiesto ``config/gate-audit.json`` lo carga ``load_exemptions`` y ``apply_exemptions``
+   lo copia al registro antes de renderizar.
 2. Red (``collect``): lee via ``gh api`` y tolera 404/403 — los repos
    privados en plan Free no exponen rulesets (``403 Upgrade to GitHub Pro``).
 
@@ -21,7 +24,9 @@ en rojo**, así que no aparece en ningún log (#314).
 
 from __future__ import annotations
 
+import json
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from hermes_common import gh_bin
@@ -62,26 +67,60 @@ PATHS: dict[str, str] = {
 
 OK = "✅"
 NO = "❌"
+NA = "n/a"
+
+
+class ExemptionError(ValueError):
+    """El manifiesto declara un check o un repo que el audit no conoce."""
+
+
+def _na(rec: dict[str, Any]) -> dict[str, str]:
+    raw = rec.get("na") or {}
+    if not isinstance(raw, dict):
+        return {}
+    return {str(key): str(why) for key, why in raw.items()}
+
+
+def _missing_keys(rec: dict[str, Any]) -> list[str]:
+    declared = _na(rec)
+    checks = rec.get("checks", {})
+    return [key for key, _ in CHECKS if key not in declared and not checks.get(key)]
+
+
+def _missing_labels(rec: dict[str, Any]) -> list[str]:
+    """Huérfanos primero, luego el check que falta y no está declarado."""
+    declared = _na(rec)
+    checks = rec.get("checks", {})
+    missing = [f"huérfano: {ctx}" for ctx in rec.get("orphans", [])]
+    missing += [label for key, label in CHECKS if key not in declared and not checks.get(key)]
+    return missing
+
+
+def _cell(checks: dict[str, Any], key: str, declared: dict[str, str]) -> str:
+    if key in declared:
+        return NA
+    return OK if checks.get(key) else NO
 
 
 def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
     """Cuenta aprobados por check y separa repos verdes vs con huecos.
 
     Un contexto huérfano cuenta como hueco: deja los PRs sin mergear aunque la
-    matriz de checks esté completa.
+    matriz de checks esté completa. Un check en ``na`` no aplica: no es hueco
+    ni suma como aprobado.
     """
     per_check = {key: 0 for key, _ in CHECKS}
     green: list[str] = []
     with_gaps: list[str] = []
     for rec in records:
         checks = rec.get("checks", {})
-        missing = [key for key, _ in CHECKS if not checks.get(key)]
-        if missing or rec.get("orphans"):
+        declared = _na(rec)
+        if _missing_keys(rec) or rec.get("orphans"):
             with_gaps.append(str(rec.get("repo", "?")))
         else:
             green.append(str(rec.get("repo", "?")))
         for key in per_check:
-            if checks.get(key):
+            if checks.get(key) and key not in declared:
                 per_check[key] += 1
     return {
         "total": len(records),
@@ -95,12 +134,11 @@ def gaps(records: list[dict[str, Any]]) -> dict[str, list[str]]:
     """Repo -> etiquetas de checks faltantes. Solo repos con huecos.
 
     El huérfano va **primero**: bloquea el merge sin rojo y es lo que no se ve en ningún log.
+    Un check declarado en ``na`` no entra.
     """
     out: dict[str, list[str]] = {}
     for rec in records:
-        checks = rec.get("checks", {})
-        missing = [f"huérfano: {ctx}" for ctx in rec.get("orphans", [])]
-        missing += [label for key, label in CHECKS if not checks.get(key)]
+        missing = _missing_labels(rec)
         if missing:
             out[str(rec.get("repo", "?"))] = missing
     return out
@@ -120,7 +158,8 @@ def render_markdown(records: list[dict[str, Any]], summary: dict[str, Any]) -> s
     lines.append("|" + "---|" * (len(CHECKS) + 2))
     for rec in records:
         checks = rec.get("checks", {})
-        cells = [OK if checks.get(key) else NO for key, _ in CHECKS]
+        declared = _na(rec)
+        cells = [_cell(checks, key, declared) for key, _ in CHECKS]
         lines.append(
             f"| {rec.get('repo', '?')} | {rec.get('gate', '?')} | " + " | ".join(cells) + " |"
         )
@@ -135,6 +174,10 @@ def render_markdown(records: list[dict[str, Any]], summary: dict[str, Any]) -> s
             lines.append(f"  - exigidos: {', '.join(contexts)}")
         for orphan in rec.get("orphans") or []:
             lines.append(f"  - ❌ huérfano: `{orphan}` (ningún job lo produce: bloquea PRs)")
+        declared = _na(rec)
+        for key, label in CHECKS:
+            if key in declared:
+                lines.append(f"  - n/a {label}: {declared[key]}")
     lines.append("")
     return "\n".join(lines)
 
@@ -147,16 +190,67 @@ def render_digest(records: list[dict[str, Any]], summary: dict[str, Any], date_s
         repo = str(rec.get("repo", "?"))
         short = repo.split("/")[-1]
         checks = rec.get("checks", {})
-        ok_count = sum(1 for key, _ in CHECKS if checks.get(key))
+        applicable = [key for key, _ in CHECKS if key not in _na(rec)]
+        ok_count = sum(1 for key in applicable if checks.get(key))
         missing = found.get(repo, [])
         detail = "todo verde" if not missing else "falta: " + ", ".join(missing[:2])
         mark = OK if not missing else NO
-        lines.append(f"{mark} {short}: {ok_count}/{len(CHECKS)} — {detail}")
+        lines.append(f"{mark} {short}: {ok_count}/{len(applicable)} — {detail}")
     lines.append(
         f"Verdes: {len(summary.get('green', []))}/{summary.get('total', len(records))} · "
         "detalle: out/gate-audit.md"
     )
     return "\n".join(lines)
+
+
+def parse_exemptions(data: Any) -> dict[str, dict[str, str]]:
+    """Lista ``exemptions`` del manifiesto -> repo corto -> {check: motivo}.
+
+    Falla si el check no está en ``CHECKS``, el repo no está en ``BACKLOG_REPOS``
+    o el motivo viene vacío: una declaración que no apunta a nada no se ignora.
+    """
+    if not isinstance(data, dict):
+        raise ExemptionError("el manifiesto no es un objeto")
+    items = data.get("exemptions")
+    if not isinstance(items, list):
+        raise ExemptionError("falta la lista exemptions")
+    known = {key for key, _ in CHECKS}
+    out: dict[str, dict[str, str]] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            raise ExemptionError("una exención no es un objeto")
+        repo = item.get("repo")
+        check = item.get("check")
+        why = item.get("why")
+        if not isinstance(repo, str) or repo not in BACKLOG_REPOS:
+            raise ExemptionError(f"repo fuera del parque: {repo}")
+        if not isinstance(check, str) or check not in known:
+            raise ExemptionError(f"check desconocido: {check}")
+        if not isinstance(why, str) or not why.strip():
+            raise ExemptionError(f"exención sin motivo: {repo}/{check}")
+        bucket = out.setdefault(repo, {})
+        if check in bucket:
+            raise ExemptionError(f"exención repetida: {repo}/{check}")
+        bucket[check] = why.strip()
+    return out
+
+
+def load_exemptions(path: Path) -> dict[str, dict[str, str]]:
+    """Lee ``config/gate-audit.json``. El archivo ilegible falla igual que uno incoherente."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ExemptionError(f"no se pudo leer {path}: {exc}") from exc
+    return parse_exemptions(data)
+
+
+def apply_exemptions(records: list[dict[str, Any]], exemptions: dict[str, dict[str, str]]) -> None:
+    """Copia el motivo al registro (``na``). La capa pura no abre el archivo."""
+    for rec in records:
+        short = str(rec.get("repo", "?")).split("/")[-1]
+        declared = exemptions.get(short)
+        if declared:
+            rec["na"] = dict(declared)
 
 
 def render_alert(records: list[dict[str, Any]], summary: dict[str, Any], date_str: str) -> str:
@@ -181,8 +275,6 @@ def _gh(*args: str) -> tuple[bool, Any]:
         return False, None
     if result.returncode != 0:
         return False, None
-    import json
-
     try:
         return True, json.loads(result.stdout or "null")
     except json.JSONDecodeError:

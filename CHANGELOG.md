@@ -4,6 +4,34 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.9 (2026-10-03)
+
+### 🔧 Infra
+
+- El gate-audit no cuenta lo que no aplica
+  ([#407](https://github.com/pelukron/hermes-scripts/pull/407),
+  [`323cf53`](https://github.com/pelukron/hermes-scripts/commit/323cf53e84fa9d41ea9536b5ac4260697ce69079))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`a5c63e9`](https://github.com/pelukron/hermes-scripts/commit/a5c63e9bebfa38dbce856a35a9cc7bf233f48965))
+
+
+## v0.26.8 (2026-10-03)
+
+### 📝 Docs
+
+- Documenta el montaje y lo que entrega cada job
+  ([#406](https://github.com/pelukron/hermes-scripts/pull/406),
+  [`cd31f22`](https://github.com/pelukron/hermes-scripts/commit/cd31f22ce5b2a5f72f30c97e8c535cc3347f297d))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`f651ded`](https://github.com/pelukron/hermes-scripts/commit/f651ded1a97e2dade2c1e1af8b7ea580ec65e289))
+
+
 ## v0.26.7 (2026-10-03)
 
 ### 🔧 Infra
