@@ -4,6 +4,65 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.6 (2026-10-03)
+
+### 📝 Docs
+
+- Apunta a las skills ya instaladas sin copiarlas
+  ([#405](https://github.com/pelukron/hermes-scripts/pull/405),
+  [`b0f6469`](https://github.com/pelukron/hermes-scripts/commit/b0f64696b6433b15fe6ef6ade61c8ea35d7fee77))
+
+- Baja los textos y apunta a ellos sin reescribirlos
+  ([`b736a5e`](https://github.com/pelukron/hermes-scripts/commit/b736a5e28f544d96260d97e6662e4fb18cf88e5d))
+
+- Deja la referencia y quita la copia de las skills
+  ([`2679633`](https://github.com/pelukron/hermes-scripts/commit/2679633c1c7aef2f9995f52a81cba43f4cb5c7e1))
+
+- Versiona los cuatro adapters que quedaron fuera de #384
+  ([`01f65cb`](https://github.com/pelukron/hermes-scripts/commit/01f65cb67f0dbcc085eecfdf59dc63b9cdce80a7))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`28a6dbe`](https://github.com/pelukron/hermes-scripts/commit/28a6dbe2737d95d3ab1587d9af42f4b869596fad))
+
+
+## v0.26.5 (2026-10-02)
+
+### 🐛 Fixes
+
+- El backup escribe en .part y renombra al cerrar (#397)
+  ([#398](https://github.com/pelukron/hermes-scripts/pull/398),
+  [`999d78c`](https://github.com/pelukron/hermes-scripts/commit/999d78c645235a0fabaf95c431ceb5b227ef946c))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`6672e65`](https://github.com/pelukron/hermes-scripts/commit/6672e65baf4817edbdf752c696862159cbbfdd7b))
+
+
+## v0.26.4 (2026-10-02)
+
+### 🐛 Fixes
+
+- El gate cae por CVE nuevas en las dependencias del lock (urllib3 2.7.0, virtualenv 21.6.1) (#399)
+  ([#400](https://github.com/pelukron/hermes-scripts/pull/400),
+  [`62f5f71`](https://github.com/pelukron/hermes-scripts/commit/62f5f7120aecf4809edbab13eb27a3bdfe81ecfe))
+
+- Urllib3 a 2.8.0 por 3 CVE nuevas que tumban el gate
+  ([#399](https://github.com/pelukron/hermes-scripts/pull/399),
+  [`3244da4`](https://github.com/pelukron/hermes-scripts/commit/3244da4429c68dc49619a447716e1cafccc7952f))
+
+- Virtualenv a 21.14.1 por 4 PYSEC nuevas que tumban el gate
+  ([#399](https://github.com/pelukron/hermes-scripts/pull/399),
+  [`b5fc26e`](https://github.com/pelukron/hermes-scripts/commit/b5fc26e8f87407761c69cd8f5d6a0ae8caa5b6d2))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`ba08a2b`](https://github.com/pelukron/hermes-scripts/commit/ba08a2b2dada31077ec1db3812047fea1c49e09f))
+
+
 ## v0.26.3 (2026-09-29)
 
 ### 📝 Docs
