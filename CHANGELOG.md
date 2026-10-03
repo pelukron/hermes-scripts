@@ -4,6 +4,19 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.11 (2026-10-03)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`f684c64`](https://github.com/pelukron/hermes-scripts/commit/f684c6473f556f8c22b9bd0955cc72f64949d5ac))
+
+- **deps**: Bump github/codeql-action/autobuild from c23de5a82f64bb08c6d9f28844551440ca298e76 to
+  1c5b675653bb5c22dbe9b12b556ec555138e09fd
+  ([#402](https://github.com/pelukron/hermes-scripts/pull/402),
+  [`b9d7e0a`](https://github.com/pelukron/hermes-scripts/commit/b9d7e0af07d6af2a8d0a6a0ae49467772a0472f2))
+
+
 ## v0.26.10 (2026-10-03)
 
 ### 📦 Chores
