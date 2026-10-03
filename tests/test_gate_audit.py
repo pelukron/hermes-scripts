@@ -152,6 +152,168 @@ def test_render_digest_muestra_el_huerfano():
     assert len(text.splitlines()) <= 8
 
 
+def _diego_moreno(*, dependabot: bool = False) -> dict:
+    """Registro medido el 2026-09-29: agents y ci presentes, cinco huecos aparentes.
+
+    Cuatro no aplican y se declaran en ``na``. Dependabot sí aplica.
+    """
+    checks = {key: True for key, _ in ga.CHECKS}
+    checks["dependabot"] = dependabot
+    for key in ("codeowners", "prepush", "changelog", "precommit"):
+        checks[key] = False
+    return {
+        "repo": "pelukron/diego-moreno",
+        "visibility": "PUBLIC",
+        "gate": "node scripts/gate.mjs",
+        "ruleset": "1 ruleset(s)",
+        "checks": checks,
+        "na": {
+            "codeowners": "el ruleset no exige review de code owner",
+            "prepush": "el gate corre en CI y en local",
+            "changelog": "no hay releases ni tags",
+            "precommit": "sin ecosistema que enganchar",
+        },
+    }
+
+
+def test_gaps_no_cuenta_un_check_declarado():
+    """Lo declarado con motivo no es hueco. Dependabot, que sí aplica, sí lo es."""
+    assert ga.gaps([_diego_moreno()]) == {"pelukron/diego-moreno": ["Dependabot"]}
+
+
+def test_summarize_solo_declarados_deja_el_repo_verde():
+    rec = _diego_moreno(dependabot=True)
+    summary = ga.summarize([rec])
+    assert summary["green"] == ["pelukron/diego-moreno"]
+    assert summary["with_gaps"] == []
+    rec["checks"]["codeowners"] = True
+    assert ga.summarize([rec])["per_check"]["codeowners"] == 0
+
+
+def test_summarize_el_hueco_real_sigue_en_with_gaps():
+    summary = ga.summarize([_diego_moreno()])
+    assert summary["with_gaps"] == ["pelukron/diego-moreno"]
+    assert summary["green"] == []
+
+
+def test_huerfano_no_lo_tapa_una_exencion():
+    rec = _diego_moreno(dependabot=True)
+    rec["orphans"] = ["test (3.12)"]
+    assert ga.gaps([rec])["pelukron/diego-moreno"] == ["huérfano: test (3.12)"]
+    assert "pelukron/diego-moreno" in ga.summarize([rec])["with_gaps"]
+
+
+def test_render_markdown_marca_el_declarado_distinto():
+    """n/a no es ✅ ni ❌, y el motivo queda en la matriz, no solo en el json."""
+    rec = _diego_moreno()
+    text = ga.render_markdown([rec], ga.summarize([rec]))
+    fila = (
+        "| pelukron/diego-moreno | node scripts/gate.mjs | ✅ | ✅ | ❌ | n/a | n/a | n/a | n/a |"
+    )
+    assert fila in text
+    assert "n/a CODEOWNERS: el ruleset no exige review de code owner" in text
+    assert "n/a pre-commit: sin ecosistema que enganchar" in text
+
+
+def test_digest_cuenta_solo_los_aplicables_y_calla_los_declarados():
+    """2 presentes de 3 aplicables. El «2/2» del issue resta también el hueco real.
+
+    Aplicables = CHECKS menos declarados. Dependabot sigue en el denominador: 2/3,
+    y el detalle nombra solo ese hueco. Ninguna línea pasa el tope del ADR 0005.
+    """
+    rec = _diego_moreno()
+    text = ga.render_digest([rec], ga.summarize([rec]), "2026-09-29")
+    assert "❌ diego-moreno: 2/3 — falta: Dependabot" in text
+    for etiqueta in ("CODEOWNERS", "pre-push", "CHANGELOG", "pre-commit"):
+        assert etiqueta not in text
+    assert len(text.splitlines()) <= 8
+    assert all(len(linea) <= 3800 for linea in text.splitlines())
+
+
+def test_alert_no_nombra_los_declarados():
+    text = ga.render_alert([_diego_moreno()], ga.summarize([_diego_moreno()]), "2026-09-29")
+    assert "Dependabot" in text
+    for etiqueta in ("CODEOWNERS", "pre-push", "CHANGELOG", "pre-commit"):
+        assert etiqueta not in text
+
+
+def test_exencion_con_check_desconocido_falla():
+    try:
+        ga.parse_exemptions(
+            {"exemptions": [{"repo": "diego-moreno", "check": "no-existe", "why": "x"}]}
+        )
+    except ga.ExemptionError as exc:
+        assert "no-existe" in str(exc)
+    else:
+        raise AssertionError("un check fuera de CHECKS tiene que fallar")
+
+
+def test_exencion_con_repo_fuera_del_parque_falla():
+    try:
+        ga.parse_exemptions(
+            {"exemptions": [{"repo": "otro-repo", "check": "codeowners", "why": "x"}]}
+        )
+    except ga.ExemptionError as exc:
+        assert "otro-repo" in str(exc)
+    else:
+        raise AssertionError("un repo fuera de BACKLOG_REPOS tiene que fallar")
+
+
+def test_exencion_sin_motivo_falla():
+    try:
+        ga.parse_exemptions(
+            {"exemptions": [{"repo": "diego-moreno", "check": "codeowners", "why": "  "}]}
+        )
+    except ga.ExemptionError as exc:
+        assert "motivo" in str(exc)
+    else:
+        raise AssertionError("declarar sin motivo es ignorar en silencio")
+
+
+def test_el_manifiesto_real_declara_solo_lo_que_no_aplica():
+    ex = ga.load_exemptions(REPO / "config" / "gate-audit.json")
+    assert set(ex["diego-moreno"]) == {"codeowners", "prepush", "changelog", "precommit"}
+    assert "dependabot" not in ex["diego-moreno"]
+    for why in ex["diego-moreno"].values():
+        assert why.strip()
+
+
+def test_cli_digest_aplica_el_manifiesto(monkeypatch, capsys):
+    """El cierre del #394: --digest deja un hueco real y no nombra los cuatro declarados."""
+    cli = _cargar_cli()
+    rec = _diego_moreno()
+    rec.pop("na")
+    monkeypatch.setattr(cli, "collect", lambda owner, repos: [rec])
+    assert cli.main(["--digest", "--no-write", "--date", "2026-09-29"]) == 0
+    out = capsys.readouterr().out
+    assert "diego-moreno: 2/3 — falta: Dependabot" in out
+    for etiqueta in ("CODEOWNERS", "pre-push", "CHANGELOG", "pre-commit"):
+        assert etiqueta not in out
+
+
+def test_cli_alert_no_nombra_los_declarados(monkeypatch, capsys):
+    cli = _cargar_cli()
+    rec = _diego_moreno()
+    rec.pop("na")
+    monkeypatch.setattr(cli, "collect", lambda owner, repos: [rec])
+    assert cli.main(["--alert", "--no-write", "--date", "2026-09-29"]) == 0
+    out = capsys.readouterr().out
+    assert "Dependabot" in out
+    for etiqueta in ("CODEOWNERS", "pre-push", "CHANGELOG", "pre-commit"):
+        assert etiqueta not in out
+
+
+def test_cli_rechaza_un_manifiesto_invalido(monkeypatch, capsys):
+    cli = _cargar_cli()
+
+    def boom(path):
+        raise ga.ExemptionError("check desconocido: nope")
+
+    monkeypatch.setattr(cli, "load_exemptions", boom)
+    assert cli.main(["--no-write"]) == 2
+    assert "check desconocido: nope" in capsys.readouterr().err
+
+
 # ═══════════════════════════════════════════
 # Capa red (fakes de subprocess, sin `gh` real)
 # ═══════════════════════════════════════════
