@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.8 (2026-10-03)
+
+### 📝 Docs
+
+- Documenta el montaje y lo que entrega cada job
+  ([#406](https://github.com/pelukron/hermes-scripts/pull/406),
+  [`cd31f22`](https://github.com/pelukron/hermes-scripts/commit/cd31f22ce5b2a5f72f30c97e8c535cc3347f297d))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`f651ded`](https://github.com/pelukron/hermes-scripts/commit/f651ded1a97e2dade2c1e1af8b7ea580ec65e289))
+
+
 ## v0.26.7 (2026-10-03)
 
 ### 🔧 Infra
