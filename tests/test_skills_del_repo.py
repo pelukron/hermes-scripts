@@ -43,22 +43,20 @@ def test_el_name_del_frontmatter_coincide_con_la_carpeta():
         )
 
 
-def test_el_upstream_bajado_no_se_repite_como_skill():
-    """#385: el texto vive una vez, en vendor/skills. Un SKILL.md paralelo lo duplica."""
-    bajados = (
+def test_la_referencia_no_copia_la_skill_instalada():
+    """#385: la skill ya instalada no se versiona otra vez. El puntero vive en AGENTS.md."""
+    copiadas = (
         "anthropic-silent-failure-hunter",
         "anthropic-claude-md-improver",
         "hermes-agent-skill-authoring",
         "resuming-interrupted-work",
     )
-    for nombre in bajados:
-        assert not (REPO / "skills" / nombre).exists(), f"{nombre} no se reescribe en skills/"
-    vendor = REPO / "vendor" / "skills"
-    assert (vendor / "silent-failure-hunter" / "silent-failure-hunter.md").is_file()
-    assert (vendor / "claude-md-improver" / "SKILL.md").is_file()
-    assert (vendor / "hermes-agent-skill-authoring" / "SKILL.md").is_file()
+    for nombre in copiadas:
+        assert not (REPO / "skills" / nombre).exists(), f"{nombre} ya está instalada"
+    assert not (REPO / "vendor" / "skills").exists()
     agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
-    assert "vendor/skills" in agents
+    assert "Referencias ya instaladas" in agents
+    assert "vendor/skills" not in agents
 
 
 def test_ninguna_skill_del_sistema_lleva_ids_de_canal():

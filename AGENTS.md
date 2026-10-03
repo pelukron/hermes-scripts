@@ -54,7 +54,7 @@
 - Job nuevo, renombrado o quitado del manifiesto: el ADR 0009 y `TestEstandarPorAreaDelParque` se
   actualizan en el mismo cambio — el test lee el ADR y el manifiesto, así que divergir es gate rojo.
 - Skills: aplica el router ask-matt sin que te lo pidan (idea → grill-with-docs → spec → tickets → implement; bug → diagnosing-bugs; pila de requests → triage; si no encaja, ejecución directa).
-- Skills de terceros: no reescribas su procedimiento. Cuándo leer el texto bajado está en `skills/external-skills` §«Textos bajados» (`vendor/skills/`).
+- Skills de terceros: no las copies al repo. Cuándo leer la que ya está instalada está en `skills/external-skills` §«Referencias ya instaladas».
 - Emoji: fuera del código; en docs y labels sí, con el vocabulario de `PROJECT_MANAGEMENT.md`.
 - Nombres nuevos (jobs, wrappers, módulos) en **inglés** (`cron-canary`, `cron-doctor-daily`). No
   renombrar artefactos vivos en español (`backup-diario`, `resumen-*`, `aviso-*`): el instalador

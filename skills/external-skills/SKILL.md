@@ -109,18 +109,18 @@ bash ~/hermes-scripts/bin/update-external-skills.sh   # recorre ~/.hermes/skills
 | `mattpocock-grill-docs` | mattpocock/grill-with-docs + domain-modeling | ✅ |
 | `superpowers-receiving-code-review` | obra/superpowers → skills/receiving-code-review | ✅ 2026-09-27 |
 
-## Textos bajados
+## Referencias ya instaladas
 
-Estos tres no tienen adapter. El procedimiento está en el archivo descargado. Aquí sólo está cuándo
-leerlo y qué de este repo el original no sabe. No se copia ese texto a otro `SKILL.md`.
+No se copian a este repo: ya están en el perfil. Se lee la skill instalada. Esta tabla sólo dice
+cuándo y qué de este repo el original no sabe.
 
-| Cuándo | Archivo | Commit | Qué cambia aquí |
-|---|---|---|---|
-| Un diff traga un error | `vendor/skills/silent-failure-hunter/silent-failure-hunter.md` | `anthropics/claude-plugins-official` `d182ca45` | El silencio de un job `no_agent` en verde es el contrato. No hay Sentry ni `errorIds.ts`. |
-| Auditar el contexto que carga el agente | `vendor/skills/claude-md-improver/SKILL.md` | el mismo commit | El archivo es `AGENTS.md`, no `CLAUDE.md`. |
-| Añadir una skill a este repo | `vendor/skills/hermes-agent-skill-authoring/SKILL.md` | `NousResearch/hermes-agent` `e09e4018` | El path de aquí es `skills/<nombre>/SKILL.md` más el enlace en `config/runtime-clones.json`. El manual describe el otro repo. |
+| Cuándo | Skill instalada | Qué cambia aquí |
+|---|---|---|
+| Un diff traga un error | `silent-failure-hunter` | El silencio de un job `no_agent` en verde es el contrato. No hay Sentry ni `errorIds.ts`. |
+| Auditar el contexto que carga el agente | `claude-md-improver` | El archivo es `AGENTS.md`, no `CLAUDE.md`. |
+| Añadir una skill a este repo | `hermes-agent-skill-authoring` | El path de aquí es `skills/<nombre>/SKILL.md` más el enlace en `config/runtime-clones.json`. El manual describe el otro repo. |
 
-`resuming-interrupted-work` no se baja: la fusión del perfil no tiene archivo público. Retomar un corte sigue en `ecc-handoff-memory`.
+`resuming-interrupted-work` no se versiona. Retomar un corte sigue en `ecc-handoff-memory`.
 
 ## Pitfalls
 
