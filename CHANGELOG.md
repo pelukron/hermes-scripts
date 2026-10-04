@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.18 (2026-10-04)
+
+### ♻️ Refactor
+
+- Un solo dueño del presupuesto de entrega
+  ([#414](https://github.com/pelukron/hermes-scripts/pull/414),
+  [`6b65c60`](https://github.com/pelukron/hermes-scripts/commit/6b65c60f08677988376367f412bc85264148cb7a))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`f939bb6`](https://github.com/pelukron/hermes-scripts/commit/f939bb6c81146cec80c7098eb8425547d242ba70))
+
+
 ## v0.26.17 (2026-10-04)
 
 ### 📝 Docs
