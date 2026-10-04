@@ -89,14 +89,21 @@ def test_las_italicas_del_ensamble_usan_asteriscos(tmp_path):
     assert "_No se encontraron" not in texto
 
 
-def test_el_recorte_no_parte_una_url():
-    from scripts.team_pipeline import fit_block
+def test_el_recorte_no_parte_una_url_y_se_declara():
+    """El recorte lo hace el módulo: por línea entera, y la pérdida se declara."""
+    from hermes_common import prepare
 
     url = "https://news.google.com/rss/articles/" + ("a" * 80)
     line = f"- 📰 **Medio**: [{url}]({url})"
-    fitted = fit_block("\n".join([line, line]), limit=len(line) + 5)
-    assert fitted == line
-    assert url in fitted
+    block = "\n".join([line, line, line])
+
+    (result,) = prepare([block], message_budget=len(line) + 30)
+
+    # Caben una línea y la nota: las otras dos se descartan enteras y se declaran.
+    assert result.dropped == 2
+    emitted = result.text.splitlines()
+    assert emitted[0] == line, "la línea emitida conserva su URL completa"
+    assert emitted[-1].endswith("fuera"), emitted[-1]
 
 
 def test_las_listas_compartidas_viven_una_sola_vez():

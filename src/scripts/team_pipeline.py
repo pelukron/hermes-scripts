@@ -18,10 +18,13 @@ from typing import Any, Optional
 from urllib.parse import urljoin
 
 import hermes_common
-from hermes_common import filter_by_max_age, news_utils, uv_bin
+from hermes_common import delivery, filter_by_max_age, news_utils, uv_bin
 
 log = logging.getLogger("hermes")
 
+# Presupuesto POR MENSAJE de esta área, más estricto que el tope duro del sender (4096): es
+# política del área (ADR 0009) y quien lo aplica es el seam de entrega (`delivery.emit`), que
+# además declara lo que deja fuera. Antes de esto, el recorte era local y mudo.
 TELEGRAM_MAX_CHARS = 3000
 TIMEOUT = 20
 
@@ -757,28 +760,14 @@ def expose(
     ns["build_report_blocks"] = build_report_blocks
 
 
-def fit_block(block: str, limit: int = TELEGRAM_MAX_CHARS) -> str:
-    """Recorta por línea entera. Un corte a media URL llega al chat como texto plano."""
-    if len(block) <= limit:
-        return block
-    kept: list[str] = []
-    size = 0
-    for line in block.splitlines():
-        extra = len(line) + (1 if kept else 0)
-        if size + extra > limit:
-            break
-        kept.append(line)
-        size += extra
-    return "\n".join(kept)
-
-
 def publish(blocks_fn: Callable[[], list[str]], limit: int = TELEGRAM_MAX_CHARS) -> None:
-    """Imprime cada bloque separado por `---` para el gateway de Telegram."""
+    """Emite cada bloque por el seam de entrega: un bloque = un mensaje.
+
+    El recorte dejó de ser local y mudo: `delivery.emit` corta por línea entera —una URL nunca
+    llega a medias— y declara lo que el presupuesto dejó fuera.
+    """
     hermes_common.setup_logging()
-    for block in blocks_fn():
-        log.info(fit_block(block, limit))
-        log.info("\n---\n")
-        time.sleep(1.5)
+    delivery.emit(blocks_fn(), write=log.info, message_budget=limit)
 
 
 def enter(main: Callable[[], None]) -> None:

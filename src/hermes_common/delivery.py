@@ -88,14 +88,23 @@ def _join(lines: list[str], dropped: int) -> str:
     return f"{body}\n{note}" if body else note
 
 
-def prepare(blocks: Iterable[str], *, line_budget: int = LINE_BUDGET) -> list[DeliveryResult]:
+def prepare(
+    blocks: Iterable[str],
+    *,
+    message_budget: int = TELEGRAM_UTF16_LIMIT,
+    line_budget: int = LINE_BUDGET,
+) -> list[DeliveryResult]:
     """Fit each block to ONE message, cutting on whole lines only.
 
+    ``message_budget`` is the per-message budget: an area may declare a tighter one than the
+    sender's hard limit (ADR 0009, one area one policy), and it is clamped to
+    ``TELEGRAM_UTF16_LIMIT`` because no budget talks the sender into splitting a link.
     A line longer than ``line_budget`` is never cut: it is dropped whole and counted, because a cut
     inside a URL reaches the chat as plain text with the URL exposed (#278, ADR 0005). Whatever the
     budget left out is declared in the block itself (``+N fuera``), so no silent truncation ships.
     A block carrying no content is not delivered at all: empty stdout means no message.
     """
+    cap = min(message_budget, TELEGRAM_UTF16_LIMIT)
     results: list[DeliveryResult] = []
     for block in blocks:
         if not block or not block.strip():
@@ -107,7 +116,7 @@ def prepare(blocks: Iterable[str], *, line_budget: int = LINE_BUDGET) -> list[De
                 dropped += 1
                 continue
             kept.append(line)
-        while kept and utf16_len(_join(kept, dropped)) > TELEGRAM_UTF16_LIMIT:
+        while kept and utf16_len(_join(kept, dropped)) > cap:
             kept.pop()
             dropped += 1
         text = _join(kept, dropped)
@@ -119,6 +128,7 @@ def emit(
     blocks: Iterable[str],
     *,
     write: Callable[[str], None],
+    message_budget: int = TELEGRAM_UTF16_LIMIT,
     line_budget: int = LINE_BUDGET,
 ) -> list[DeliveryResult]:
     """Write each block as its own message, then pause before the next one.
@@ -126,7 +136,7 @@ def emit(
     ``write`` is the caller's sink — the report scripts pass ``log.info`` — so this module never
     decides logging. The separator and the pause are declared here, once, for every area.
     """
-    results = prepare(blocks, line_budget=line_budget)
+    results = prepare(blocks, message_budget=message_budget, line_budget=line_budget)
     for result in results:
         write(result.text)
         write(BLOCK_SEPARATOR)
