@@ -15,8 +15,14 @@ from unittest.mock import patch
 import pytest
 
 from hermes_common import (
+    LINE_BUDGET,
+    REPORT_BUDGET,
     TELEGRAM_UTF16_LIMIT,
+    DeliveryResult,
+    delivery,
+    emit,
     markdown_v2_link_issues,
+    prepare,
     telegram_chunks,
     utf16_len,
 )
@@ -307,6 +313,80 @@ class TestPresupuestoDeEntrega:
         # (gateway/platforms/base.py), así que con líneas cortas un enlace no puede partirse.
         assert noticias.MAX_CHARS_REPORTE > 3200
         assert noticias.MAX_CHARS_REPORTE <= 2 * (TELEGRAM_UTF16_LIMIT - 300)
+
+
+class TestPrepare:
+    """`prepare` cuts on whole lines and declares whatever the budget left out (ADR 0005)."""
+
+    def test_a_block_that_fits_is_untouched(self):
+        (result,) = prepare(["line a\nline b"])
+        assert isinstance(result, DeliveryResult)
+        assert result.text == "line a\nline b"
+        assert (result.dropped, result.chunks) == (0, 1)
+
+    def test_a_line_over_the_line_budget_is_dropped_whole_never_cut(self):
+        too_long = "x" * (LINE_BUDGET + 1)
+        (result,) = prepare([f"{too_long}\nshort line"])
+        assert too_long not in result.text, "la línea larga no puede emitirse"
+        assert too_long[:120] not in result.text, "ni a medias: cortar una URL la rompe"
+        assert "short line" in result.text
+        assert result.dropped == 1
+
+    def test_the_note_counts_the_lines_that_fell_out(self):
+        too_long = "x" * (LINE_BUDGET + 1)
+        (result,) = prepare([f"{too_long}\na\n{too_long}"])
+        assert result.dropped == 2
+        assert "+2 fuera" in result.text
+
+    def test_a_block_over_the_message_limit_is_trimmed_from_the_end(self):
+        block = "\n".join(f"line {i} " + "y" * 900 for i in range(6))  # ~5.4 K unidades UTF-16
+        (result,) = prepare([block])
+        assert result.dropped >= 1
+        assert "+" in result.text and "fuera" in result.text
+        assert utf16_len(result.text) <= TELEGRAM_UTF16_LIMIT
+        assert result.chunks == 1
+
+    def test_no_emitted_line_passes_the_line_budget(self):
+        block = "\n".join("z" * 1000 for _ in range(6))
+        for result in prepare([block]):
+            for line in result.text.splitlines():
+                assert utf16_len(line) <= LINE_BUDGET, line[:60]
+
+    def test_an_empty_block_delivers_nothing(self):
+        assert prepare([]) == []
+        assert prepare(["", "\n", "   "]) == []
+
+
+class TestEmit:
+    """`emit` writes one message per block, with the separator and the pause declared here."""
+
+    def test_emit_writes_each_block_then_the_separator_and_pauses(self, monkeypatch):
+        written: list[str] = []
+        pauses: list[float] = []
+        monkeypatch.setattr(delivery.time, "sleep", pauses.append)
+
+        results = emit(["uno", "dos"], write=written.append)
+
+        assert written == ["uno", delivery.BLOCK_SEPARATOR, "dos", delivery.BLOCK_SEPARATOR]
+        assert pauses == [delivery.BLOCK_PAUSE_SECONDS, delivery.BLOCK_PAUSE_SECONDS]
+        assert [r.text for r in results] == ["uno", "dos"]
+
+    def test_emit_reports_the_same_result_as_prepare(self, monkeypatch):
+        monkeypatch.setattr(delivery.time, "sleep", lambda _s: None)
+        written: list[str] = []
+
+        results = emit(["uno\n" + "k" * (LINE_BUDGET + 1)], write=written.append)
+
+        assert [r.dropped for r in results] == [1]
+        assert results[0].text in written
+
+    def test_the_module_budgets_are_the_ones_adr_0005_fixed(self):
+        assert LINE_BUDGET == 3800
+        assert REPORT_BUDGET == 7100
+        # El tope por línea es lo que hace segura la entrega multi-mensaje: con las líneas por
+        # debajo, el chunker de Hermes corta en un '\n' y ningún enlace se parte.
+        assert LINE_BUDGET < TELEGRAM_UTF16_LIMIT
+        assert REPORT_BUDGET <= 2 * TELEGRAM_UTF16_LIMIT
 
 
 # ═══════════════════════════════════════════
