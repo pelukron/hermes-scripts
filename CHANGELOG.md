@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.19 (2026-10-04)
+
+### ♻️ Refactor
+
+- Equipos emite por el seam y declara su recorte
+  ([#416](https://github.com/pelukron/hermes-scripts/pull/416),
+  [`5683b3f`](https://github.com/pelukron/hermes-scripts/commit/5683b3fb6200cb66778452574b3d13e218c176dd))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`fda6c7e`](https://github.com/pelukron/hermes-scripts/commit/fda6c7ece424b05024a2f10ba8321da488f31d04))
+
+
 ## v0.26.18 (2026-10-04)
 
 ### ♻️ Refactor
