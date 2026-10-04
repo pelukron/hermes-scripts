@@ -4,6 +4,21 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.16 (2026-10-04)
+
+### 📦 Chores
+
+- Colapsar healthcheck en hermes_common y single-source del canary
+  ([#410](https://github.com/pelukron/hermes-scripts/pull/410),
+  [`d312200`](https://github.com/pelukron/hermes-scripts/commit/d312200a1296f69dda1e6dea5e9d1b75f8442254))
+
+- El guard nuevo del canary se nombra en inglés
+  ([`b7b76ab`](https://github.com/pelukron/hermes-scripts/commit/b7b76ab06d2be72210d0369d78e20301a32647cc))
+
+- Sync uv.lock tras release [skip ci]
+  ([`6e7faeb`](https://github.com/pelukron/hermes-scripts/commit/6e7faeb95b88da800d2674d4a99c4956a8705a76))
+
+
 ## v0.26.15 (2026-10-03)
 
 ### 📦 Chores
