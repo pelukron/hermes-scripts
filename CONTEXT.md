@@ -1,7 +1,7 @@
 # CONTEXT.md — hermes-scripts
 
 > Papel: vocabulario compartido y orden de trabajo para agentes y humanos.
-> Actualizado: 2026-09-19. Fuente de verdad del proceso: `PROJECT_MANAGEMENT.md` + `CONTRIBUTING.md`.
+> Actualizado: 2026-10-04. Fuente de verdad del proceso: `PROJECT_MANAGEMENT.md` + `CONTRIBUTING.md`.
 
 ## 1. Vocabulario
 
@@ -35,6 +35,7 @@
 - Ramas: `{tipo}/{N}-slug` (ej. `feat/100-gate-sh`). Tipos: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `ci/`.
 - Jobs, wrappers y módulos **nuevos**: nombre en inglés (`cron-canary`, `cron-doctor-daily`, `sync-runtime`). **No** renombrar artefactos vivos en español (`backup-diario`, `reporte-uso-hermes`, `resumen-*`, `aviso-*`): `install-cron.sh` empareja por nombre y renombrar crea drift.
 - Contenido (comentarios, docs, prompts) en español. Glosario del epic de crons en inglés (canary, observer, delivery budget).
+- **Código nuevo en inglés**: identificadores, comentarios y docstrings de `*.py` y `bin/*.sh`. Quedan en español la prosa (`.md` y comentarios de config) y los mensajes de commit. Frontera: ADR 0011.
 - Issues: prefijos `[infra]`, `[docs]`, `feat:`, `fix:`, `chore:`, `perf:`, `refactor:` + labels de `PROJECT_MANAGEMENT.md` (`👑 epic`, `✨ enhancement`, `🐛 bug`, `📚 documentation`, `🔧 chore`, `🤖 automation`, `priority: pX`, `size: XS–XL`).
 - Emoji: fuera del código; en docs/labels sí, con el vocabulario de `PROJECT_MANAGEMENT.md`.
 

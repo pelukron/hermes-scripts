@@ -56,6 +56,8 @@
 - Skills: aplica el router ask-matt sin que te lo pidan (idea → grill-with-docs → spec → tickets → implement; bug → diagnosing-bugs; pila de requests → triage; si no encaja, ejecución directa).
 - Skills de terceros: no las copies al repo. Cuándo leer la que ya está instalada está en `skills/external-skills` §«Referencias ya instaladas».
 - Emoji: fuera del código; en docs y labels sí, con el vocabulario de `PROJECT_MANAGEMENT.md`.
-- Nombres nuevos (jobs, wrappers, módulos) en **inglés** (`cron-canary`, `cron-doctor-daily`). No
-  renombrar artefactos vivos en español (`backup-diario`, `resumen-*`, `aviso-*`): el instalador
-  empareja por nombre. Contenido (comentarios, docs, prompts) en español.
+- Nombres nuevos (jobs, wrappers, módulos) **y código nuevo** en **inglés**: identificadores, comentarios y
+  docstrings de `*.py` y de `bin/*.sh` (`cron-canary`, `cron-doctor-daily`, `unresolved_entries`). No
+  renombrar artefactos vivos en español (`backup-diario`, `resumen-*`, `aviso-*`): el instalador empareja por
+  nombre. La prosa —`.md` y comentarios de config (`pyproject.toml`, `cron/jobs.json`, `config/*.json`)— sigue
+  en español, igual que los mensajes de commit. Frontera y porqué: `docs/adr/0011-idioma-del-codigo.md`.

@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.17 (2026-10-04)
+
+### 📝 Docs
+
+- El código nuevo va en inglés (ADR 0011)
+  ([#412](https://github.com/pelukron/hermes-scripts/pull/412),
+  [`644fa69`](https://github.com/pelukron/hermes-scripts/commit/644fa692a67a440510b5635db808393a6ac1c4b1))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`513e64c`](https://github.com/pelukron/hermes-scripts/commit/513e64c72e68e8abf3ff4e3097ea1d77de4f7be6))
+
+
 ## v0.26.16 (2026-10-04)
 
 ### 📦 Chores
