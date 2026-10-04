@@ -356,6 +356,27 @@ class TestPrepare:
         assert prepare([]) == []
         assert prepare(["", "\n", "   "]) == []
 
+    def test_message_budget_is_a_stricter_cap_than_the_hard_limit(self):
+        """An area may declare a tighter per-message budget (its policy, ADR 0009)."""
+        block = "\n".join(["x" * 900 for _ in range(4)])  # ~3.6 K unidades UTF-16
+
+        (loose,) = prepare([block])
+        (tight,) = prepare([block], message_budget=1000)
+
+        assert loose.dropped == 0
+        assert utf16_len(loose.text) > 1000
+        assert tight.dropped >= 1
+        assert utf16_len(tight.text) <= 1000
+        assert tight.chunks == 1
+
+    def test_message_budget_never_passes_the_hard_limit(self):
+        """4096 es el techo del sender: un presupuesto mayor se recorta a él."""
+        block = "\n".join(["y" * 900 for _ in range(6)])
+
+        (result,) = prepare([block], message_budget=9000)
+
+        assert utf16_len(result.text) <= TELEGRAM_UTF16_LIMIT
+
 
 class TestEmit:
     """`emit` writes one message per block, with the separator and the pause declared here."""
@@ -387,6 +408,16 @@ class TestEmit:
         # debajo, el chunker de Hermes corta en un '\n' y ningún enlace se parte.
         assert LINE_BUDGET < TELEGRAM_UTF16_LIMIT
         assert REPORT_BUDGET <= 2 * TELEGRAM_UTF16_LIMIT
+
+    def test_emit_passes_the_message_budget_through(self, monkeypatch):
+        monkeypatch.setattr(delivery.time, "sleep", lambda _s: None)
+        written: list[str] = []
+        block = "\n".join(["z" * 900 for _ in range(4)])
+
+        (result,) = emit([block], write=written.append, message_budget=1000)
+
+        assert result.dropped >= 1
+        assert "fuera" in written[0]
 
 
 # ═══════════════════════════════════════════
