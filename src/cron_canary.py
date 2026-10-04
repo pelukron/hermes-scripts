@@ -13,10 +13,17 @@ import os
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from hermes_common import report_failure, state_dir, uv_bin
+from hermes_common import (
+    TELEGRAM_UTF16_LIMIT,
+    report_failure,
+    state_dir,
+    utf16_len,
+    uv_bin,
+)
 
 try:
     from src import regression_ledger as _ledger
@@ -42,12 +49,18 @@ ALLOW_LIST = (
 )
 
 STEP_TIMEOUT = 300
-TELEGRAM_UTF16_LIMIT = 4096
 CANARY_TEXT = "cron-canary ok"
 
 
-def utf16_len(text: str) -> int:
-    return len(text.encode("utf-16-le")) // 2
+def unresolved_entries(entries: Iterable[str], scripts: set[str], jobs: set[str]) -> list[str]:
+    """Allow/deny list entries that no longer resolve to anything in the fleet.
+
+    An entry is either an entrypoint name (`uv run <name>`, from ``[project.scripts]``) or a
+    manifest job name. Without this guard a retired entrypoint keeps running in the sandbox as
+    if it still belonged to the fleet: the canary asserts something that no longer exists (#325).
+    """
+    declared = set(scripts) | set(jobs)
+    return [name for name in entries if name not in declared]
 
 
 # Libro que Hermes reescribe al guardar o al cerrar una corrida (cron/jobs.py:

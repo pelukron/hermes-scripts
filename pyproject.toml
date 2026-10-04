@@ -81,7 +81,9 @@ omit = ["tests/*", "*/__pycache__/*", ".venv/*"]
 # Medido dentro de pytest (tests/ es un paquete, así que pytest mete la raíz del
 # repo la primera): sys.path queda [raíz, src, raíz, …]. Importa menos quién gana
 # que el hecho de que gane **siempre el mismo**: `hermes_common` resuelve al shim,
-# `cron_canary` / `install_cron` / `healthcheck` a `src/`. Tener las dos identidades
+# `cron_canary` / `install_cron` a `src/`. (El testigo externo ya no es un módulo de
+# primer nivel: `healthcheck` se plegó en `src/hermes_common/` — #325 — y se importa
+# desde el paquete.) Tener las dos identidades
 # de `hermes_common` vivas en la misma sesión es el fallo de #251 (test_cron_canary
 # metía `REPO/src` al frente y dejaba un `hermes_common` duplicado cacheado en
 # sys.modules con su propio `_DEFAULT_SESSION`, y rompía tests ajenos según el orden

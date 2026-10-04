@@ -6,7 +6,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-import healthcheck as hc  # noqa: E402
+from src.hermes_common import healthcheck as hc  # noqa: E402
 
 
 def test_ping_url_start_y_fail():

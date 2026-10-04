@@ -14,7 +14,7 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
-from hermes_common import state_dir
+from .common import state_dir
 
 ENV_KEY = "HEALTHCHECK_PING_URL"
 TIMEOUT = 10

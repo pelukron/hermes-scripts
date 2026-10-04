@@ -8,12 +8,33 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 import cron_canary as cc  # noqa: E402
+import cron_manifest as mf  # noqa: E402
 
 
 def test_allow_y_deny_no_se_solapan():
     assert not set(cc.ALLOW_LIST) & set(cc.DENY_LIST)
     assert "monitor-ram-mexico" in cc.ALLOW_LIST
     assert "backup-diario" in cc.DENY_LIST
+
+
+def test_allow_and_deny_resolve_to_entrypoints_or_jobs():
+    """Every entry is a `[project.scripts]` entrypoint or a manifest job (#325).
+
+    Measured while writing the guard: the list carried `polymarket-diario` (an entrypoint the
+    daily report runs as a subprocess, with no job of its own) and `sync-runtime` (the
+    entrypoint of the `runtime-sync` job): neither is a job name, so a guard against
+    `cron/jobs.json` alone would have failed for the wrong reason.
+    """
+    scripts = mf.load_project_scripts(REPO)
+    jobs = {job.name for job in mf.parse_jobs(mf.load_manifest(REPO / "cron" / "jobs.json"))}
+    entries = [*cc.ALLOW_LIST, *cc.DENY_LIST]
+    assert cc.unresolved_entries(entries, scripts, jobs) == []
+
+
+def test_canary_guard_catches_a_retired_entrypoint():
+    """Proof that the guard looks at something: an invented name is reported."""
+    entries = [*cc.ALLOW_LIST, "entrypoint-retirado"]
+    assert cc.unresolved_entries(entries, set(), set()) == list(entries)
 
 
 def test_payload_cabe_en_un_mensaje():
