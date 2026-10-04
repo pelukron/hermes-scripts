@@ -1421,7 +1421,7 @@ wheels = [
 
 [[package]]
 name = "resumen-noticias-diario"
-version = "0.26.17"
+version = "0.26.18"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
