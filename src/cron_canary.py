@@ -52,15 +52,15 @@ STEP_TIMEOUT = 300
 CANARY_TEXT = "cron-canary ok"
 
 
-def entradas_sin_resolver(entradas: Iterable[str], scripts: set[str], jobs: set[str]) -> list[str]:
-    """Entradas de la allow/deny list que ya no resuelven a nada del parque.
+def unresolved_entries(entries: Iterable[str], scripts: set[str], jobs: set[str]) -> list[str]:
+    """Allow/deny list entries that no longer resolve to anything in the fleet.
 
-    Una entrada es el nombre de un entrypoint (`uv run <nombre>`, de ``[project.scripts]``)
-    o el de un job del manifiesto. Sin este guard un entrypoint retirado sigue corriendo en
-    el sandbox como si fuera del parque: el canary afirma algo que ya no existe (#325).
+    An entry is either an entrypoint name (`uv run <name>`, from ``[project.scripts]``) or a
+    manifest job name. Without this guard a retired entrypoint keeps running in the sandbox as
+    if it still belonged to the fleet: the canary asserts something that no longer exists (#325).
     """
-    declarados = set(scripts) | set(jobs)
-    return [nombre for nombre in entradas if nombre not in declarados]
+    declared = set(scripts) | set(jobs)
+    return [name for name in entries if name not in declared]
 
 
 # Libro que Hermes reescribe al guardar o al cerrar una corrida (cron/jobs.py:
