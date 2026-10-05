@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.20 (2026-10-05)
+
+### 📦 Chores
+
+- Simplificar _checks y classify ([#409](https://github.com/pelukron/hermes-scripts/pull/409),
+  [`1dc721e`](https://github.com/pelukron/hermes-scripts/commit/1dc721e3afdac6c2674ae30e6bf07739a984fc84))
+
+- Simplificar _checks/classify (#409) ([#417](https://github.com/pelukron/hermes-scripts/pull/417),
+  [`6880ce5`](https://github.com/pelukron/hermes-scripts/commit/6880ce52cb9c1c3c0a803c17df1034e3eaada961))
+
+- Sync uv.lock tras release [skip ci]
+  ([`73bded0`](https://github.com/pelukron/hermes-scripts/commit/73bded019942552e0e5f26867efa7678e43e2e05))
+
+
 ## v0.26.19 (2026-10-04)
 
 ### ♻️ Refactor
