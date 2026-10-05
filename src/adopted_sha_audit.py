@@ -110,13 +110,13 @@ def uv_version() -> str:
     return (proc.stdout or "").strip()
 
 
-def classify(paso: str, output: str) -> str:
+def classify(output: str) -> str:
     """`codigo` vs `entorno`. pip-audit sin red y TMPDIR heredado son entorno.
 
-    `paso` se conserva por compatibilidad de firma: con un solo comando (#265) no
-    distingue la causa, la distingue el texto.
+    Since #265 the gate is one command, so the step name no longer tells the cause
+    apart — the output does. The dead parameter that used to carry it is gone (#409)
+    instead of kept "for signature compatibility": no caller outside this module.
     """
-    del paso
     blob = output or ""
     if any(marker in blob for marker in _ENTORNO_MARKERS):
         return "entorno"
@@ -141,7 +141,7 @@ def parse_junit(path: Path) -> list[dict[str, str]]:
         nombre = f"{case.get('classname', '')}::{case.get('name', '')}".strip(":")
         detalle = (nodo.get("message") or "").strip() or (nodo.text or "").strip()
         detalle = " ".join(detalle.split())[:200]
-        tipo = classify("test", detalle + " " + (nodo.text or ""))
+        tipo = classify(detalle + " " + (nodo.text or ""))
         fallos.append({"paso": "test", "tipo": tipo, "detalle": nombre or detalle})
     return fallos
 
@@ -209,7 +209,7 @@ def run_gate(
     return [
         {
             "paso": "gate",
-            "tipo": classify("gate", output),
+            "tipo": classify(output),
             "detalle": (proc.stderr or proc.stdout or f"rc={proc.returncode}").strip()[:200],
         }
     ]

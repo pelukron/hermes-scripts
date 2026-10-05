@@ -27,11 +27,6 @@ def load_templates(path=None):
         return json.load(f)
 
 
-def _checks(env):
-    """Un solo job desde #265: el gate entero (lint, shellcheck, mypy, bandit, audit, tests)."""
-    return f"gate={env.get('STATUS_TEST', '?')}"
-
-
 def _repo_label(repo, templates):
     """Etiqueta corta del repo desde el mapa del dato; fallback al nombre completo."""
     return templates.get("repo_labels", {}).get(repo, repo)
@@ -44,7 +39,8 @@ def _separator(templates):
 
 def render_ci(env, templates):
     """Texto del aviso de CI (4 variantes: exito/fallo x PR/push)."""
-    checks = _checks(env)
+    # One job since #265: the whole gate (lint, shellcheck, mypy, bandit, audit, tests).
+    checks = f"gate={env.get('STATUS_TEST', '?')}"
     short = env.get("SHA", "")[:7]
     pr = env.get("PR_NUMBER", "")
     repo = env.get("GITHUB_REPOSITORY", "")

@@ -35,12 +35,12 @@ def test_gate_env_sanea_tmpdir_y_virtual_env(tmp_path, monkeypatch):
 
 def test_classify_sin_red_es_entorno():
     out = "pip-audit: ConnectionRefusedError: [Errno 111] Connection refused"
-    assert audit.classify("gate", out) == "entorno"
+    assert audit.classify(out) == "entorno"
 
 
 def test_classify_assertion_es_codigo():
     out = "AssertionError: assert 'Debes estar en main' in '...'"
-    assert audit.classify("test", out) == "codigo"
+    assert audit.classify(out) == "codigo"
 
 
 def test_parse_junit_del_fallo_real_de_main(tmp_path):
