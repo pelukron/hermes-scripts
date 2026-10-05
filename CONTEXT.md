@@ -36,6 +36,7 @@
 - Jobs, wrappers y módulos **nuevos**: nombre en inglés (`cron-canary`, `cron-doctor-daily`, `sync-runtime`). **No** renombrar artefactos vivos en español (`backup-diario`, `reporte-uso-hermes`, `resumen-*`, `aviso-*`): `install-cron.sh` empareja por nombre y renombrar crea drift.
 - Contenido (comentarios, docs, prompts) en español. Glosario del epic de crons en inglés (canary, observer, delivery budget).
 - **Código nuevo en inglés**: identificadores, comentarios y docstrings de `*.py` y `bin/*.sh`. Quedan en español la prosa (`.md` y comentarios de config) y los mensajes de commit. Frontera: ADR 0011.
+- **Simplificar código viejo = quitar lo que no tiene consumidor** (#409): un parámetro que el cuerpo borra (`del paso`) o un envoltorio privado de una sola llamada no se conservan «por compatibilidad de firma». La conducta no cambia: los goldens que fijan lo entregado son `tests/test_adopted_sha_audit.py` y `tests/test_notify_render.py`.
 - Issues: prefijos `[infra]`, `[docs]`, `feat:`, `fix:`, `chore:`, `perf:`, `refactor:` + labels de `PROJECT_MANAGEMENT.md` (`👑 epic`, `✨ enhancement`, `🐛 bug`, `📚 documentation`, `🔧 chore`, `🤖 automation`, `priority: pX`, `size: XS–XL`).
 - Emoji: fuera del código; en docs/labels sí, con el vocabulario de `PROJECT_MANAGEMENT.md`.
 
