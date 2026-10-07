@@ -307,10 +307,26 @@ class TestNoticieroGlobal:
     def test_constante_items_por_fuente(self):
         assert mod.ITEMS_POR_FUENTE == 3
 
-    def test_tope_igual_telegram_max(self):
-        from hermes_common import news_utils
+    def test_topes_salen_de_delivery(self):
+        """Fuente única (#423): los números no cambian, el dueño sí."""
+        from hermes_common import delivery
 
-        assert mod.MAX_CHARS_POR_SUBSECCION == news_utils.TELEGRAM_MAX_CHARS
+        assert mod.MAX_CHARS_REPORTE == delivery.REPORT_BUDGET == 7100
+        assert mod.MAX_CHARS_LINEA == delivery.LINE_BUDGET == 3800
+        assert mod.MAX_CHARS_POR_SUBSECCION == 3000
+
+    def test_suplementario_mide_en_utf16(self):
+        """🛒 = 1 code point y 2 unidades UTF-16: cabe para len() y no para el seam."""
+        from hermes_common import delivery
+
+        sources = [("Reuters", "https://reuters.example/rss")]
+        fetched = [[("Oferta 🛒 hoy", "https://example.com/1")]]
+        linea = "  [Oferta 🛒 hoy](https://example.com/1)"
+        assert delivery.utf16_len(linea) == len(linea) + 1
+        cuota = len("*Subs*") + 1 + len("• *Reuters*") + 1 + len(linea) + 1
+        assert mod.build_subsection_block("Subs", sources, fetched, set(), cuota=cuota) == ""
+        control = mod.build_subsection_block("Subs", sources, fetched, set(), cuota=cuota + 1)
+        assert "Oferta 🛒 hoy" in control
 
     def test_tres_items_por_fuente_top_por_fecha(self):
         sources = [("Reuters", "https://reuters.example/rss")]
@@ -508,6 +524,8 @@ class TestPresupuestoDeEntrega:
         nota = mod.nota_de_recorte(["SECCIÓN C", "SECCIÓN D"])
         assert "SECCIÓN C" in nota and "SECCIÓN D" in nota
         assert "mañana" in nota
+        assert "*Por presupuesto" in nota
+        assert "_Por presupuesto" not in nota
 
     def test_el_reporte_cabe_en_dos_mensajes(self):
         # Medido (#278): el chunker de Hermes (gateway/platforms/base.py `truncate_message`)
