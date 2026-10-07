@@ -12,6 +12,10 @@
 # Estricto: si un paso falla, el wizard para (rc≠0) y explica cómo seguir.
 # Los pasos son idempotentes: re-ejecutar tras un fallo retoma donde quedó.
 #
+# Pre-commit queda FUERA del arranque (#418): el paso 2 fija `core.hooksPath` y
+# `pre-commit install` se niega a instalar con esa variable puesta. El lint lo cubre el
+# gate, y a mano queda `uv run pre-commit run --all-files` (lo que llama bump-and-pr.sh).
+#
 # Lo que este wizard NO hace (fuera de alcance, #322): cron
 # (bin/install-cron.sh), secretos (solo comprueba GITHUB_TOKEN) ni targets.local.
 set -euo pipefail
@@ -27,8 +31,8 @@ ayuda() {
     echo "Uso: bin/setup-wizard.sh [--yes] [--dry-run] [--sin-gate] [--sin-token]"
     echo ""
     echo "Lleva un clon fresco a gate verde, paso a paso y verificando cada paso:"
-    echo "  1) prerrequisitos (git, uv)  2) git hooks  3) uv sync  4) pre-commit"
-    echo "  5) GITHUB_TOKEN  6) gateway hooks  7) gate (bash bin/gate.sh)"
+    echo "  1) prerrequisitos (git, uv)  2) git hooks  3) uv sync"
+    echo "  4) GITHUB_TOKEN  5) gateway hooks  6) gate (bash bin/gate.sh)"
     echo ""
     echo "Flags:"
     echo "  --yes        no pregunta antes de escribir (para pipes y CI)"
@@ -73,7 +77,7 @@ for arg in "$@"; do
 done
 
 echo "🧙 Wizard de montaje de hermes-scripts (issue #327)"
-echo "   Monta: prerrequisitos, git hooks, dependencias, pre-commit,"
+echo "   Monta: prerrequisitos, git hooks, dependencias,"
 echo "          GITHUB_TOKEN, gateway hooks y gate."
 echo "   No monta: cron (bin/install-cron.sh), secretos ni targets.local."
 
@@ -83,10 +87,9 @@ if [ "$dry_run" -eq 1 ]; then
     echo "  1) verificar prerrequisitos (git, uv)"
     echo "  2) git config core.hooksPath .githooks"
     echo "  3) uv sync --dev"
-    echo "  4) pre-commit install"
-    echo "  5) comprobar GITHUB_TOKEN en \${HERMES_HOME:-\$HOME/.hermes}/.env"
-    echo "  6) copiar hooks/ a \$HERMES_HOME/hooks"
-    echo "  7) bash bin/gate.sh"
+    echo "  4) comprobar GITHUB_TOKEN en \${HERMES_HOME:-\$HOME/.hermes}/.env"
+    echo "  5) copiar hooks/ a \$HERMES_HOME/hooks"
+    echo "  6) bash bin/gate.sh"
     echo ""
     echo "Estado actual (solo lectura):"
     verificar_prerrequisitos || true
@@ -124,7 +127,7 @@ if [ "$auto_si" -eq 0 ] && [ -t 0 ]; then
 fi
 
 paso_n=0
-total=7
+total=6
 anuncia() {
     paso_n=$((paso_n + 1))
     echo ""
@@ -153,11 +156,6 @@ siguiente "instalar las dependencias Python con uv."
 anuncia "Dependencias" "uv sync --dev instala lo fijado en uv.lock."
 paso_uv_sync || falla "uv sync no completó." \
     "revisa tu red y la salida de uv, y re-ejecuta bin/setup-wizard.sh."
-siguiente "instalar el hook de pre-commit."
-
-anuncia "Pre-commit" "instala el hook que corre ruff antes de cada commit."
-paso_pre_commit || falla "pre-commit no quedó instalado." \
-    "revisa la salida de pre-commit y re-ejecuta bin/setup-wizard.sh."
 siguiente "comprobar GITHUB_TOKEN."
 
 anuncia "GITHUB_TOKEN" "solo compruebo que existe en \$HERMES_HOME/.env; no creo secretos."

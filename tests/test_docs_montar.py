@@ -43,9 +43,38 @@ def test_montar_cita_los_comandos_reales_del_wizard():
     for paso in (
         "git config core.hooksPath .githooks",
         "uv sync --dev",
-        "pre-commit install",
+        "uv run pre-commit run --all-files",
         "GITHUB_TOKEN",
         "bash bin/gate.sh",
         "bin/setup-wizard.sh --dry-run",
     ):
         assert paso in montar
+
+
+def test_no_bootstrap_path_installs_pre_commit():
+    """#418: `pre-commit install` refuses to run once step 2 sets `core.hooksPath`.
+
+    Measured on a fresh clone: the wizard died at step 4 of 7 with
+    `Cowardly refusing to install hooks with core.hooksPath set`, so no bootstrap path may run it.
+    Only invocations count: the comments cite the command to explain why it is gone.
+    """
+    for rel in ("bin/setup-wizard.sh", "bin/entorno-dev.sh", "setup.sh"):
+        body = (REPO / rel).read_text(encoding="utf-8")
+        without_comments = "\n".join(
+            line for line in body.splitlines() if not line.lstrip().startswith("#")
+        )
+        # The wizard and setup.sh called the lib step by name, so the name is what regresses.
+        assert "paso_pre_commit" not in without_comments, rel
+        call = re.search(r"^\s*(uv run )?pre-commit\s+install", without_comments, re.MULTILINE)
+        assert call is None, rel
+
+
+def test_documented_step_count_matches_the_wizard():
+    """MONTAR.md lists exactly the steps the wizard runs: a renumbered script leaves it lying."""
+    wizard = (REPO / "bin" / "setup-wizard.sh").read_text(encoding="utf-8")
+    match = re.search(r"^total=(\d+)$", wizard, re.MULTILINE)
+    assert match, "el wizard no declara `total=N`"
+    total = int(match.group(1))
+    montar = (REPO / "docs" / "MONTAR.md").read_text(encoding="utf-8")
+    pasos = re.findall(r"^\d+\.", montar, re.MULTILINE)
+    assert total == len(pasos), f"el wizard declara {total} pasos y MONTAR.md lista {len(pasos)}"
