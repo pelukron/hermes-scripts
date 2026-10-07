@@ -84,9 +84,11 @@ nativa **está disponible** en este repo, pero se lee **por issue**: el resumen 
 es un fallo silencioso — no dice «no hay dependencias», dice que el campo no está ahí.
 
 ```bash
-# declarar el bloqueo (idempotente: repetirlo no duplica)
+# declarar el bloqueo. `issue_id` va TIPADO: con `-f` viaja como cadena y la API lo rechaza
+# (422 «is not of type integer»). Repetirlo no duplica la arista, pero contesta
+# 422 «Target issue has already been taken»: no es un no-op silencioso.
 gh api -X POST repos/pelukron/hermes-scripts/issues/<N>/dependencies/blocked_by \
-  -f issue_id="$(gh api repos/pelukron/hermes-scripts/issues/<bloqueador> --jq .id)"
+  -F issue_id="$(gh api repos/pelukron/hermes-scripts/issues/<bloqueador> --jq .id)"
 # verificar leyendo de vuelta el servidor, POR ISSUE
 gh api repos/pelukron/hermes-scripts/issues/<N>/dependencies/blocked_by --jq '.[].number'
 gh api repos/pelukron/hermes-scripts/issues/<N> --jq .issue_dependencies_summary
@@ -209,6 +211,10 @@ cierra el issue.
 - **`gh pr list --state open` devuelve vacío y miente** (medido: 4 PRs abiertos): usa `--state all`.
 - **El resumen de dependencias a nivel repo viene vacío** y no significa «no hay dependencias»: el dato es el
   `issue_dependencies_summary` **del issue**.
+- **`-f` con un campo entero da 422** (medido el 2026-10-07 al declarar la arista de #431 con #425): `gh api -f`
+  manda el valor como **cadena**, y `issue_id` la API lo quiere `integer`. Para un escalar tipado va `-F`
+  (`-F issue_id="$(...)"`), y `--input` con un JSON cuando el payload lleva objetos o arrays. El alta además
+  **no** es un no-op al repetirse: contesta 422 «Target issue has already been taken».
 - **El medidor también miente**: si un conteo no cuadra con lo que ves al leer el cuerpo, sospecha de la clase de
   caracteres o de la sección que estás barriendo **antes** de reportar. Medido: la clase estrecha contaba 67
   donde había 83, y el barrido de todos los `#N` marcaba epics sincronizados.
