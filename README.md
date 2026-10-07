@@ -21,7 +21,7 @@ Scripts Python para automatización diaria de Hermes Agent. Monorepo con tests, 
 - **Python** >= 3.11
 - **uv** para dependencias y virtualenv
 - **pytest** (510 tests)
-- **pre-commit** para hooks de lint pre-commit
+- **pre-commit** (opcional, a mano) para el lint antes del commit: `uv run pre-commit run --all-files`. No se instala como hook del clon: `.githooks/` es el dueño de esa ruta.
 - **python-semantic-release** para versionado + changelog + releases desde commits convencionales
 
 ## Setup
@@ -30,7 +30,6 @@ Scripts Python para automatización diaria de Hermes Agent. Monorepo con tests, 
 git clone <repo-url>
 cd hermes-scripts
 uv sync
-uv run pre-commit install
 ```
 
 El montaje guiado, de clon fresco a gate verde, es `bin/setup-wizard.sh`. Lo que pide y los fallos del gate: [`docs/MONTAR.md`](docs/MONTAR.md). Qué llega, cuándo y a qué destino: [`docs/USUARIO.md`](docs/USUARIO.md).
