@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from hermes_common import news_utils, telegram_chunks
+from hermes_common import delivery, news_utils, telegram_chunks
 from scripts.team_pipeline import ExtraSection, TeamConfig, build_report, expose
 
 NewsItem = news_utils.NewsItem
@@ -679,3 +679,40 @@ def test_el_bloque_nunca_pasa_del_presupuesto(tmp_path):
     assert len(seccion) <= 400, f"la sección se pasa: {len(seccion)}c"
     assert len(_renglones(seccion)) >= 1, "alguna línea tiene que salir"
     assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (")
+
+
+def test_primeros_que_caben_mide_utf16():
+    """#424: 🛒 = 1 code point y 2 unidades UTF-16: cabe para len() y no entra."""
+    from scripts import team_pipeline
+
+    tag_for = lambda item: "✓"  # noqa: E731
+    items = [_item("Oferta 🛒 del día")]
+    linea = team_pipeline._linea(items[0], tag_for)
+    diff = delivery.utf16_len(linea) - len(linea)
+    assert diff >= 1
+    presupuesto = len(linea) + 1
+    assert team_pipeline._primeros_que_caben(items, tag_for, presupuesto) == []
+    assert team_pipeline._primeros_que_caben(items, tag_for, presupuesto + diff) == items
+
+
+def test_section_recorta_por_utf16_no_por_len():
+    """#424: el bucle de _section suelta la línea que solo cabía en code points."""
+    from scripts import team_pipeline
+
+    tag_for = lambda item: "✓"  # noqa: E731
+    items = [_item("Oferta 🛒 del día")]
+    config = _config(max_items=None)
+    full = team_pipeline._section("**H** ({count})", "*Sub*", items, tag_for, "", config)
+    lineas = full.splitlines()
+    assert delivery.utf16_len(full) > len(full)
+    interno_len = sum(len(linea) + 1 for linea in lineas[2:])
+    topado = delivery.utf16_len(lineas[0]) + delivery.utf16_len(lineas[1]) + 2 + interno_len
+    recortado = team_pipeline._section(
+        "**H** ({count})",
+        "*Sub*",
+        items,
+        tag_for,
+        "",
+        _config(max_items=None, telegram_max_chars=topado),
+    )
+    assert "Oferta" not in recortado
