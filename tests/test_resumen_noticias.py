@@ -683,3 +683,60 @@ class TestDialectoMarkdown:
         fuente = Path(__file__).resolve().parent.parent / "src" / "scripts"
         texto = (fuente / "resumen_noticias_diario.py").read_text(encoding="utf-8")
         assert 'footer_line += "_\\n"' not in texto
+
+
+class TestPolymarketSection:
+    """El bloque de Polymarket llega por el logger del padre (#422)."""
+
+    def test_el_texto_vuelve_por_el_logger_del_padre(self):
+        with (
+            patch.object(
+                mod.polymarket_diario,
+                "fetch_classified_markets",
+                return_value=({}, 0),
+            ),
+            patch.object(mod.polymarket_diario, "build_block", return_value="linea 1\nlinea 2"),
+            patch.object(mod, "log") as mock_log,
+        ):
+            mod.emit_polymarket_block()
+        emitidos = [c.args[0] for c in mock_log.info.call_args_list]
+        assert emitidos == ["linea 1", "linea 2"]
+
+    def test_linea_larga_se_ajusta_con_prepare(self):
+        larga = "L" * (mod.delivery.LINE_BUDGET + 100)
+        with (
+            patch.object(
+                mod.polymarket_diario,
+                "fetch_classified_markets",
+                return_value=({}, 0),
+            ),
+            patch.object(
+                mod.polymarket_diario,
+                "build_block",
+                return_value=f"encabezado\n{larga}",
+            ),
+            patch.object(mod, "log") as mock_log,
+        ):
+            mod.emit_polymarket_block()
+        emitidos = [c.args[0] for c in mock_log.info.call_args_list]
+        assert larga not in emitidos
+        assert "encabezado" in emitidos
+        assert any("+1 fuera" in linea for linea in emitidos)
+
+    def test_si_falla_avisa_y_el_diario_sigue(self):
+        with (
+            patch.object(
+                mod.polymarket_diario,
+                "fetch_classified_markets",
+                side_effect=RuntimeError("boom"),
+            ),
+            patch.object(mod, "log") as mock_log,
+        ):
+            mod.emit_polymarket_block()
+        mock_log.warning.assert_called_once()
+        mock_log.info.assert_not_called()
+
+    def test_sin_subprocess_para_este_caso(self):
+        fuente = Path(__file__).resolve().parent.parent / "src" / "scripts"
+        texto = (fuente / "resumen_noticias_diario.py").read_text(encoding="utf-8")
+        assert "subprocess" not in texto
