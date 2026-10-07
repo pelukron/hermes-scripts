@@ -110,14 +110,23 @@ def test_las_listas_compartidas_viven_una_sola_vez():
     pipeline = (SCRIPTS / "team_pipeline.py").read_text(encoding="utf-8")
     assert pipeline.count('"milenio.com"') == 1
     assert pipeline.count('"podría"') == 1
-    for name in ("resumen_rayados_diario.py", "resumen_tigres_diario.py"):
+    assert "def fetch_rayados_com" not in pipeline
+    assert "def fetch_tigres_com" not in pipeline
+    for name, fetcher in (
+        ("resumen_rayados_diario.py", "def fetch_rayados_com"),
+        ("resumen_tigres_diario.py", "def fetch_tigres_com"),
+    ):
         text = (SCRIPTS / name).read_text(encoding="utf-8")
         assert "HistoryManager" not in text
-        assert "BeautifulSoup" not in text
+        assert "BeautifulSoup" in text
+        assert fetcher in text
         assert "milenio.com" not in text
         assert "expose(" in text
         assert "podría" not in text
-        assert len(text.splitlines()) < 90
+        assert len(text.splitlines()) < 150
+    tigres = (SCRIPTS / "resumen_tigres_diario.py").read_text(encoding="utf-8")
+    for helper in ("def listing_time_of", "def _tigres_title", "def _tigres_article"):
+        assert helper in tigres
 
 
 def _exposed(config: TeamConfig) -> dict:
