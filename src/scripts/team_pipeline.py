@@ -1,7 +1,7 @@
 """Pipeline único de los resúmenes de equipo.
 
-Rayados y Tigres eligen un TeamConfig. El fetch del sitio oficial, el
-historial, la clasificación y el render viven aquí una sola vez.
+Cada equipo elige un TeamConfig y posee su fetcher oficial. El historial,
+la clasificación y el render viven aquí una sola vez.
 """
 
 from __future__ import annotations
@@ -13,9 +13,7 @@ import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Optional
-from urllib.parse import urljoin
 
 import hermes_common
 from hermes_common import delivery, filter_by_max_age, news_utils, uv_bin
@@ -26,7 +24,6 @@ log = logging.getLogger("hermes")
 # política del área (ADR 0009) y quien lo aplica es el seam de entrega (`delivery.emit`), que
 # además declara lo que deja fuera. Antes de esto, el recorte era local y mudo.
 TELEGRAM_MAX_CHARS = 3000
-TIMEOUT = 20
 
 # Medios y keywords idénticos en ambos equipos: una sola copia.
 SITIOS_CONFIABLES: list[str] = [
@@ -177,146 +174,6 @@ def fetch_detail(link: str, timeout: int, request: Request, label: str) -> tuple
     except Exception as exc:
         log.warning("Detalle %s falló (%s): %s", label, link, exc)
         return None, None
-
-
-def fetch_rayados_com(request: Request) -> list:
-    """Listado de rayados.com. El sitio no publica fecha: published queda None."""
-    from bs4 import BeautifulSoup
-
-    items: list[news_utils.NewsItem] = []
-    url = "https://rayados.com/es/noticias/lista"
-    try:
-        resp = request(url, timeout=TIMEOUT, headers=hermes_common.get_headers("default"))
-        soup = BeautifulSoup(resp.text, "lxml")
-        seen: set[str] = set()
-        for li in soup.find_all("li")[:20]:
-            anchor = li.find("a", href=re.compile(r"/es/noticias/\d+(/|\?|$)"))
-            if not anchor:
-                continue
-            href = str(anchor.get("href", "")).strip()
-            if not href or href in seen:
-                continue
-            seen.add(href)
-            full_link = urljoin(url, href)
-            title = ""
-            heading = li.find(["h2", "h3", "h4", "h1"])
-            if heading:
-                title = heading.get_text(strip=True)
-            if not title:
-                title = str(anchor.get("title", "")).strip()
-            if not title or len(title) < 10:
-                continue
-            if full_link in seen:
-                continue
-            seen.add(full_link)
-            items.append(
-                news_utils.NewsItem(
-                    title=title,
-                    link=full_link,
-                    source="rayados.com",
-                    oficial=True,
-                    confiable=True,
-                    rumor=False,
-                    origin="rayados.com",
-                    category="confirmadas",
-                )
-            )
-        return items
-    except Exception as exc:
-        return [
-            news_utils.NewsItem(
-                title=f"[Error rayados.com: {str(exc)[:80]}]",
-                source="rayados.com",
-                origin="rayados.com",
-                category="confirmadas",
-            )
-        ]
-
-
-def listing_time_of(link_tag) -> Optional[datetime]:
-    """Fecha del <time> en el padre inmediato del <a>. No mira tarjetas vecinas."""
-    parent = getattr(link_tag, "parent", None)
-    if parent is None:
-        return None
-    time_tag = parent.find("time")
-    if time_tag is None:
-        return None
-    dt_attr = time_tag.get("datetime", "")
-    if dt_attr:
-        parsed = hermes_common.parse_published(dt_attr)
-        if parsed is not None:
-            return parsed
-    return news_utils.parse_fecha_es(time_tag.get_text(" ", strip=True))
-
-
-def _tigres_title(anchor) -> str:
-    title = anchor.get_text(" ", strip=True)
-    if not title or len(title) < 10:
-        title = str(anchor.get("title", "")).strip()
-    if not title or len(title) < 10:
-        heading = anchor.find_next(["h2", "h3", "h4", "h1"])
-        if heading:
-            title = heading.get_text(strip=True)
-    if not title or len(title) < 10:
-        return ""
-    title = re.sub(r"^\w+ \d{1,2}, \d{4}\s*", "", title)
-    return re.sub(r"\s*Ver más$", "", title).strip()
-
-
-def _tigres_article(href: str) -> bool:
-    path = href.split("?")[0].rstrip("/")
-    slug = r"/es/noticias/[^/]+/[^/]+$"
-    single = r"/es/noticias/(?!tigres/?$|club/?$|vlogs/?$|page/)[^/]+$"
-    if not re.search(slug, path) and not re.search(single, path):
-        return False
-    cats = r"/es/noticias/(tigres|tigres-femenil|club|impacto-social|vlogs|page/\d+)/?$"
-    return re.search(cats, path) is None
-
-
-def fetch_tigres_com(request: Request) -> list:
-    """Listado de tigres.com.mx. La fecha del <time> alimenta el filtro de 48h."""
-    from bs4 import BeautifulSoup
-
-    items: list[news_utils.NewsItem] = []
-    url = "https://www.tigres.com.mx/es/noticias/"
-    try:
-        resp = request(url, timeout=TIMEOUT, headers=hermes_common.get_headers("default"))
-        soup = BeautifulSoup(resp.text, "lxml")
-        seen: set[str] = set()
-        for anchor in soup.find_all("a", href=re.compile(r"/es/noticias/.+"))[:40]:
-            href = str(anchor.get("href", "")).strip()
-            if not href or href in seen or not _tigres_article(href):
-                continue
-            seen.add(href)
-            full_link = urljoin(url, href)
-            title = _tigres_title(anchor)
-            if not title:
-                continue
-            if str(full_link).rstrip("/") in {str(item.link).rstrip("/") for item in items}:
-                continue
-            items.append(
-                news_utils.NewsItem(
-                    title=title,
-                    link=full_link,
-                    source="tigres.com.mx",
-                    oficial=True,
-                    confiable=True,
-                    rumor=False,
-                    origin="tigres.com.mx",
-                    category="confirmadas",
-                    published=listing_time_of(anchor),
-                )
-            )
-        return items
-    except Exception as exc:
-        return [
-            news_utils.NewsItem(
-                title=f"[Error tigres.com.mx: {str(exc)[:80]}]",
-                source="tigres.com.mx",
-                origin="tigres.com.mx",
-                category="confirmadas",
-            )
-        ]
 
 
 def _google_items(config: TeamConfig, fetch_google_news: GoogleFetch) -> list:

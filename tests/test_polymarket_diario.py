@@ -284,3 +284,48 @@ class TestMainIntegration:
             mod.main()
         captured = capsys.readouterr()
         assert "⚠️ Sin datos" in captured.out
+
+
+# ═══════════════════════════════════════════
+# build_block (render puro, #422)
+# ═══════════════════════════════════════════
+
+
+class TestBuildBlock:
+    def _cats(self):
+        return {
+            "geopolitica": [
+                mod.MarketEntry(
+                    title="Iran nuclear deal",
+                    question="Deal signed?",
+                    prob=35.0,
+                    vol="$5.0M",
+                )
+            ],
+            "elecciones": [
+                mod.MarketEntry(
+                    title="Election",
+                    question="Dem nominee?",
+                    prob=60.0,
+                    vol="$10.0M",
+                )
+            ],
+            "deportes": [],
+        }
+
+    def test_pie_con_asteriscos(self):
+        """El pie usa *…* (#422): el dialecto entrega _…_ con guiones bajos."""
+        text = mod.build_block(self._cats(), 15_000_000)
+        assert "*Volumen top 10: $15.0M • Fuente: Polymarket*" in text
+        assert "_Volumen" not in text
+
+    def test_sin_problemas_markdown_v2(self):
+        from hermes_common import markdown_v2_link_issues
+
+        assert markdown_v2_link_issues(mod.build_block(self._cats(), 15_000_000)) == []
+
+    def test_solo_secciones_con_contenido(self):
+        text = mod.build_block(self._cats(), 0)
+        assert "GEOPOLÍTICA" in text
+        assert "ELECCIONES" in text
+        assert "DEPORTES" not in text
