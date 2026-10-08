@@ -286,11 +286,11 @@ def _linea(item: news_utils.NewsItem, tag_for: Callable[[news_utils.NewsItem], s
 def _primeros_que_caben(
     items: list, tag_for: Callable[[news_utils.NewsItem], str], presupuesto: int
 ) -> list:
-    """Prefijo de items cuyas líneas caben en el presupuesto de caracteres."""
+    """Prefijo de items cuyas líneas caben en el presupuesto, medido en UTF-16 (#424)."""
     mostrados: list = []
     usado = 0
     for item in items:
-        largo = len(_linea(item, tag_for)) + 1
+        largo = delivery.utf16_len(_linea(item, tag_for)) + 1
         if usado + largo > presupuesto:
             break
         mostrados.append(item)
@@ -328,7 +328,7 @@ def _showed(
     if not cola:
         return mostrados
     reservados = items[-cola:]
-    hueco = sum(len(_linea(i, tag_for)) + 1 for i in reservados)
+    hueco = sum(delivery.utf16_len(_linea(i, tag_for)) + 1 for i in reservados)
     cabeza = items[: len(items) - cola]
     return _primeros_que_caben(cabeza, tag_for, max(limite - hueco, 0)) + reservados
 
@@ -371,10 +371,12 @@ def _section(
     el presupuesto del mensaje es una regla de entrega, no una sugerencia.
     """
     cabecera = heading.format(count=_count_label(items, items, config.announce_overflow))
-    limite = config.telegram_max_chars - len(cabecera) - len(subtitle) - 2
+    limite = (
+        config.telegram_max_chars - delivery.utf16_len(cabecera) - delivery.utf16_len(subtitle) - 2
+    )
     shown = _showed(items, tag_for, config, limite, reserve)
     bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
-    while len(bloque) > config.telegram_max_chars and len(shown) > 1:
+    while delivery.utf16_len(bloque) > config.telegram_max_chars and len(shown) > 1:
         shown = shown[:-1]
         bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
     return bloque
