@@ -4,6 +4,38 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.22 (2026-10-07)
+
+### 📝 Docs
+
+- La skill project-manager declara la arista con -F
+  ([#432](https://github.com/pelukron/hermes-scripts/pull/432),
+  [`4901627`](https://github.com/pelukron/hermes-scripts/commit/4901627de2500e8194db9c8b092a8f3f24904866))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`872d5dd`](https://github.com/pelukron/hermes-scripts/commit/872d5ddaf33f06616da92c6cf8402901ecd7f28c))
+
+
+## v0.26.21 (2026-10-07)
+
+### 🐛 Fixes
+
+- El wizard no completa en clon fresco (core.hooksPath vs pre-commit install) (#418)
+  ([#419](https://github.com/pelukron/hermes-scripts/pull/419),
+  [`46052df`](https://github.com/pelukron/hermes-scripts/commit/46052df349e9901220d4d05d8cfcbb11c2e2034f))
+
+- El wizard no instala pre-commit (core.hooksPath) y queda en 6 pasos
+  ([#418](https://github.com/pelukron/hermes-scripts/pull/418),
+  [`e96d7e5`](https://github.com/pelukron/hermes-scripts/commit/e96d7e575efcf8f9414cb8a3bd495720caaad271))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`63a6329`](https://github.com/pelukron/hermes-scripts/commit/63a632919b7ef1fbb2e2e49cbf27a0c0e71ffd4c))
+
+
 ## v0.26.20 (2026-10-05)
 
 ### 📦 Chores

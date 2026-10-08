@@ -18,7 +18,6 @@ ENTORNO_DEV_ESTRICTO=0
 
 paso_git_hooks
 paso_uv_sync
-paso_pre_commit
 paso_github_token
 paso_gateway_hooks
 
