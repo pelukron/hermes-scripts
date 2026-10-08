@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.23 (2026-10-08)
+
+### 🐛 Fixes
+
+- El diario vuelve a emitir el bloque de Polymarket (#422)
+  ([#427](https://github.com/pelukron/hermes-scripts/pull/427),
+  [`d54d9ea`](https://github.com/pelukron/hermes-scripts/commit/d54d9ea4c7eae6b9dd2af7ea737ec461ec2097cb))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`bdebf90`](https://github.com/pelukron/hermes-scripts/commit/bdebf90e02cd2800a5802bee1ba2996e12078725))
+
+
 ## v0.26.22 (2026-10-07)
 
 ### 📝 Docs
