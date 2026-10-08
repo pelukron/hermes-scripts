@@ -174,27 +174,21 @@ def best_market(markets):
     return best, best_p
 
 
-def main():
-    """Punto de entrada: consulta Polymarket, clasifica mercados, imprime reporte Markdown.
+def fetch_classified_markets():
+    """Fetch events and sort them into the report categories.
 
-    Secciones: Geopolítica, Elecciones 2028, Deportes.
-    Filtra mercados con probabilidad entre 5% y 95%.
+    Returns:
+        tuple: (cats, total_volume) with the classified MarketEntry lists
+            (up to 4 per category, probability between 5% and 95%) and the
+            top-10 volume used by the footer.
+
+    Raises:
+        requests.HTTPError: Si la API responde con error no recuperable.
+        requests.ConnectionError: Si se agotan reintentos de conexión.
 
     """
-    setup_logging()
-    log.info("")
-    log.info("█ 🔮 MERCADOS DE PREDICCIÓN █")
-    log.info(version_footer())
-    log.info("")
-
-    try:
-        events = fetch(f"{API}/events?closed=false&order=volume&ascending=false&limit=25")
-    except Exception as e:
-        log.warning(f"  ⚠️ Sin datos: {e}")
-        return
-
+    events = fetch(f"{API}/events?closed=false&order=volume&ascending=false&limit=25")
     cats = {"geopolitica": [], "elecciones": [], "deportes": []}
-
     for ev in events:
         if ev.get("closed"):
             continue
@@ -210,36 +204,70 @@ def main():
                         vol=fmt_vol(ev.get("volume", 0)),
                     )
                 )
-
-    # Geopolítica
-    if cats["geopolitica"]:
-        log.info("🌍 GEOPOLÍTICA")
-        for item in cats["geopolitica"]:
-            log.info(f"- **{item.title}**")
-            log.info(f"  🔮 {item.question} → **{item.prob}%**")
-            log.info(f"  📊 Vol: {item.vol}")
-        log.info("")
-
-    # Elecciones
-    if cats["elecciones"]:
-        log.info("🇺🇸 ELECCIONES 2028")
-        log.info("| Candidato | Prob | Vol |")
-        log.info("|-----------|------|-----|")
-        for item in cats["elecciones"]:
-            log.info(f"| {item.question} | {item.prob}% | {item.vol} |")
-        log.info("")
-
-    # Deportes
-    if cats["deportes"]:
-        log.info("⚽ DEPORTES")
-        log.info("| Evento | Top | Prob | Vol |")
-        log.info("|--------|-----|------|-----|")
-        for item in cats["deportes"]:
-            log.info(f"| {item.title} | {item.question} | {item.prob}% | {item.vol} |")
-        log.info("")
-
     total = sum(float(ev.get("volume", 0) or 0) for ev in events[:10])
-    log.info(f"_Volumen top 10: {fmt_vol(total)} • Fuente: Polymarket_")
+    return cats, total
+
+
+def build_block(cats, total_volume):
+    """Render the already classified payload as the report markdown.
+
+    Pure: no fetch, no logging. The caller decides the sink (standalone
+    ``main`` logs it, the daily digest passes it to its own logger).
+
+    Args:
+        cats (dict): Clasified MarketEntry lists by category.
+        total_volume (float): Top-10 volume for the footer.
+
+    Returns:
+        str: Markdown block, one section per non-empty category.
+
+    """
+    lines = [
+        "",
+        "█ 🔮 MERCADOS DE PREDICCIÓN █",
+        version_footer(),
+        "",
+    ]
+    if cats["geopolitica"]:
+        lines.append("🌍 GEOPOLÍTICA")
+        for item in cats["geopolitica"]:
+            lines.append(f"- **{item.title}**")
+            lines.append(f"  🔮 {item.question} → **{item.prob}%**")
+            lines.append(f"  📊 Vol: {item.vol}")
+        lines.append("")
+    if cats["elecciones"]:
+        lines.append("🇺🇸 ELECCIONES 2028")
+        lines.append("| Candidato | Prob | Vol |")
+        lines.append("|-----------|------|-----|")
+        for item in cats["elecciones"]:
+            lines.append(f"| {item.question} | {item.prob}% | {item.vol} |")
+        lines.append("")
+    if cats["deportes"]:
+        lines.append("⚽ DEPORTES")
+        lines.append("| Evento | Top | Prob | Vol |")
+        lines.append("|--------|-----|------|-----|")
+        for item in cats["deportes"]:
+            lines.append(f"| {item.title} | {item.question} | {item.prob}% | {item.vol} |")
+        lines.append("")
+    lines.append(f"*Volumen top 10: {fmt_vol(total_volume)} • Fuente: Polymarket*")
+    return "\n".join(lines)
+
+
+def main():
+    """Punto de entrada: consulta Polymarket, clasifica mercados, imprime reporte Markdown.
+
+    Secciones: Geopolítica, Elecciones 2028, Deportes.
+    Filtra mercados con probabilidad entre 5% y 95%.
+
+    """
+    setup_logging()
+    try:
+        cats, total_volume = fetch_classified_markets()
+    except Exception as e:
+        log.warning(f"  ⚠️ Sin datos: {e}")
+        return
+    for line in build_block(cats, total_volume).splitlines():
+        log.info(line)
 
 
 if __name__ == "__main__":
