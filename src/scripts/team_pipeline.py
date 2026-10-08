@@ -20,9 +20,10 @@ from hermes_common import delivery, filter_by_max_age, news_utils, uv_bin
 
 log = logging.getLogger("hermes")
 
-# Presupuesto POR MENSAJE de esta área, más estricto que el tope duro del sender (4096): es
-# política del área (ADR 0009) y quien lo aplica es el seam de entrega (`delivery.emit`), que
-# además declara lo que deja fuera. Antes de esto, el recorte era local y mudo.
+# Per-message budget for this area, tighter than the sender hard cap (4096).
+# The number is area policy (ADR 0009). The section decides which item lines fit
+# and declares that cut. ``delivery.emit`` still enforces the budget: it drops a
+# line that cannot be shown and does not restate a cut the heading already declared.
 TELEGRAM_MAX_CHARS = 3000
 
 # Medios y keywords idénticos en ambos equipos: una sola copia.
@@ -333,6 +334,11 @@ def _showed(
     return _primeros_que_caben(cabeza, tag_for, max(limite - hueco, 0)) + reservados
 
 
+def _overflow_note(omitted: int) -> str:
+    """The cut declaration. Same text as ``delivery._note``."""
+    return f"… +{omitted} fuera"
+
+
 def _bloque(
     heading: str,
     subtitle: str,
@@ -342,16 +348,38 @@ def _bloque(
     config: TeamConfig,
     empty: str = "",
 ) -> str:
-    """Bloque de Telegram de una sección con las líneas ya decididas."""
+    """One Telegram block for a section whose lines are already chosen.
+
+    The empty copy is only for a list that arrived empty. When items existed
+    and none fit, the body is the cut note and nothing else.
+    """
     lines = [
         heading.format(count=_count_label(items, shown, config.announce_overflow)),
         subtitle,
     ]
-    if not shown:
-        lines.append(empty)
-    else:
+    if shown:
         lines += [news_utils.format_item_line(tag_for(i), i, i.link) for i in shown]
+    elif items:
+        lines.append(_overflow_note(len(items) - len(shown)))
+    else:
+        lines.append(empty)
     return "\n".join(lines)
+
+
+def _reserved_ids(items: list, reserve: int) -> set[int]:
+    """Ids of the tail kept until no other shown item can be dropped."""
+    if reserve <= 0:
+        return set()
+    return {id(item) for item in items[-reserve:]}
+
+
+def _drop_expendable(shown: list, reserved_ids: set[int]) -> None:
+    """Drop the last shown item that is not reserved. The tail goes last."""
+    for index in range(len(shown) - 1, -1, -1):
+        if id(shown[index]) not in reserved_ids:
+            del shown[index]
+            return
+    shown.pop()
 
 
 def _section(
@@ -363,21 +391,26 @@ def _section(
     config: TeamConfig,
     reserve: int = 0,
 ) -> str:
-    """Bloque de Telegram de una sección.
+    """One Telegram block for a section.
 
-    El presupuesto se estima descontando cabecera y subtítulo (con el contador
-    más largo posible), y después se comprueba sobre el bloque ya montado:
-    estimar por aritmética se queda corto con emojis y con el contador real, y
-    el presupuesto del mensaje es una regla de entrega, no una sugerencia.
+    The budget is estimated without the heading and subtitle, using the longest
+    count, then checked on the assembled block. The estimate undershoots emojis
+    and the real count, and the message budget is a delivery rule.
+
+    ``max_items`` applies first. After that, non-reserved items drop from the
+    end; the reserved tail goes only when nothing else remains. A last line that
+    still does not fit is omitted. The cut note is the body only when items
+    existed and none are shown.
     """
     cabecera = heading.format(count=_count_label(items, items, config.announce_overflow))
     limite = (
         config.telegram_max_chars - delivery.utf16_len(cabecera) - delivery.utf16_len(subtitle) - 2
     )
     shown = _showed(items, tag_for, config, limite, reserve)
+    reserved_ids = _reserved_ids(items, reserve)
     bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
-    while delivery.utf16_len(bloque) > config.telegram_max_chars and len(shown) > 1:
-        shown = shown[:-1]
+    while delivery.utf16_len(bloque) > config.telegram_max_chars and shown:
+        _drop_expendable(shown, reserved_ids)
         bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
     return bloque
 
@@ -620,10 +653,11 @@ def expose(
 
 
 def publish(blocks_fn: Callable[[], list[str]], limit: int = TELEGRAM_MAX_CHARS) -> None:
-    """Emite cada bloque por el seam de entrega: un bloque = un mensaje.
+    """Emit each block through the delivery seam: one block, one message.
 
-    El recorte dejó de ser local y mudo: `delivery.emit` corta por línea entera —una URL nunca
-    llega a medias— y declara lo que el presupuesto dejó fuera.
+    The section already chose which items fit. ``delivery.emit`` still drops a
+    whole line that does not fit, so a URL is never cut in half, and it does not
+    restate a cut the heading already declared.
     """
     hermes_common.setup_logging()
     delivery.emit(blocks_fn(), write=log.info, message_budget=limit)
