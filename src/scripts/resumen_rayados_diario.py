@@ -1,14 +1,75 @@
 #!/usr/bin/env python3
 """Resumen diario de Rayados. El ensamble vive en team_pipeline."""
 
-from hermes_common import retry_request
+import re
+from urllib.parse import urljoin
+
+import hermes_common
+from hermes_common import news_utils, retry_request
 from scripts.team_pipeline import (
+    Request,
     TeamConfig,
     enter,
     expose,
-    fetch_rayados_com,
     publish,
 )
+
+TIMEOUT = 20
+
+
+def fetch_rayados_com(request: Request) -> list:
+    """Listado de rayados.com. El sitio no publica fecha: published queda None."""
+    from bs4 import BeautifulSoup
+
+    items: list[news_utils.NewsItem] = []
+    url = "https://rayados.com/es/noticias/lista"
+    try:
+        resp = request(url, timeout=TIMEOUT, headers=hermes_common.get_headers("default"))
+        soup = BeautifulSoup(resp.text, "lxml")
+        seen: set[str] = set()
+        for li in soup.find_all("li")[:20]:
+            anchor = li.find("a", href=re.compile(r"/es/noticias/\d+(/|\?|$)"))
+            if not anchor:
+                continue
+            href = str(anchor.get("href", "")).strip()
+            if not href or href in seen:
+                continue
+            seen.add(href)
+            full_link = urljoin(url, href)
+            title = ""
+            heading = li.find(["h2", "h3", "h4", "h1"])
+            if heading:
+                title = heading.get_text(strip=True)
+            if not title:
+                title = str(anchor.get("title", "")).strip()
+            if not title or len(title) < 10:
+                continue
+            if full_link in seen:
+                continue
+            seen.add(full_link)
+            items.append(
+                news_utils.NewsItem(
+                    title=title,
+                    link=full_link,
+                    source="rayados.com",
+                    oficial=True,
+                    confiable=True,
+                    rumor=False,
+                    origin="rayados.com",
+                    category="confirmadas",
+                )
+            )
+        return items
+    except Exception as exc:
+        return [
+            news_utils.NewsItem(
+                title=f"[Error rayados.com: {str(exc)[:80]}]",
+                source="rayados.com",
+                origin="rayados.com",
+                category="confirmadas",
+            )
+        ]
+
 
 CONFIG = TeamConfig(
     history_name="rayados-history.json",
