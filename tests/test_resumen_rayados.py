@@ -1,34 +1,44 @@
 """Tests para funciones clave de resumen-rayados-diario.py"""
 
-import importlib.util
-import os
 from unittest.mock import Mock, patch
 
-SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from hermes_common import news_utils, retry_request
+from scripts.resumen_rayados_diario import CONFIG, fetch_rayados_com
+from scripts.team_pipeline import build_report, fetch_detail
 
-spec = importlib.util.spec_from_file_location(
-    "resumen_rayados",
-    os.path.join(SCRIPT_DIR, "src", "scripts", "resumen_rayados_diario.py"),
-)
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
+clean_url = news_utils.clean_url
+clean_title = news_utils.clean_title
+canonical_title = news_utils.canonical_title
+title_similar = news_utils.title_similar
+dedupe = news_utils.dedupe
+dedupe_by_title = news_utils.dedupe_by_title
+domain_of = news_utils.domain_of
+format_item_line = news_utils.format_item_line
+NewsItem = news_utils.NewsItem
 
-clean_url = mod.clean_url
-clean_title = mod.clean_title
-canonical_title = mod.canonical_title
-title_similar = mod.title_similar
-dedupe = mod.dedupe
-dedupe_by_title = mod.dedupe_by_title
-domain_of = mod.domain_of
-is_oficial = mod.is_oficial
-smells_like_rumor = mod.smells_like_rumor
-classify = mod.classify
-fetch_google_news = mod.fetch_google_news
-fetch_rayados_com = mod.fetch_rayados_com
-fetch_rayados_detail = mod.fetch_rayados_detail
-enrich_rayados_items = mod.enrich_rayados_items
-format_item_line = mod.format_item_line
-NewsItem = mod.NewsItem
+
+def is_oficial(url: str) -> bool:
+    return news_utils.is_oficial(url, CONFIG.sitios_oficiales)
+
+
+def smells_like_rumor(title: str) -> bool:
+    return news_utils.smells_like_rumor(title, CONFIG.rumor_keywords)
+
+
+def classify(items: list) -> tuple:
+    return news_utils.classify(items, CONFIG.sitios_oficiales, CONFIG.sitios_confiables)
+
+
+def fetch_google_news(query: str, category: str) -> list:
+    return news_utils.fetch_google_news(
+        query,
+        category,
+        CONFIG.sitios_oficiales,
+        CONFIG.sitios_confiables,
+        CONFIG.rumor_keywords,
+        CONFIG.edition,
+    )
+
 
 # ═══════════════════════════════════════════
 # clean_url
@@ -227,15 +237,15 @@ class TestDedupeLineal:
 
     def test_comparaciones_acotadas_no_cuadraticas(self, monkeypatch):
         calls = {"n": 0}
-        real = mod.title_similar
+        real = news_utils.title_similar
 
         def counting(t1, t2, threshold=0.85):
             calls["n"] += 1
             return real(t1, t2, threshold)
 
-        monkeypatch.setattr(mod, "title_similar", counting)
+        monkeypatch.setattr(news_utils, "title_similar", counting)
         items = [NewsItem(title=f"Asunto-{i:04d}-abc relleno dedupe") for i in range(200)]
-        result = mod.dedupe_by_title(items)
+        result = news_utils.dedupe_by_title(items)
         assert len(result) == 200
         assert calls["n"] < 1000
 
@@ -414,7 +424,7 @@ class TestFetchGoogleNews:
         """Parse feedparser devuelve items correctamente."""
         mock_feed = Mock()
         mock_feed.entries = GOOGLE_NEWS_ENTRIES[:1]
-        with patch.object(mod.feedparser, "parse", return_value=mock_feed):
+        with patch("feedparser.parse", return_value=mock_feed):
             items = fetch_google_news("Rayados", "confirmadas")
             assert len(items) == 1
             item = items[0]
@@ -434,13 +444,13 @@ class TestFetchGoogleNews:
         )
         entry_oficial.get = lambda key, default="", _e=entry_oficial: getattr(_e, key, default)
         mock_feed.entries = [entry_oficial]
-        with patch.object(mod.feedparser, "parse", return_value=mock_feed):
+        with patch("feedparser.parse", return_value=mock_feed):
             items = fetch_google_news("Rayados", "confirmadas")
             assert len(items) == 1
             assert items[0].oficial is True
 
     def test_excepcion_retorna_error_item(self):
-        with patch.object(mod.feedparser, "parse", side_effect=Exception("timeout")):
+        with patch("feedparser.parse", side_effect=Exception("timeout")):
             items = fetch_google_news("Rayados", "confirmadas")
             assert len(items) == 1
             assert items[0].title.startswith("[Error")
@@ -471,7 +481,7 @@ class TestFetchRayadosCom:
         mock_resp = Mock()
         mock_resp.text = RAYADOS_HTML
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_rayados_com()
+            items = fetch_rayados_com(retry_request)
             assert len(items) == 2
             assert items[0].title == "Rayados cierra fichaje de lujo para el Apertura"
             assert items[0].source == "rayados.com"
@@ -479,14 +489,12 @@ class TestFetchRayadosCom:
             assert "rayados.com/es/noticias/12345" in items[0].link
 
     def test_excepcion_retorna_error_item(self):
-        with patch.object(
-            mod,
-            "retry_request",
-            side_effect=Exception("Connection refused"),
-        ):
-            items = fetch_rayados_com()
-            assert len(items) == 1
-            assert items[0].title.startswith("[Error rayados.com")
+        def boom(*_args, **_kwargs):
+            raise Exception("Connection refused")
+
+        items = fetch_rayados_com(boom)
+        assert len(items) == 1
+        assert items[0].title.startswith("[Error rayados.com")
 
     def test_items_sin_heading_usan_title_attr(self):
         html = """
@@ -499,7 +507,7 @@ class TestFetchRayadosCom:
         mock_resp = Mock()
         mock_resp.text = html
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_rayados_com()
+            items = fetch_rayados_com(retry_request)
             assert len(items) == 1
             assert items[0].title == "Título desde atributo title"
 
@@ -520,7 +528,7 @@ class TestFetchRayadosCom:
         mock_resp = Mock()
         mock_resp.text = html
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_rayados_com()
+            items = fetch_rayados_com(retry_request)
             assert len(items) == 1
 
 
@@ -534,7 +542,7 @@ class TestRayadosSinFechaVerificada:
         mock_resp = Mock()
         mock_resp.text = RAYADOS_HTML
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_rayados_com()
+            items = fetch_rayados_com(retry_request)
             assert len(items) == 2
             assert all(i.published is None for i in items)
             assert all(i.author is None for i in items)
@@ -545,7 +553,7 @@ class TestRayadosSinFechaVerificada:
         mock_resp = Mock()
         mock_resp.text = RAYADOS_HTML
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_rayados_com()
+            items = fetch_rayados_com(retry_request)
             assert filter_by_max_age(items, missing="drop") == []
 
     def test_con_fecha_reciente_se_conserva(self):
@@ -576,25 +584,35 @@ RAYADOS_DETAIL_HTML = """
 """
 
 
+def _rayados_detail(link: str, request) -> tuple:
+    return fetch_detail(link, 10, request, "rayados.com")
+
+
 class TestFetchRayadosDetail:
     def test_fecha_y_autor(self):
         mock_resp = Mock()
         mock_resp.text = RAYADOS_DETAIL_HTML
-        with patch.object(mod, "retry_request", return_value=mock_resp):
-            published, author = fetch_rayados_detail("https://www.rayados.com/es/noticias/1/x/")
-            assert published is not None
-            assert (published.year, published.month, published.day) == (2026, 9, 14)
-            assert author == "Prensa Rayados"
+        published, author = _rayados_detail(
+            "https://www.rayados.com/es/noticias/1/x/",
+            lambda *_args, **_kwargs: mock_resp,
+        )
+        assert published is not None
+        assert (published.year, published.month, published.day) == (2026, 9, 14)
+        assert author == "Prensa Rayados"
 
     def test_sin_tags_retorna_nones(self):
         mock_resp = Mock()
         mock_resp.text = "<html><body><h1>Sin meta</h1></body></html>"
-        with patch.object(mod, "retry_request", return_value=mock_resp):
-            assert fetch_rayados_detail("https://www.rayados.com/es/noticias/1/x/") == (None, None)
+        assert _rayados_detail(
+            "https://www.rayados.com/es/noticias/1/x/",
+            lambda *_args, **_kwargs: mock_resp,
+        ) == (None, None)
 
     def test_error_retorna_nones(self):
-        with patch.object(mod, "retry_request", side_effect=Exception("timeout")):
-            assert fetch_rayados_detail("https://www.rayados.com/es/noticias/1/x/") == (None, None)
+        def boom(*_args, **_kwargs):
+            raise Exception("timeout")
+
+        assert _rayados_detail("https://www.rayados.com/es/noticias/1/x/", boom) == (None, None)
 
     def test_enrich_respeta_tope(self):
         items = [
@@ -608,11 +626,19 @@ class TestFetchRayadosDetail:
         ]
         mock_resp = Mock()
         mock_resp.text = RAYADOS_DETAIL_HTML
-        with patch.object(mod, "retry_request", return_value=mock_resp) as mock_req:
-            enrich_rayados_items(items, max_details=2)
-            assert mock_req.call_count == 2
-            assert items[0].author == "Prensa Rayados"
-            assert items[2].author is None
+        calls = {"n": 0}
+
+        def request(*_args, **_kwargs):
+            calls["n"] += 1
+            return mock_resp
+
+        def fetch_one(link: str) -> tuple:
+            return _rayados_detail(link, request)
+
+        news_utils.enrich_from_detail(items, fetch_one, max_details=2)
+        assert calls["n"] == 2
+        assert items[0].author == "Prensa Rayados"
+        assert items[2].author is None
 
 
 class TestFormatItemLine:
@@ -643,13 +669,13 @@ class TestFormatItemLine:
 
 
 class TestVersionEnEncabezado:
-    def test_header_trae_version(self):
+    def test_header_trae_version(self, tmp_path):
         """El bloque 0 incluye *hermes-scripts <tag> (issue #91)."""
-        with (
-            patch("hermes_common.HistoryManager") as mock_hist_cls,
-            patch.object(mod, "fetch_google_news", return_value=[]),
-            patch.object(mod, "fetch_rayados_com", return_value=[]),
-        ):
-            mock_hist_cls.return_value.exists.return_value = False
-            blocks = mod.build_report_blocks()
+        blocks = build_report(
+            CONFIG,
+            history_path=str(tmp_path / CONFIG.history_name),
+            fetch_google_news=lambda *_args, **_kwargs: [],
+            fetch_official=lambda: [],
+            enrich_official=lambda items: items,
+        )
         assert any(line.startswith("*hermes-scripts ") for line in blocks[0].splitlines())

@@ -6,8 +6,9 @@ from scripts.team_pipeline import (
     ExtraSection,
     Request,
     TeamConfig,
+    build_report,
     enter,
-    expose,
+    history_path,
     publish,
 )
 
@@ -75,20 +76,15 @@ def fetch_titans_official_impl(request: Request) -> list:
     return []
 
 
-expose(
-    globals(),
-    CONFIG,
-    request=retry_request,
-    official_impl=fetch_titans_official_impl,
-    detail_label="tennesseetitans.com",
-    official_name="fetch_titans_official",
-    detail_name="fetch_titans_detail",
-    enrich_name="enrich_titans_items",
-)
-
-
 def main() -> None:
-    publish(globals()["build_report_blocks"], CONFIG.telegram_max_chars)
+    publish(
+        lambda: build_report(
+            CONFIG,
+            history_path=history_path(CONFIG),
+            fetch_official=lambda: fetch_titans_official_impl(retry_request),
+        ),
+        CONFIG.telegram_max_chars,
+    )
 
 
 if __name__ == "__main__":

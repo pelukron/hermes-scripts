@@ -11,8 +11,9 @@ from hermes_common import news_utils, retry_request
 from scripts.team_pipeline import (
     Request,
     TeamConfig,
+    build_report,
     enter,
-    expose,
+    history_path,
     publish,
 )
 
@@ -120,20 +121,16 @@ CONFIG = TeamConfig(
     edition={"hl": "es-419", "gl": "MX", "ceid": "MX:es-419"},
 )
 
-expose(
-    globals(),
-    CONFIG,
-    request=retry_request,
-    official_impl=fetch_tigres_com,
-    detail_label="tigres.com.mx",
-    official_name="fetch_tigres_com",
-    detail_name="fetch_tigres_detail",
-    enrich_name="enrich_tigres_items",
-)
-
 
 def main() -> None:
-    publish(globals()["build_report_blocks"], CONFIG.telegram_max_chars)
+    publish(
+        lambda: build_report(
+            CONFIG,
+            history_path=history_path(CONFIG),
+            fetch_official=lambda: fetch_tigres_com(retry_request),
+        ),
+        CONFIG.telegram_max_chars,
+    )
 
 
 if __name__ == "__main__":
