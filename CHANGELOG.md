@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.22 (2026-10-07)
+
+### 📝 Docs
+
+- La skill project-manager declara la arista con -F
+  ([#432](https://github.com/pelukron/hermes-scripts/pull/432),
+  [`4901627`](https://github.com/pelukron/hermes-scripts/commit/4901627de2500e8194db9c8b092a8f3f24904866))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`872d5dd`](https://github.com/pelukron/hermes-scripts/commit/872d5ddaf33f06616da92c6cf8402901ecd7f28c))
+
+
 ## v0.26.21 (2026-10-07)
 
 ### 🐛 Fixes
