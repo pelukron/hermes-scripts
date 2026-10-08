@@ -10,6 +10,10 @@
 #     . "$SCRIPT_DIR/bin/entorno-dev.sh"
 #     paso_uv_sync || exit 1
 #
+# Pre-commit NO es uno de los pasos (#418): el paso de git hooks fija `core.hooksPath`, y
+# `pre-commit install` se niega a instalar con esa variable puesta. El lint lo cubre el gate;
+# a mano queda `uv run pre-commit run --all-files` (lo que llama bin/bump-and-pr.sh).
+#
 # Política (D2): ENTORNO_DEV_ESTRICTO decide qué pasa cuando un paso falla.
 #   0 (defecto) = avisa con ⚠️ y devuelve 0 — el llamador sigue.
 #   1           = informa con ❌ y devuelve 1 — el llamador para y explica.
@@ -108,42 +112,6 @@ paso_uv_sync() {
         return 0
     fi
     _fallo_o_aviso "uv sync falló"
-    return "$?"
-}
-
-# paso_pre_commit — instala el hook y verifica que .git/hooks/pre-commit existe.
-paso_pre_commit() {
-    if [ ! -f ".pre-commit-config.yaml" ]; then
-        _fallo_o_aviso ".pre-commit-config.yaml no encontrado — salto pre-commit"
-        return "$?"
-    fi
-    local uv_bin
-    uv_bin="$(entorno_dev_uv)"
-    local disponible=0
-    if command -v pre-commit >/dev/null 2>&1; then
-        disponible=1
-    elif [ -n "$uv_bin" ] && "$uv_bin" run pre-commit --version >/dev/null 2>&1; then
-        disponible=1
-    fi
-    if [ "$disponible" -eq 0 ]; then
-        _fallo_o_aviso "pre-commit no disponible — salto su instalación"
-        return "$?"
-    fi
-    local rc=0
-    if command -v pre-commit >/dev/null 2>&1; then
-        pre-commit install || rc="$?"
-    else
-        "$uv_bin" run pre-commit install || rc="$?"
-    fi
-    if [ "$rc" -ne 0 ]; then
-        _fallo_o_aviso "pre-commit install falló (rc=$rc)"
-        return "$?"
-    fi
-    if [ -f ".git/hooks/pre-commit" ]; then
-        echo "  ✅ Pre-commit hooks instalados"
-        return 0
-    fi
-    _fallo_o_aviso "pre-commit install no dejó .git/hooks/pre-commit"
     return "$?"
 }
 

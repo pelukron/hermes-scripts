@@ -3,8 +3,6 @@
 
 import json
 import logging
-import subprocess
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -21,6 +19,7 @@ from hermes_common import (
     smart_truncate,
     version_footer,
 )
+from scripts import polymarket_diario
 
 log = logging.getLogger("hermes")
 
@@ -427,6 +426,25 @@ def nota_de_recorte(omitidas):
     )
 
 
+def emit_polymarket_block():
+    """Emit the Polymarket block through the parent logger (in-process since #422).
+
+    The block used to arrive as a child process whose stdout nobody read, so it
+    never reached the delivery channel. Now the digest fetches, renders and
+    logs it itself; a failure warns and the digest goes on without it.
+    """
+    try:
+        cats, total_volume = polymarket_diario.fetch_classified_markets()
+        block = polymarket_diario.build_block(cats, total_volume)
+    except Exception as e:
+        log.warning("Polymarket failed: %s", e)
+        return
+    fitted = delivery.prepare([block])
+    text = fitted[0].text if fitted else ""
+    for line in text.splitlines():
+        log.info(line)
+
+
 def main():
     setup_logging()
     log.info(
@@ -463,16 +481,9 @@ def main():
         log.info(footer_line)
         time.sleep(1)
 
-    # Polymarket predictions (entrypoint instalado por #71)
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "scripts.polymarket_diario"],
-            timeout=25,
-            capture_output=True,
-            text=True,
-        )
-    except Exception as e:
-        log.warning("Polymarket subprocess failed: %s", e)
+    # Polymarket predictions (in-process since #422: the child stdout
+    # went nowhere, so the block never reached the delivery channel)
+    emit_polymarket_block()
 
     # Markets
     crypto = fetch_crypto()

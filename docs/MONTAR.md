@@ -23,17 +23,26 @@ bin/setup-wizard.sh --sin-gate   # monta y deja el gate para después
 bin/setup-wizard.sh --help
 ```
 
-## Los siete pasos
+## Los seis pasos
 
 1. Comprueba que `git` y `uv` responden. No instala ninguno. Si falta `uv`: <https://docs.astral.sh/uv/>.
 2. `git config core.hooksPath .githooks`
 3. `uv sync --dev`
-4. `pre-commit install`, o `uv run pre-commit install` si el comando no está en el PATH.
-5. Busca `^GITHUB_TOKEN=` en el `.env` de Hermes.
-6. Copia `hooks/` a `${HERMES_HOME:-$HOME/.hermes}/hooks`.
-7. `bash bin/gate.sh`
+4. Busca `^GITHUB_TOKEN=` en el `.env` de Hermes.
+5. Copia `hooks/` a `${HERMES_HOME:-$HOME/.hermes}/hooks`.
+6. `bash bin/gate.sh`
 
 El gate es ese único comando. Por dentro corre, en este orden: comprobación del lock, ruff, formato, shellcheck, mypy, bandit, pip-audit y pytest.
+
+## Pre-commit va a mano
+
+El lint antes del commit lo cubre el gate, y `pre-commit` **no** entra en el arranque: el paso 2 fija `core.hooksPath` y `pre-commit install` se niega a instalar con esa variable puesta (`Cowardly refusing to install hooks with core.hooksPath set`). No hay nada que instalar: el hook del repo vive en `.githooks/pre-push`.
+
+Cuando quieras el pase rápido a mano (es lo que llama `bin/bump-and-pr.sh` antes de commitear):
+
+```bash
+uv run pre-commit run --all-files
+```
 
 ## Si un paso falla
 
@@ -44,10 +53,9 @@ El propio wizard dice cómo seguir. El arreglo, en corto:
 | 1 | Instalar el que falte (`git` o `uv`). |
 | 2 | Leer el error de `git config`. |
 | 3 | Leer la salida de `uv` (red, lock). |
-| 4 | Leer la salida de `pre-commit`. |
-| 5 | Crear un token en <https://github.com/settings/tokens> y guardarlo como `GITHUB_TOKEN=<token>` en el `.env`. Con `--sin-token` este paso se salta. |
-| 6 | Revisar permisos de `$HERMES_HOME/hooks`. |
-| 7 | El gate quedó rojo. La tabla de abajo. |
+| 4 | Crear un token en <https://github.com/settings/tokens> y guardarlo como `GITHUB_TOKEN=<token>` en el `.env`. Con `--sin-token` este paso se salta. |
+| 5 | Revisar permisos de `$HERMES_HOME/hooks`. |
+| 6 | El gate quedó rojo. La tabla de abajo. |
 
 ## Fallos típicos del gate
 
