@@ -96,7 +96,8 @@ def fetch_tigres_com(request: Request) -> list:
             )
         return items
     except Exception as exc:
-        return official_error("tigres.com.mx", exc)
+        error: list = official_error("tigres.com.mx", exc)
+        return error
 
 
 # La query abre con frase citada. AND y paréntesis dejan el feed en 0 entries.

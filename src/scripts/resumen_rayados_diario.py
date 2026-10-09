@@ -62,7 +62,8 @@ def fetch_rayados_com(request: Request) -> list:
             )
         return items
     except Exception as exc:
-        return official_error("rayados.com", exc)
+        error: list = official_error("rayados.com", exc)
+        return error
 
 
 CONFIG = TeamConfig(

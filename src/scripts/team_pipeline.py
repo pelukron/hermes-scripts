@@ -238,7 +238,7 @@ ERROR_TITLE_PREFIX = "[Error"
 """Single owner of the official-fetcher failure sentinel (#431)."""
 
 
-def official_error(source: str, exc: Exception) -> list:
+def official_error(source: str, exc: Exception) -> list[news_utils.NewsItem]:
     """Error item for a failed official fetch, built by the pipeline.
 
     Same shape the scripts used to build by hand: prefixed title with the
