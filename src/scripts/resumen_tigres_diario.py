@@ -13,6 +13,7 @@ from scripts.team_pipeline import (
     TeamConfig,
     enter,
     expose,
+    official_error,
     publish,
 )
 
@@ -95,14 +96,7 @@ def fetch_tigres_com(request: Request) -> list:
             )
         return items
     except Exception as exc:
-        return [
-            news_utils.NewsItem(
-                title=f"[Error tigres.com.mx: {str(exc)[:80]}]",
-                source="tigres.com.mx",
-                origin="tigres.com.mx",
-                category="confirmadas",
-            )
-        ]
+        return official_error("tigres.com.mx", exc)
 
 
 # La query abre con frase citada. AND y paréntesis dejan el feed en 0 entries.
