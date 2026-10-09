@@ -27,7 +27,9 @@ log = logging.getLogger("hermes")
 # de fetch_rss ya viene por fecha) con tope por subsección para no
 # reventar el presupuesto Telegram.
 ITEMS_POR_FUENTE = 3
-MAX_CHARS_POR_SUBSECCION = news_utils.TELEGRAM_MAX_CHARS
+# Cuota de subsección (#423): vive aquí, al lado del diario, porque no es el
+# tope de Telegram — solo el diario la lee como techo por subsección.
+MAX_CHARS_POR_SUBSECCION = 3000
 
 # Presupuesto de entrega (#278, medido 2026-09-23): el chunker de Hermes
 # (gateway/platforms/base.py `truncate_message`) parte en el último '\n' del bloque, así que
@@ -36,10 +38,12 @@ MAX_CHARS_POR_SUBSECCION = news_utils.TELEGRAM_MAX_CHARS
 # lo que forzó el `smart_truncate` que cortaba a mitad de la URL de Google News (208-244 chars).
 # Medición: 1 mensaje = 3144 u16 con 6/10 enlaces reconocidos; el reporte rico de 2 mensajes
 # (6119 u16) entrega 36/36. Presupuesto por MENSAJE, no por corrida.
-MAX_CHARS_REPORTE = 7100
+# Fuente única (#423): los dos topes viven en `delivery` (REPORT_BUDGET y
+# LINE_BUDGET); aquí solo se reexportan los nombres que ya usan los tests.
+MAX_CHARS_REPORTE = delivery.REPORT_BUDGET
 RESERVA_FUERA_DE_SECCIONES = 600
 # Tope de una línea emitida: 4096 (Telegram) − marco del cron (~200) − indicador de chunk (10).
-MAX_CHARS_LINEA = 3800
+MAX_CHARS_LINEA = delivery.LINE_BUDGET
 # Una sección por debajo de esto no vale el viaje: encabezado + nombre de fuente
 # + un item con su link. Si lo que queda del presupuesto no llega, la sección se
 # omite SIN pedir sus fuentes (ahorra red en la cola del reporte).
@@ -285,7 +289,7 @@ def build_subsection_block(
     tope = MAX_CHARS_POR_SUBSECCION if cuota is None else cuota
     encabezado = f"*{sin_parentesis(sub_name)}*"
     lineas = [encabezado]
-    usado = len(encabezado) + 1
+    usado = delivery.utf16_len(encabezado) + 1
     candidatas: list = []
     for (source_name, _url), items in zip(sources, fetched):
         candidatos = []
@@ -311,8 +315,8 @@ def build_subsection_block(
                 continue
             linea, url = fuente["items"][ronda]
             # El bullet viaja con su primer item; los siguientes entran de uno en uno.
-            extra = 1 if fuente["abierto"] else len(fuente["bullet"]) + 1
-            if usado + extra + len(linea) + 1 > tope:
+            extra = 1 if fuente["abierto"] else delivery.utf16_len(fuente["bullet"]) + 1
+            if usado + extra + delivery.utf16_len(linea) + 1 > tope:
                 # No cabe este ítem. La ronda siguiente prueba el que sigue (#361);
                 # el que se quedó fuera se cuenta para que el mensaje lo diga (#355).
                 if descartes is not None:
@@ -323,7 +327,7 @@ def build_subsection_block(
                 fuente["abierto"] = True
             lineas.append(linea)
             seen_urls.add(url)
-            usado += extra + len(linea) + 1
+            usado += extra + delivery.utf16_len(linea) + 1
     return "\n".join(lineas) if len(lineas) > 1 else ""
 
 
@@ -355,7 +359,7 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
             omitidas.append(section_name)
             continue
         encabezado = f"**{section_name}**"
-        disponible = min(cuota, restante) - len(encabezado) - 1
+        disponible = min(cuota, restante) - delivery.utf16_len(encabezado) - 1
         section_lines = [encabezado]
         for indice, (sub_name, sources) in enumerate(subsections):
             cuota_sub = disponible // (len(subsections) - indice)
@@ -367,13 +371,13 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
             )
             if block:
                 section_lines.append(block)
-                disponible -= len(block) + 1
+                disponible -= delivery.utf16_len(block) + 1
         if len(section_lines) == 1:
             continue
         texto = "\n".join(section_lines)
         emit(texto)
         emit("")
-        usado += len(texto) + 1
+        usado += delivery.utf16_len(texto) + 1
         time.sleep(1)
     return omitidas
 
@@ -408,7 +412,7 @@ def nota_de_cuota(descartes: list) -> str:
         resto = len(partes) - len(corte)
         marca = f" +{resto} más" if resto else ""
         linea = f"*fuera de cuota: {'; '.join(corte)}{marca}*"
-        if len(linea) <= MAX_CHARS_LINEA:
+        if delivery.utf16_len(linea) <= MAX_CHARS_LINEA:
             return linea + "\n"
         corte.pop()
     return ""
@@ -417,8 +421,8 @@ def nota_de_cuota(descartes: list) -> str:
 def nota_de_recorte(omitidas):
     """Aviso de recorte por presupuesto de entrega, para que el corte sea explícito."""
     return (
-        f"\n✂️ _Por presupuesto de entrega de Telegram hoy quedaron fuera: "
-        f"{', '.join(omitidas)}. Van mañana._\n"
+        f"\n✂️ *Por presupuesto de entrega de Telegram hoy quedaron fuera: "
+        f"{', '.join(omitidas)}. Van mañana.*\n"
     )
 
 
