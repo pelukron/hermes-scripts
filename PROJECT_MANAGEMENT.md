@@ -15,7 +15,7 @@ Jira-style project management para `hermes-scripts` usando GitHub-native feature
 | **Epics abiertos** | [Issues labeled `👑 epic`](https://github.com/pelukron/hermes-scripts/issues?q=is%3Aissue+label%3A%22%F0%9F%91%91+epic%22+is%3Aopen) |
 | **Roadmap** | [README.md#roadmap](README.md#roadmap) (futuro) |
 | **Agent tracking** | [`.hermes/EPICS_TRACKING.md`](.hermes/EPICS_TRACKING.md) |
-| **Current Epic** | — (sin épicas abiertas 2026-09-17) |
+| **Current Epic** | Ver [docs/EPICS.md](docs/EPICS.md) (índice versionado) |
 
 ---
 
@@ -147,8 +147,8 @@ Epics son issues padre que agrupan sub-issues. Usan label `👑 epic` y checklis
 
 ### Current epics
 
-Sin épicas abiertas (2026-09-17). Últimas cerradas: #60 Maintainability Refactor,
-#98 Gate único + auditoría, #58 Security & Tooling Quick Wins.
+Ver [docs/EPICS.md](docs/EPICS.md): abiertas con su avance y últimas cerradas.
+El detalle (goal, checklist, criterios) vive en cada issue.
 
 ### Creating a new epic
 
