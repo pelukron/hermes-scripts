@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.27 (2026-10-09)
+
+### ♻️ Refactor
+
+- El diario global mide el presupuesto en UTF-16 (#423)
+  ([#428](https://github.com/pelukron/hermes-scripts/pull/428),
+  [`bd7ec84`](https://github.com/pelukron/hermes-scripts/commit/bd7ec8465ddcd116d4946c33a35b3da9be29e496))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d703493`](https://github.com/pelukron/hermes-scripts/commit/d703493713cf65dfbd81838058615405eee4d073))
+
+
 ## v0.26.26 (2026-10-09)
 
 ### 🔧 Infra

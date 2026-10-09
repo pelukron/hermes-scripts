@@ -19,9 +19,6 @@ import requests
 
 from .common import parse_published
 
-# Telegram: límite de un mensaje = 4096 caracteres; dejamos margen para cabeceras de formato.
-TELEGRAM_MAX_CHARS = 3000
-
 # Máximo de items que se muestran por sección (confirmadas / rumores)
 MAX_ITEMS_POR_SECCION = 8
 
