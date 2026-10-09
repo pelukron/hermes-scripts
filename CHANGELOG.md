@@ -4,6 +4,19 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.26 (2026-10-09)
+
+### 🔧 Infra
+
+- Dependabot a ecosistema uv para que el bump traiga el lock
+  ([`ce01a04`](https://github.com/pelukron/hermes-scripts/commit/ce01a044f7ac2cb9fa7e7bc72a3c87f9eef36427))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`4997a3e`](https://github.com/pelukron/hermes-scripts/commit/4997a3e59963265cbb87da18c85f6c59502e6317))
+
+
 ## v0.26.25 (2026-10-09)
 
 ### 🔧 Infra
