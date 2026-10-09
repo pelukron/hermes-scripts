@@ -4,6 +4,46 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.26 (2026-10-09)
+
+### 🔧 Infra
+
+- Dependabot a ecosistema uv para que el bump traiga el lock
+  ([`ce01a04`](https://github.com/pelukron/hermes-scripts/commit/ce01a044f7ac2cb9fa7e7bc72a3c87f9eef36427))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`4997a3e`](https://github.com/pelukron/hermes-scripts/commit/4997a3e59963265cbb87da18c85f6c59502e6317))
+
+
+## v0.26.25 (2026-10-09)
+
+### 🔧 Infra
+
+- Regenerar uv.lock desincronizado con pyproject
+  ([`72611ee`](https://github.com/pelukron/hermes-scripts/commit/72611ee0bf873fe34e1032ff13840ea4646b4a7a))
+
+### ♻️ Refactor
+
+- El fitter de equipos mide el bloque en UTF-16 (#424)
+  ([#429](https://github.com/pelukron/hermes-scripts/pull/429),
+  [`a0ef249`](https://github.com/pelukron/hermes-scripts/commit/a0ef249262efabc42ce8b71c070486701e4d72fd))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`fb5a6e3`](https://github.com/pelukron/hermes-scripts/commit/fb5a6e30f73f3685fb00d2ac303b1ad21c58bcfe))
+
+- **deps-dev**: Bump mypy from 2.2.0 to 2.4.0
+  ([#421](https://github.com/pelukron/hermes-scripts/pull/421),
+  [`2690691`](https://github.com/pelukron/hermes-scripts/commit/269069122efeda1e67e33aff4dbc1933e586468a))
+
+- **deps-dev**: Bump ruff from 0.16.9 to 0.16.10
+  ([#420](https://github.com/pelukron/hermes-scripts/pull/420),
+  [`266248e`](https://github.com/pelukron/hermes-scripts/commit/266248e5d5bdfcb1b66372d8ecfe27e77e268054))
+
+
 ## v0.26.24 (2026-10-08)
 
 ### ♻️ Refactor
