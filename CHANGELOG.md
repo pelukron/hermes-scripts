@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.29 (2026-10-10)
+
+### 🐛 Fixes
+
+- Las 4 fuentes caídas del diario global leen RSS vivo (#454)
+  ([#455](https://github.com/pelukron/hermes-scripts/pull/455),
+  [`04eae3d`](https://github.com/pelukron/hermes-scripts/commit/04eae3d995b83dc2d65eaac9b0dabf0c643d1ad9))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`01de9bb`](https://github.com/pelukron/hermes-scripts/commit/01de9bbf527faadcd07f1f8f8480dcc42950bafd))
+
+
 ## v0.26.28 (2026-10-09)
 
 ### 🐛 Fixes
