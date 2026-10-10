@@ -1,35 +1,45 @@
 """Tests para funciones clave de resumen-tigres-diario.py"""
 
-import importlib.util
-import os
 import re
 from unittest.mock import Mock, patch
 
-SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from hermes_common import news_utils, retry_request
+from scripts.resumen_tigres_diario import CONFIG, fetch_tigres_com
+from scripts.team_pipeline import build_report, fetch_detail
 
-spec = importlib.util.spec_from_file_location(
-    "resumen_tigres",
-    os.path.join(SCRIPT_DIR, "src", "scripts", "resumen_tigres_diario.py"),
-)
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
+clean_url = news_utils.clean_url
+clean_title = news_utils.clean_title
+title_similar = news_utils.title_similar
+dedupe = news_utils.dedupe
+dedupe_by_title = news_utils.dedupe_by_title
+domain_of = news_utils.domain_of
+format_item_line = news_utils.format_item_line
+NewsItem = news_utils.NewsItem
+parse_fecha_es = news_utils.parse_fecha_es
 
-clean_url = mod.clean_url
-clean_title = mod.clean_title
-title_similar = mod.title_similar
-dedupe = mod.dedupe
-dedupe_by_title = mod.dedupe_by_title
-domain_of = mod.domain_of
-is_oficial = mod.is_oficial
-smells_like_rumor = mod.smells_like_rumor
-classify = mod.classify
-fetch_google_news = mod.fetch_google_news
-fetch_tigres_com = mod.fetch_tigres_com
-parse_fecha_es = mod.parse_fecha_es
-fetch_tigres_detail = mod.fetch_tigres_detail
-enrich_tigres_items = mod.enrich_tigres_items
-format_item_line = mod.format_item_line
-NewsItem = mod.NewsItem
+
+def is_oficial(url: str) -> bool:
+    return news_utils.is_oficial(url, CONFIG.sitios_oficiales)
+
+
+def smells_like_rumor(title: str) -> bool:
+    return news_utils.smells_like_rumor(title, CONFIG.rumor_keywords)
+
+
+def classify(items: list) -> tuple:
+    return news_utils.classify(items, CONFIG.sitios_oficiales, CONFIG.sitios_confiables)
+
+
+def fetch_google_news(query: str, category: str) -> list:
+    return news_utils.fetch_google_news(
+        query,
+        category,
+        CONFIG.sitios_oficiales,
+        CONFIG.sitios_confiables,
+        CONFIG.rumor_keywords,
+        CONFIG.edition,
+    )
+
 
 # ═══════════════════════════════════════════
 # clean_url
@@ -363,7 +373,7 @@ class TestFetchGoogleNews:
         """Parse feedparser devuelve items correctamente."""
         mock_feed = Mock()
         mock_feed.entries = GOOGLE_NEWS_ENTRIES[:1]
-        with patch.object(mod.feedparser, "parse", return_value=mock_feed):
+        with patch("feedparser.parse", return_value=mock_feed):
             items = fetch_google_news("Tigres", "confirmadas")
             assert len(items) == 1
             item = items[0]
@@ -383,13 +393,13 @@ class TestFetchGoogleNews:
         )
         entry_oficial.get = lambda key, default="", _e=entry_oficial: getattr(_e, key, default)
         mock_feed.entries = [entry_oficial]
-        with patch.object(mod.feedparser, "parse", return_value=mock_feed):
+        with patch("feedparser.parse", return_value=mock_feed):
             items = fetch_google_news("Tigres", "confirmadas")
             assert len(items) == 1
             assert items[0].oficial is True
 
     def test_excepcion_retorna_error_item(self):
-        with patch.object(mod.feedparser, "parse", side_effect=Exception("timeout")):
+        with patch("feedparser.parse", side_effect=Exception("timeout")):
             items = fetch_google_news("Tigres", "confirmadas")
             assert len(items) == 1
             assert items[0].title.startswith("[Error")
@@ -416,7 +426,7 @@ class TestFetchTigresCom:
         mock_resp = Mock()
         mock_resp.text = TIGRES_HTML
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_tigres_com()
+            items = fetch_tigres_com(retry_request)
             assert len(items) == 2
             assert items[0].title == "Comunicado Oficial, Víctor Manuel Vucetich."
             assert items[0].source == "tigres.com.mx"
@@ -424,14 +434,12 @@ class TestFetchTigresCom:
             assert "tigres.com.mx/es/noticias/comunicado-oficial" in items[0].link
 
     def test_excepcion_retorna_error_item(self):
-        with patch.object(
-            mod,
-            "retry_request",
-            side_effect=Exception("Connection refused"),
-        ):
-            items = fetch_tigres_com()
-            assert len(items) == 1
-            assert items[0].title.startswith("[Error tigres.com.mx")
+        def boom(*_args, **_kwargs):
+            raise Exception("Connection refused")
+
+        items = fetch_tigres_com(boom)
+        assert len(items) == 1
+        assert items[0].title.startswith("[Error tigres.com.mx")
 
     def test_items_sin_heading_usan_title_attr(self):
         html = """
@@ -443,7 +451,7 @@ class TestFetchTigresCom:
         mock_resp = Mock()
         mock_resp.text = html
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_tigres_com()
+            items = fetch_tigres_com(retry_request)
             assert len(items) == 1
             assert items[0].title == "Título desde atributo title"
 
@@ -459,7 +467,7 @@ class TestFetchTigresCom:
         mock_resp = Mock()
         mock_resp.text = html
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_tigres_com()
+            items = fetch_tigres_com(retry_request)
             assert len(items) == 1
 
 
@@ -473,7 +481,7 @@ def test_queries_usan_frases_entre_comillas():
     # Patrón: la query abre con frase citada y luego solo or-frases citadas o terminos sueltos
     # (sin AND explicito, sin parentesis, sin operar solo con terminos sueltos).
     patron = r'^"[^"]+"(?:\s+OR\s+"[^"]+"|\s+[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*$'
-    for key, q in mod.QUERIES.items():
+    for key, q in CONFIG.queries.items():
         assert re.fullmatch(patron, q), f"QUERIES[{key}] no cumple sintaxis: {q}"
         assert "(" not in q and ")" not in q, f"QUERIES[{key}] usa parentesis: {q}"
         assert " AND " not in q, f"QUERIES[{key}] usa AND explicito: {q}"
@@ -481,7 +489,7 @@ def test_queries_usan_frases_entre_comillas():
 
 def test_queries_no_usan_operador_and_explicito():
     """Google News RSS devuelve 0 entries si la query usa AND o parentesis."""
-    for key, q in mod.QUERIES.items():
+    for key, q in CONFIG.queries.items():
         assert " AND " not in q, f"QUERIES[{key}] usa AND explicito: {q}"
         assert "(" not in q, f"QUERIES[{key}] usa parentesis: {q}"
 
@@ -502,18 +510,16 @@ def _mk_confirmada(i: int) -> NewsItem:
     )
 
 
-def test_contador_refleja_items_mostrados():
+def test_contador_refleja_items_mostrados(tmp_path):
     """Con 12 confirmadas y limite 8, el header debe decir '8 de 12' (o 8)."""
     confirmadas = [_mk_confirmada(i) for i in range(12)]
-    with (
-        patch("hermes_common.HistoryManager") as mock_hist_cls,
-        patch.object(mod, "fetch_google_news") as mock_gn,
-        patch.object(mod, "fetch_tigres_com") as mock_tig,
-    ):
-        mock_hist_cls.return_value.exists.return_value = False
-        mock_gn.side_effect = lambda q, cat: confirmadas if cat == "confirmadas" else []
-        mock_tig.return_value = []
-        blocks = mod.build_report_blocks()
+    blocks = build_report(
+        CONFIG,
+        history_path=str(tmp_path / CONFIG.history_name),
+        fetch_google_news=lambda _query, cat: confirmadas if cat == "confirmadas" else [],
+        fetch_official=lambda: [],
+        enrich_official=lambda items: items,
+    )
 
     conf = [b for b in blocks if "CONFIRMADO" in b][0]
     bullets = [line for line in conf.splitlines() if line.startswith("- ")]
@@ -567,7 +573,7 @@ class TestFetchTigresComConFecha:
         mock_resp = Mock()
         mock_resp.text = TIGRES_HTML_CON_FECHA
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_tigres_com()
+            items = fetch_tigres_com(retry_request)
             assert len(items) == 2
             assert items[0].published is not None
             assert (items[0].published.year, items[0].published.month) == (2026, 9)
@@ -582,7 +588,7 @@ class TestFetchTigresComConFecha:
         mock_resp = Mock()
         mock_resp.text = TIGRES_HTML_CON_FECHA
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_tigres_com()
+            items = fetch_tigres_com(retry_request)
             kept = filter_by_max_age(items, missing="drop", now=now)
             assert len(kept) == 1
             assert "reciente" in kept[0].title.lower()
@@ -593,7 +599,7 @@ class TestFetchTigresComConFecha:
         mock_resp = Mock()
         mock_resp.text = TIGRES_HTML
         with patch("src.hermes_common.common._DEFAULT_SESSION.get", return_value=mock_resp):
-            items = fetch_tigres_com()
+            items = fetch_tigres_com(retry_request)
             assert all(i.published is None for i in items)
             assert filter_by_max_age(items, missing="drop") == []
 
@@ -611,19 +617,27 @@ TIGRES_DETAIL_HTML = """
 """
 
 
+def _tigres_detail(link: str, request) -> tuple:
+    return fetch_detail(link, 10, request, "tigres.com.mx")
+
+
 class TestFetchTigresDetail:
     def test_fecha_y_autor(self):
         mock_resp = Mock()
         mock_resp.text = TIGRES_DETAIL_HTML
-        with patch.object(mod, "retry_request", return_value=mock_resp):
-            published, author = fetch_tigres_detail("https://www.tigres.com.mx/es/noticias/x/")
-            assert published is not None
-            assert (published.year, published.month, published.day) == (2026, 9, 12)
-            assert author == "Ernesto Ramos"
+        published, author = _tigres_detail(
+            "https://www.tigres.com.mx/es/noticias/x/",
+            lambda *_args, **_kwargs: mock_resp,
+        )
+        assert published is not None
+        assert (published.year, published.month, published.day) == (2026, 9, 12)
+        assert author == "Ernesto Ramos"
 
     def test_error_retorna_nones(self):
-        with patch.object(mod, "retry_request", side_effect=Exception("timeout")):
-            assert fetch_tigres_detail("https://www.tigres.com.mx/es/noticias/x/") == (None, None)
+        def boom(*_args, **_kwargs):
+            raise Exception("timeout")
+
+        assert _tigres_detail("https://www.tigres.com.mx/es/noticias/x/", boom) == (None, None)
 
     def test_enrich_respeta_tope_y_completa(self):
         from datetime import datetime, timezone
@@ -646,11 +660,19 @@ class TestFetchTigresDetail:
         ]
         mock_resp = Mock()
         mock_resp.text = TIGRES_DETAIL_HTML
-        with patch.object(mod, "retry_request", return_value=mock_resp) as mock_req:
-            enrich_tigres_items(items, max_details=1)
-            assert mock_req.call_count == 1
-            assert items[0].author == "Ernesto Ramos"
-            assert items[1].author is None
+        calls = {"n": 0}
+
+        def request(*_args, **_kwargs):
+            calls["n"] += 1
+            return mock_resp
+
+        def fetch_one(link: str) -> tuple:
+            return _tigres_detail(link, request)
+
+        news_utils.enrich_from_detail(items, fetch_one, max_details=1)
+        assert calls["n"] == 1
+        assert items[0].author == "Ernesto Ramos"
+        assert items[1].author is None
 
 
 class TestFormatItemLine:
@@ -681,13 +703,13 @@ class TestFormatItemLine:
 
 
 class TestVersionEnEncabezado:
-    def test_header_trae_version(self):
+    def test_header_trae_version(self, tmp_path):
         """El bloque 0 incluye *hermes-scripts <tag> (issue #91)."""
-        with (
-            patch("hermes_common.HistoryManager") as mock_hist_cls,
-            patch.object(mod, "fetch_google_news", return_value=[]),
-            patch.object(mod, "fetch_tigres_com", return_value=[]),
-        ):
-            mock_hist_cls.return_value.exists.return_value = False
-            blocks = mod.build_report_blocks()
+        blocks = build_report(
+            CONFIG,
+            history_path=str(tmp_path / CONFIG.history_name),
+            fetch_google_news=lambda *_args, **_kwargs: [],
+            fetch_official=lambda: [],
+            enrich_official=lambda items: items,
+        )
         assert any(line.startswith("*hermes-scripts ") for line in blocks[0].splitlines())

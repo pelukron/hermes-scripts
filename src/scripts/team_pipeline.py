@@ -8,21 +8,20 @@ from __future__ import annotations
 
 import logging
 import re
-import subprocess
-import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import hermes_common
-from hermes_common import delivery, filter_by_max_age, news_utils, uv_bin
+from hermes_common import delivery, filter_by_max_age, news_utils, retry_request
 
 log = logging.getLogger("hermes")
 
-# Presupuesto POR MENSAJE de esta área, más estricto que el tope duro del sender (4096): es
-# política del área (ADR 0009) y quien lo aplica es el seam de entrega (`delivery.emit`), que
-# además declara lo que deja fuera. Antes de esto, el recorte era local y mudo.
+# Per-message budget for this area, tighter than the sender hard cap (4096).
+# The number is area policy (ADR 0009). The section decides which item lines fit
+# and declares that cut. ``delivery.emit`` still enforces the budget: it drops a
+# line that cannot be shown and does not restate a cut the heading already declared.
 TELEGRAM_MAX_CHARS = 3000
 
 # Medios y keywords idénticos en ambos equipos: una sola copia.
@@ -140,32 +139,6 @@ class TeamConfig:
     extra_section: Optional[ExtraSection] = None
 
 
-def ensure_news_deps() -> None:
-    """Instala feedparser/bs4 si el cron arrancó sin ellas. No-op si ya están."""
-    try:
-        import bs4  # noqa: F401
-        import feedparser  # noqa: F401
-    except ModuleNotFoundError:
-        uv = uv_bin()
-        try:
-            subprocess.check_call(
-                [
-                    uv,
-                    "pip",
-                    "install",
-                    "--python",
-                    sys.executable,
-                    "feedparser",
-                    "requests",
-                    "beautifulsoup4",
-                    "lxml",
-                ]
-            )
-        except subprocess.CalledProcessError as exc:
-            log.warning("Failed to install runtime deps: %s", exc)
-            raise
-
-
 def fetch_detail(link: str, timeout: int, request: Request, label: str) -> tuple:
     """Fecha y autor de un artículo. `request` es el retry del script (testeable)."""
     try:
@@ -231,7 +204,28 @@ def _official_items(
 def _official_failed(items: list) -> bool:
     if len(items) != 1:
         return False
-    return str(getattr(items[0], "title", "")).startswith("[Error")
+    return str(getattr(items[0], "title", "")).startswith(ERROR_TITLE_PREFIX)
+
+
+ERROR_TITLE_PREFIX = "[Error"
+"""Single owner of the official-fetcher failure sentinel (#431)."""
+
+
+def official_error(source: str, exc: Exception) -> list[news_utils.NewsItem]:
+    """Error item for a failed official fetch, built by the pipeline.
+
+    Same shape the scripts used to build by hand: prefixed title with the
+    message cut at 80 chars, `confirmadas` category. `_official_failed`
+    recognizes exactly these items.
+    """
+    return [
+        news_utils.NewsItem(
+            title=f"{ERROR_TITLE_PREFIX} {source}: {str(exc)[:80]}",
+            source=source,
+            origin=source,
+            category="confirmadas",
+        )
+    ]
 
 
 def _without_history(history_path: str, items: list) -> list:
@@ -333,6 +327,11 @@ def _showed(
     return _primeros_que_caben(cabeza, tag_for, max(limite - hueco, 0)) + reservados
 
 
+def _overflow_note(omitted: int) -> str:
+    """The cut declaration. Same text as ``delivery._note``."""
+    return f"… +{omitted} fuera"
+
+
 def _bloque(
     heading: str,
     subtitle: str,
@@ -342,16 +341,38 @@ def _bloque(
     config: TeamConfig,
     empty: str = "",
 ) -> str:
-    """Bloque de Telegram de una sección con las líneas ya decididas."""
+    """One Telegram block for a section whose lines are already chosen.
+
+    The empty copy is only for a list that arrived empty. When items existed
+    and none fit, the body is the cut note and nothing else.
+    """
     lines = [
         heading.format(count=_count_label(items, shown, config.announce_overflow)),
         subtitle,
     ]
-    if not shown:
-        lines.append(empty)
-    else:
+    if shown:
         lines += [news_utils.format_item_line(tag_for(i), i, i.link) for i in shown]
+    elif items:
+        lines.append(_overflow_note(len(items) - len(shown)))
+    else:
+        lines.append(empty)
     return "\n".join(lines)
+
+
+def _reserved_ids(items: list, reserve: int) -> set[int]:
+    """Ids of the tail kept until no other shown item can be dropped."""
+    if reserve <= 0:
+        return set()
+    return {id(item) for item in items[-reserve:]}
+
+
+def _drop_expendable(shown: list, reserved_ids: set[int]) -> None:
+    """Drop the last shown item that is not reserved. The tail goes last."""
+    for index in range(len(shown) - 1, -1, -1):
+        if id(shown[index]) not in reserved_ids:
+            del shown[index]
+            return
+    shown.pop()
 
 
 def _section(
@@ -363,21 +384,26 @@ def _section(
     config: TeamConfig,
     reserve: int = 0,
 ) -> str:
-    """Bloque de Telegram de una sección.
+    """One Telegram block for a section.
 
-    El presupuesto se estima descontando cabecera y subtítulo (con el contador
-    más largo posible), y después se comprueba sobre el bloque ya montado:
-    estimar por aritmética se queda corto con emojis y con el contador real, y
-    el presupuesto del mensaje es una regla de entrega, no una sugerencia.
+    The budget is estimated without the heading and subtitle, using the longest
+    count, then checked on the assembled block. The estimate undershoots emojis
+    and the real count, and the message budget is a delivery rule.
+
+    ``max_items`` applies first. After that, non-reserved items drop from the
+    end; the reserved tail goes only when nothing else remains. A last line that
+    still does not fit is omitted. The cut note is the body only when items
+    existed and none are shown.
     """
     cabecera = heading.format(count=_count_label(items, items, config.announce_overflow))
     limite = (
         config.telegram_max_chars - delivery.utf16_len(cabecera) - delivery.utf16_len(subtitle) - 2
     )
     shown = _showed(items, tag_for, config, limite, reserve)
+    reserved_ids = _reserved_ids(items, reserve)
     bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
-    while delivery.utf16_len(bloque) > config.telegram_max_chars and len(shown) > 1:
-        shown = shown[:-1]
+    while delivery.utf16_len(bloque) > config.telegram_max_chars and shown:
+        _drop_expendable(shown, reserved_ids)
         bloque = _bloque(heading, subtitle, items, shown, tag_for, config, empty)
     return bloque
 
@@ -460,14 +486,64 @@ def _render(
     return bloques
 
 
+def history_path(config: TeamConfig) -> str:
+    """State file for this team, resolved when the report runs."""
+    return str(hermes_common.state_dir() / config.history_name)
+
+
+def google_news_for(config: TeamConfig) -> GoogleFetch:
+    """Google News fetch bound to this team's sites, keywords, and edition."""
+
+    def fetch(query: str, category: str) -> list:
+        return news_utils.fetch_google_news(
+            query,
+            category,
+            config.sitios_oficiales,
+            config.sitios_confiables,
+            config.rumor_keywords,
+            config.edition,
+        )
+
+    return fetch
+
+
+def rss_for(config: TeamConfig) -> RssFetch:
+    """Direct RSS fetch bound to this team's sites and rumor keywords."""
+
+    def fetch(url: str, source: str, category: str) -> list:
+        return news_utils.fetch_rss_feed(
+            url,
+            source,
+            category,
+            config.sitios_oficiales,
+            config.sitios_confiables,
+            config.rumor_keywords,
+        )
+
+    return fetch
+
+
+def enrich_for(config: TeamConfig) -> Enrich:
+    """Detail enrichment with the shared retry and the team's official site."""
+    label = config.sitios_oficiales[0] if config.sitios_oficiales else "oficial"
+
+    def fetch_one(link: str, timeout: int = 10) -> tuple:
+        return fetch_detail(link, timeout, retry_request, label)
+
+    def enrich(items: list) -> list:
+        return news_utils.enrich_from_detail(items, fetch_one)
+
+    return enrich
+
+
 def build_report(
     config: TeamConfig,
     *,
     history_path: str,
-    fetch_google_news: GoogleFetch,
     fetch_official: OfficialFetch,
-    enrich_official: Enrich,
-    fetch_rss: RssFetch = news_utils.fetch_rss_feed,
+    fetch_google_news: Optional[GoogleFetch] = None,
+    enrich_official: Optional[Enrich] = None,
+    fetch_rss: Optional[RssFetch] = None,
 ) -> list[str]:
     """Ensambla los bloques de Telegram para un equipo.
 
@@ -475,7 +551,17 @@ def build_report(
     ella, la liga viaja en el mismo historial y la misma clasificación, pero se
     parte a su bloque propio antes del render: el dedupe por título corre sobre
     los tres juntos y nada sale repetido entre liga y equipo.
+
+    Google News, the direct feeds, and detail enrichment bind to ``config``
+    when the caller does not pass them. The official fetcher stays with the
+    team script.
     """
+    if fetch_google_news is None:
+        fetch_google_news = google_news_for(config)
+    if enrich_official is None:
+        enrich_official = enrich_for(config)
+    if fetch_rss is None:
+        fetch_rss = rss_for(config)
     google = _sin_ruido(_google_items(config, fetch_google_news), config)
     official = _sin_ruido(_official_items(config, fetch_official, enrich_official), config)
     extra = _sin_ruido(_extra_items(config, fetch_google_news, fetch_rss), config)
@@ -497,133 +583,12 @@ def build_report(
     return _render(config, confirmadas, rumores, liga=liga)
 
 
-_REEXPORTS = (
-    "NewsItem",
-    "build_google_news_url",
-    "canonical_title",
-    "clean_title",
-    "clean_url",
-    "dedupe",
-    "dedupe_by_title",
-    "domain_of",
-    "enrich_from_detail",
-    "format_item_line",
-    "normalize",
-    "normalize_urls",
-    "now_str",
-    "parse_detail_page",
-    "parse_fecha_es",
-    "resolve_url",
-    "title_similar",
-)
-
-
-def expose(
-    ns: dict[str, Any],
-    config: TeamConfig,
-    *,
-    request: Request,
-    official_impl: Callable[[Request], list],
-    detail_label: str,
-    official_name: str,
-    detail_name: str,
-    enrich_name: str,
-) -> None:
-    """Cuelga en el script los nombres que los tests parchean, sin copiar el ensamble."""
-    ns["retry_request"] = request
-    ns["QUERIES"] = config.queries
-    ns["SITIOS_OFICIALES"] = config.sitios_oficiales
-    ns["SITIOS_CONFIABLES"] = config.sitios_confiables
-    ns["RUMOR_KEYWORDS"] = config.rumor_keywords
-    ns["TELEGRAM_MAX_CHARS"] = config.telegram_max_chars
-    ns["MAX_ITEMS_POR_SECCION"] = config.max_items
-    for name in _REEXPORTS:
-        ns[name] = getattr(news_utils, name)
-    ensure_news_deps()
-    import feedparser
-
-    ns["feedparser"] = feedparser
-
-    def is_oficial(url: str) -> bool:
-        return news_utils.is_oficial(url, config.sitios_oficiales)
-
-    def is_confiable_by_url(url: str) -> bool:
-        return news_utils.is_confiable_by_url(
-            url, config.sitios_oficiales, config.sitios_confiables
-        )
-
-    def is_confiable(source: str, url: str) -> bool:
-        return news_utils.is_confiable(
-            source, url, config.sitios_oficiales, config.sitios_confiables
-        )
-
-    def smells_like_rumor(title: str) -> bool:
-        return news_utils.smells_like_rumor(title, config.rumor_keywords)
-
-    def fetch_google_news(query: str, category: str) -> list:
-        return news_utils.fetch_google_news(
-            query,
-            category,
-            config.sitios_oficiales,
-            config.sitios_confiables,
-            config.rumor_keywords,
-            config.edition,
-        )
-
-    def fetch_rss(url: str, source: str, category: str) -> list:
-        return news_utils.fetch_rss_feed(
-            url,
-            source,
-            category,
-            config.sitios_oficiales,
-            config.sitios_confiables,
-            config.rumor_keywords,
-        )
-
-    def fetch_official() -> list:
-        return official_impl(ns["retry_request"])
-
-    def fetch_one(link: str, timeout: int = 10) -> tuple:
-        return fetch_detail(link, timeout, ns["retry_request"], detail_label)
-
-    def enrich(items: list, max_details: int = 12) -> list:
-        return news_utils.enrich_from_detail(items, ns[detail_name], max_details)
-
-    def classify(all_items: list) -> tuple:
-        return news_utils.classify(all_items, config.sitios_oficiales, config.sitios_confiables)
-
-    def historial_path() -> str:
-        return str(hermes_common.state_dir() / config.history_name)
-
-    def build_report_blocks() -> list[str]:
-        return build_report(
-            config,
-            history_path=ns["historial_path"](),
-            fetch_google_news=ns["fetch_google_news"],
-            fetch_official=ns[official_name],
-            enrich_official=ns[enrich_name],
-            fetch_rss=ns["fetch_rss"],
-        )
-
-    ns["is_oficial"] = is_oficial
-    ns["is_confiable_by_url"] = is_confiable_by_url
-    ns["is_confiable"] = is_confiable
-    ns["smells_like_rumor"] = smells_like_rumor
-    ns["fetch_google_news"] = fetch_google_news
-    ns["fetch_rss"] = fetch_rss
-    ns[official_name] = fetch_official
-    ns[detail_name] = fetch_one
-    ns[enrich_name] = enrich
-    ns["classify"] = classify
-    ns["historial_path"] = historial_path
-    ns["build_report_blocks"] = build_report_blocks
-
-
 def publish(blocks_fn: Callable[[], list[str]], limit: int = TELEGRAM_MAX_CHARS) -> None:
-    """Emite cada bloque por el seam de entrega: un bloque = un mensaje.
+    """Emit each block through the delivery seam: one block, one message.
 
-    El recorte dejó de ser local y mudo: `delivery.emit` corta por línea entera —una URL nunca
-    llega a medias— y declara lo que el presupuesto dejó fuera.
+    The section already chose which items fit. ``delivery.emit`` still drops a
+    whole line that does not fit, so a URL is never cut in half, and it does not
+    restate a cut the heading already declared.
     """
     hermes_common.setup_logging()
     delivery.emit(blocks_fn(), write=log.info, message_budget=limit)
