@@ -4,6 +4,18 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.33 (2026-10-10)
+
+### 📦 Chores
+
+- El trío de CodeQL llega en un PR y las acciones van pinadas por SHA (#458)
+  ([#459](https://github.com/pelukron/hermes-scripts/pull/459),
+  [`d751a35`](https://github.com/pelukron/hermes-scripts/commit/d751a350902f3ced07bd32f258d4535c2da30991))
+
+- Sync uv.lock tras release [skip ci]
+  ([`adc1e94`](https://github.com/pelukron/hermes-scripts/commit/adc1e94802c27461433210986d261264ad687c42))
+
+
 ## v0.26.32 (2026-10-10)
 
 ### 📦 Chores
