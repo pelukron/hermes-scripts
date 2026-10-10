@@ -4,6 +4,51 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.36 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`751b7c2`](https://github.com/pelukron/hermes-scripts/commit/751b7c2be3dfed0eef39b3ba5773798b0412782a))
+
+- **deps-dev**: Bump pre-commit from 4.6.0 to 4.6.2
+  ([#449](https://github.com/pelukron/hermes-scripts/pull/449),
+  [`9a95202`](https://github.com/pelukron/hermes-scripts/commit/9a95202de1aac704722169ec4627c0b084848e40))
+
+
+## v0.26.35 (2026-10-10)
+
+### 🐛 Fixes
+
+- Remove unused imports expose and official_error from team scripts
+  ([`3b1f553`](https://github.com/pelukron/hermes-scripts/commit/3b1f553dba17370e364ea1ba40ed70b7ef51d736))
+
+### ♻️ Refactor
+
+- El script de equipo deja de colgar el catálogo de news_utils (#436)
+  ([#437](https://github.com/pelukron/hermes-scripts/pull/437),
+  [`c2bbd35`](https://github.com/pelukron/hermes-scripts/commit/c2bbd358d4323d00ccfb003cf8ccd1bb63dad59b))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`255a51b`](https://github.com/pelukron/hermes-scripts/commit/255a51b3a50b12334b365f742096f4772816ae23))
+
+
+## v0.26.34 (2026-10-10)
+
+### ♻️ Refactor
+
+- El protocolo de fallo del fetcher oficial deja de ser texto
+  ([#451](https://github.com/pelukron/hermes-scripts/pull/451),
+  [`26c894d`](https://github.com/pelukron/hermes-scripts/commit/26c894d8547fba6d7607729f36922139e1e64871))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`851fcb5`](https://github.com/pelukron/hermes-scripts/commit/851fcb5b1077dd691f5d386ef7cb7290f97eb5f7))
+
+
 ## v0.26.33 (2026-10-10)
 
 ### 📦 Chores

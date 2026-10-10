@@ -77,12 +77,19 @@ def test_reporte_uso_lee_la_db_del_state_dir(tmp_path, monkeypatch):
 def test_historial_del_digest_usa_el_state_dir(tmp_path, monkeypatch):
     """Los digests de Rayados/Tigres construyen su historial con el seam."""
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
-    rayados = _cargar("src/scripts/resumen_rayados_diario.py")
-    tigres = _cargar("src/scripts/resumen_tigres_diario.py")
-    assert Path(rayados.historial_path()).parent == tmp_path
-    assert Path(tigres.historial_path()).parent == tmp_path
-    assert rayados.historial_path().endswith("rayados-history.json")
-    assert tigres.historial_path().endswith("tigres-history.json")
+    from scripts.resumen_rayados_diario import CONFIG as RAYADOS
+    from scripts.resumen_tigres_diario import CONFIG as TIGRES
+    from scripts.team_pipeline import history_path
+
+    assert Path(history_path(RAYADOS)).parent == tmp_path
+    assert Path(history_path(TIGRES)).parent == tmp_path
+    assert history_path(RAYADOS).endswith("rayados-history.json")
+    assert history_path(TIGRES).endswith("tigres-history.json")
+    for ruta in (
+        "src/scripts/resumen_rayados_diario.py",
+        "src/scripts/resumen_tigres_diario.py",
+    ):
+        assert "history_path(" in (REPO / ruta).read_text(encoding="utf-8")
 
 
 def test_historial_manager_acepta_la_ruta_del_seam(tmp_path, monkeypatch):

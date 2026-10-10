@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from hermes_common import delivery, news_utils, telegram_chunks
-from scripts.team_pipeline import ExtraSection, TeamConfig, build_report, expose
+from scripts.team_pipeline import ExtraSection, TeamConfig, build_report, google_news_for
 
 NewsItem = news_utils.NewsItem
 
@@ -121,28 +121,14 @@ def test_las_listas_compartidas_viven_una_sola_vez():
         assert "BeautifulSoup" in text
         assert fetcher in text
         assert "milenio.com" not in text
-        assert "expose(" in text
+        assert "expose(" not in text
+        assert "build_report(" in text
         assert "podría" not in text
         assert len(text.splitlines()) < 150
+    assert "def expose" not in pipeline
     tigres = (SCRIPTS / "resumen_tigres_diario.py").read_text(encoding="utf-8")
     for helper in ("def listing_time_of", "def _tigres_title", "def _tigres_article"):
         assert helper in tigres
-
-
-def _exposed(config: TeamConfig) -> dict:
-    """Devuelve el namespace que `expose` cuelga en un módulo de equipo."""
-    ns: dict = {}
-    expose(
-        ns,
-        config,
-        request=lambda *a, **k: None,
-        official_impl=lambda _request: [],
-        detail_label="equipo.test",
-        official_name="fetch_official_listing",
-        detail_name="fetch_official_detail",
-        enrich_name="enrich_official_items",
-    )
-    return ns
 
 
 def _edicion_que_llega_al_feed(config: TeamConfig) -> object:
@@ -154,14 +140,31 @@ def _edicion_que_llega_al_feed(config: TeamConfig) -> object:
         return []
 
     with patch("hermes_common.news_utils.fetch_google_news", side_effect=falso):
-        _exposed(config)["fetch_google_news"]("'Equipo'", "confirmadas")
+        google_news_for(config)("'Equipo'", "confirmadas")
     return capturado["edition"]
 
 
-def test_el_config_del_equipo_pasa_su_edicion_al_feed():
+def test_el_config_del_equipo_pasa_su_edicion_al_feed(tmp_path):
     """La edición viaja del config al constructor de la URL (ADR 0010, issue #357)."""
     en_eeuu = {"hl": "en-US", "gl": "US", "ceid": "US:en"}
-    assert _edicion_que_llega_al_feed(_config(edition=en_eeuu)) == en_eeuu
+    config = _config(edition=en_eeuu)
+    assert _edicion_que_llega_al_feed(config) == en_eeuu
+    ediciones: list = []
+
+    def falso(query, category, *args):
+        ediciones.append(args[3])
+        return []
+
+    with (
+        patch("hermes_common.news_utils.fetch_google_news", side_effect=falso),
+        patch("scripts.team_pipeline.time.sleep"),
+    ):
+        build_report(
+            config,
+            history_path=str(tmp_path / config.history_name),
+            fetch_official=list,
+        )
+    assert ediciones == [en_eeuu, en_eeuu]
 
 
 def test_el_config_exige_la_edicion():
