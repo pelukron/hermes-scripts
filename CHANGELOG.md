@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.38 (2026-10-10)
+
+### 📝 Docs
+
+- Indice versionado del track de epicas
+  ([#447](https://github.com/pelukron/hermes-scripts/pull/447),
+  [`e2c4b25`](https://github.com/pelukron/hermes-scripts/commit/e2c4b257a9e83e9b444c1a40407fd4911c33880c))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d21c423`](https://github.com/pelukron/hermes-scripts/commit/d21c42332b78b918291449192a1a85cf3590e8fa))
+
+
 ## v0.26.37 (2026-10-10)
 
 ### 📦 Chores
