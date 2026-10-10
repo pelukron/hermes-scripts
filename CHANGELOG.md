@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.34 (2026-10-10)
+
+### ♻️ Refactor
+
+- El protocolo de fallo del fetcher oficial deja de ser texto
+  ([#451](https://github.com/pelukron/hermes-scripts/pull/451),
+  [`26c894d`](https://github.com/pelukron/hermes-scripts/commit/26c894d8547fba6d7607729f36922139e1e64871))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`851fcb5`](https://github.com/pelukron/hermes-scripts/commit/851fcb5b1077dd691f5d386ef7cb7290f97eb5f7))
+
+
 ## v0.26.33 (2026-10-10)
 
 ### 📦 Chores
