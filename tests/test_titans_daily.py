@@ -1,27 +1,23 @@
 """Tests para titans_daily.py (canal propio de Tennessee Titans, #356)."""
 
-import importlib.util
 import json
-import os
 import re
-from unittest.mock import patch
+from pathlib import Path
 
-from hermes_common import telegram_chunks
+from hermes_common import news_utils, telegram_chunks
+from scripts.team_pipeline import build_report
+from scripts.titans_daily import CONFIG, fetch_titans_official_impl
 
-SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+NewsItem = news_utils.NewsItem
 
-spec = importlib.util.spec_from_file_location(
-    "titans_daily",
-    os.path.join(SCRIPT_DIR, "src", "scripts", "titans_daily.py"),
-)
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
 
-CONFIG = mod.CONFIG
-NewsItem = mod.NewsItem
-is_oficial = mod.is_oficial
-smells_like_rumor = mod.smells_like_rumor
-fetch_titans_official = mod.fetch_titans_official
+def is_oficial(url: str) -> bool:
+    return news_utils.is_oficial(url, CONFIG.sitios_oficiales)
+
+
+def smells_like_rumor(title: str) -> bool:
+    return news_utils.smells_like_rumor(title, CONFIG.rumor_keywords)
+
 
 ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
@@ -75,14 +71,14 @@ class TestConfigTitans:
 class TestFetchTitansOfficial:
     def test_vacio_declarado(self):
         """Sin fetcher real (#356): el sitio es React y el listado no viene en el HTML."""
-        assert fetch_titans_official() == []
-        assert "React" in mod.fetch_titans_official_impl.__doc__
+        assert fetch_titans_official_impl(lambda *_a, **_k: None) == []
+        assert "React" in fetch_titans_official_impl.__doc__
 
 
 def test_queries_usan_frases_entre_comillas():
     """La query abre con frase citada; AND o paréntesis dejan el feed en 0 entries."""
     patron = r'^"[^"]+"(?:\s+OR\s+"[^"]+"|\s+[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*$'
-    for key, q in mod.QUERIES.items():
+    for key, q in CONFIG.queries.items():
         assert re.fullmatch(patron, q), f"QUERIES[{key}] no cumple sintaxis: {q}"
         assert "(" not in q and ")" not in q, f"QUERIES[{key}] usa paréntesis: {q}"
         assert " AND " not in q, f"QUERIES[{key}] usa AND explícito: {q}"
@@ -120,36 +116,40 @@ def _mk_rumor(i: int) -> NewsItem:
     )
 
 
-def test_reporte_tres_bloques_con_techo():
+def test_reporte_tres_bloques_con_techo(tmp_path):
     """#386: header + jornada + la sección única del equipo; el mensaje cabe en 1 trozo."""
     confirmadas = [_mk_confirmada(i) for i in range(12)]
     liga = [_mk_liga(i) for i in range(3)]
     rumores = [_mk_rumor(0)]
     por_categoria = {"confirmadas": confirmadas, "rumores": rumores, "liga": liga}
-    with (
-        patch("hermes_common.HistoryManager") as mock_hist_cls,
-        patch.object(mod, "fetch_google_news") as mock_gn,
-        patch.object(mod, "fetch_rss") as mock_rss,
-        patch.object(mod, "fetch_titans_official") as mock_official,
-    ):
-        mock_hist_cls.return_value.exists.return_value = False
-        mock_gn.side_effect = lambda q, cat: list(por_categoria.get(cat, []))
-        titulares = {
-            "FOX Sports": "Achane se pierde la temporada con el cruzado roto",
-            "CBS Sports": "Mayfield sale con el pulgar dislocado",
-        }
-        mock_rss.side_effect = lambda url, source, cat: [
+    titulares = {
+        "FOX Sports": "Achane se pierde la temporada con el cruzado roto",
+        "CBS Sports": "Mayfield sale con el pulgar dislocado",
+    }
+
+    def fetch_google(_query: str, category: str) -> list:
+        return list(por_categoria.get(category, []))
+
+    def fetch_rss(_url: str, source: str, category: str) -> list:
+        return [
             NewsItem(
                 title=titulares[source],
                 link=f"https://{source.split()[0].lower()}.com/nfl/1",
                 source=source,
                 confiable=True,
                 origin=f"rss:{source}",
-                category=cat,
+                category=category,
             )
         ]
-        mock_official.return_value = []
-        blocks = mod.build_report_blocks()
+
+    blocks = build_report(
+        CONFIG,
+        history_path=str(tmp_path / CONFIG.history_name),
+        fetch_google_news=fetch_google,
+        fetch_rss=fetch_rss,
+        fetch_official=lambda: [],
+        enrich_official=lambda items: items,
+    )
 
     assert len(blocks) == 3
     assert "Tennessee Titans" in blocks[0]
@@ -176,7 +176,8 @@ def test_reporte_tres_bloques_con_techo():
 
 def test_entrada_del_manifiesto():
     """El job existe en el manifiesto con su entry point, wrapper y destino (#356)."""
-    with open(os.path.join(SCRIPT_DIR, "cron", "jobs.json"), encoding="utf-8") as f:
+    root = Path(__file__).resolve().parents[1]
+    with open(root / "cron" / "jobs.json", encoding="utf-8") as f:
         manifiesto = json.load(f)
     jobs = {j["name"]: j for j in manifiesto["jobs"]}
     job = jobs["titans-daily"]
