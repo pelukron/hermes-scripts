@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.39 (2026-10-10)
+
+### 🔧 Infra
+
+- El gate posee su toolchain, contrato unico mas doctor
+  ([#443](https://github.com/pelukron/hermes-scripts/pull/443),
+  [`2f32257`](https://github.com/pelukron/hermes-scripts/commit/2f322578fb503613bfdaa0e5b88f743dd31dc2de))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d6e7f90`](https://github.com/pelukron/hermes-scripts/commit/d6e7f90ceee8af01c73bde8c6601ebe24ea08d47))
+
+
 ## v0.26.38 (2026-10-10)
 
 ### 📝 Docs
