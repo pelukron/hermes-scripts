@@ -4,6 +4,48 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.29 (2026-10-10)
+
+### 🐛 Fixes
+
+- Las 4 fuentes caídas del diario global leen RSS vivo (#454)
+  ([#455](https://github.com/pelukron/hermes-scripts/pull/455),
+  [`04eae3d`](https://github.com/pelukron/hermes-scripts/commit/04eae3d995b83dc2d65eaac9b0dabf0c643d1ad9))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`01de9bb`](https://github.com/pelukron/hermes-scripts/commit/01de9bbf527faadcd07f1f8f8480dcc42950bafd))
+
+
+## v0.26.28 (2026-10-09)
+
+### 🐛 Fixes
+
+- La sección de equipo es dueña de la última línea (#434)
+  ([#435](https://github.com/pelukron/hermes-scripts/pull/435),
+  [`b47cec1`](https://github.com/pelukron/hermes-scripts/commit/b47cec101e90cd62dc07119390ae888a204a73c5))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`7afdd65`](https://github.com/pelukron/hermes-scripts/commit/7afdd65a8ac8fd4f7e5aef2fa7bbca283409347b))
+
+
+## v0.26.27 (2026-10-09)
+
+### ♻️ Refactor
+
+- El diario global mide el presupuesto en UTF-16 (#423)
+  ([#428](https://github.com/pelukron/hermes-scripts/pull/428),
+  [`bd7ec84`](https://github.com/pelukron/hermes-scripts/commit/bd7ec8465ddcd116d4946c33a35b3da9be29e496))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d703493`](https://github.com/pelukron/hermes-scripts/commit/d703493713cf65dfbd81838058615405eee4d073))
+
+
 ## v0.26.26 (2026-10-09)
 
 ### 🔧 Infra

@@ -67,7 +67,7 @@
             },
             {
               "name": "Euronews",
-              "url": "https://www.euronews.com/rss"
+              "url": "https://feeds.feedburner.com/euronews/en/news"
             }
           ]
         },
@@ -195,7 +195,7 @@
             },
             {
               "name": "Xataka",
-              "url": "https://www.xataka.com/feed.xml"
+              "url": "https://feeds.weblogssl.com/xataka2"
             }
           ]
         }
@@ -245,7 +245,7 @@
             },
             {
               "name": "El Financiero",
-              "url": "https://www.elfinanciero.com.mx/arc/outboundfeeds/rss/"
+              "url": "https://www.elfinanciero.com.mx/arc/outboundfeeds/rss/?outputType=xml"
             }
           ]
         },
@@ -258,7 +258,7 @@
             },
             {
               "name": "SinEmbargo",
-              "url": "https://www.sinembargo.mx/feed"
+              "url": "https://news.google.com/rss/search?q=site:sinembargo.mx+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
             }
           ]
         },
