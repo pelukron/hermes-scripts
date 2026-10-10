@@ -4,6 +4,48 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.40 (2026-10-10)
+
+### ✅ Tests
+
+- Vocabulario unico de tipos de commit con un seam de test
+  ([#439](https://github.com/pelukron/hermes-scripts/pull/439),
+  [`d0927a2`](https://github.com/pelukron/hermes-scripts/commit/d0927a2061f4736af961505d9e991882fe3934d2))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`35d8c98`](https://github.com/pelukron/hermes-scripts/commit/35d8c9823a279d6d55da1c45be0eb363ff5d0d9c))
+
+
+## v0.26.39 (2026-10-10)
+
+### 🔧 Infra
+
+- El gate posee su toolchain, contrato unico mas doctor
+  ([#443](https://github.com/pelukron/hermes-scripts/pull/443),
+  [`2f32257`](https://github.com/pelukron/hermes-scripts/commit/2f322578fb503613bfdaa0e5b88f743dd31dc2de))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d6e7f90`](https://github.com/pelukron/hermes-scripts/commit/d6e7f90ceee8af01c73bde8c6601ebe24ea08d47))
+
+
+## v0.26.38 (2026-10-10)
+
+### 📝 Docs
+
+- Indice versionado del track de epicas
+  ([#447](https://github.com/pelukron/hermes-scripts/pull/447),
+  [`e2c4b25`](https://github.com/pelukron/hermes-scripts/commit/e2c4b257a9e83e9b444c1a40407fd4911c33880c))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d21c423`](https://github.com/pelukron/hermes-scripts/commit/d21c42332b78b918291449192a1a85cf3590e8fa))
+
+
 ## v0.26.37 (2026-10-10)
 
 ### 📦 Chores

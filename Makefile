@@ -18,6 +18,13 @@ sync:
 lock:
 	uv lock
 
+## Doctor del toolchain: afirma que cada lector acuerda con `[tool.hermes.gate]`
+# (pins de pre-commit, shellcheck de CI, ratchet C901 del ADR) y que el
+# shellcheck instalado coincide. Primer paso del gate: falla ruidoso con la
+# instruccion de arreglo en vez de romper un check posterior.
+doctor:
+	uv run python bin/gate-doctor.py
+
 ## Afirmar que uv.lock corresponde a los pins de pyproject.toml (no lo reescribe)
 # Entra al gate (#267): un `pyproject.toml` editado sin re-lock rompe aqui, en local y
 # en la noche. `--check` no muta uv.lock (a diferencia de `lock`), asi que es seguro
@@ -89,8 +96,5 @@ clean:
 	find . -type d -name __pycache__ -delete
 
 ## Correr todos los checks (CI local)
-# La lista vive aquí y en un solo sitio: `bin/gate.sh` la ejecuta con `exec make check` y el
-# CI llama al script, así que ni el YAML ni el script repiten los pasos (#265/#463). Cada
-# etapa imprime su nombre para que un rojo diga en qué fase murió sin leer el log entero.
-check: lock-check lint format-check shellcheck typecheck security audit test
+check: doctor lock-check lint format-check shellcheck typecheck security audit test
 	@echo "✅ Todos los checks pasaron"

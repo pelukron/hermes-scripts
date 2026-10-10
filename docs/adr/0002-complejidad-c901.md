@@ -31,8 +31,11 @@ por formato de cada fuente.
 
 ## Decisión
 
-**Ratchet en 26** (`[lint.mccabe] max-complexity = 26` en `ruff.toml`, corre
-dentro del `lint` del gate, igual en local y CI):
+**Ratchet en 15** (`[lint.mccabe] max-complexity = 15` en `ruff.toml`, corre
+dentro del `lint` del gate, igual en local y CI). Bajado de 26 a 15 en
+`c418af0`; este ADR quedó en 26 hasta #442 y el doctor del gate
+(`src/gate_doctor.py`, primer paso de `make check`) lo cruza contra
+`ruff.toml` para que no vuelva a divergir en silencio:
 
 - El gate pasa en `main` hoy y falla ante cualquier función nueva o editada que
   supere el máximo medido.
