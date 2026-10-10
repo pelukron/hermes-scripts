@@ -12,6 +12,8 @@ from scripts.team_pipeline import (
     build_report,
     enter,
     history_path,
+    expose,
+    official_error,
     publish,
 )
 
@@ -62,14 +64,8 @@ def fetch_rayados_com(request: Request) -> list:
             )
         return items
     except Exception as exc:
-        return [
-            news_utils.NewsItem(
-                title=f"[Error rayados.com: {str(exc)[:80]}]",
-                source="rayados.com",
-                origin="rayados.com",
-                category="confirmadas",
-            )
-        ]
+        error: list = official_error("rayados.com", exc)
+        return error
 
 
 CONFIG = TeamConfig(

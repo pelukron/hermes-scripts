@@ -4,6 +4,82 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.34 (2026-10-10)
+
+### ♻️ Refactor
+
+- El protocolo de fallo del fetcher oficial deja de ser texto
+  ([#451](https://github.com/pelukron/hermes-scripts/pull/451),
+  [`26c894d`](https://github.com/pelukron/hermes-scripts/commit/26c894d8547fba6d7607729f36922139e1e64871))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`851fcb5`](https://github.com/pelukron/hermes-scripts/commit/851fcb5b1077dd691f5d386ef7cb7290f97eb5f7))
+
+
+## v0.26.33 (2026-10-10)
+
+### 📦 Chores
+
+- El trío de CodeQL llega en un PR y las acciones van pinadas por SHA (#458)
+  ([#459](https://github.com/pelukron/hermes-scripts/pull/459),
+  [`d751a35`](https://github.com/pelukron/hermes-scripts/commit/d751a350902f3ced07bd32f258d4535c2da30991))
+
+- Sync uv.lock tras release [skip ci]
+  ([`adc1e94`](https://github.com/pelukron/hermes-scripts/commit/adc1e94802c27461433210986d261264ad687c42))
+
+
+## v0.26.32 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`a298a36`](https://github.com/pelukron/hermes-scripts/commit/a298a366d824cf0428654feff3d026af36e2f71f))
+
+- **deps**: Bump github/codeql-action/autobuild from 4.38.1 to 4.38.2
+  ([#452](https://github.com/pelukron/hermes-scripts/pull/452),
+  [`2bba83b`](https://github.com/pelukron/hermes-scripts/commit/2bba83b65c777983a4d0e5372b58daf3de00af11))
+
+
+## v0.26.31 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`354a21f`](https://github.com/pelukron/hermes-scripts/commit/354a21f2b9317152cf72065457c91b7c96e076a3))
+
+- **deps**: Bump github/codeql-action/init from 4.38.1 to 4.38.2
+  ([#450](https://github.com/pelukron/hermes-scripts/pull/450),
+  [`3cdf7ad`](https://github.com/pelukron/hermes-scripts/commit/3cdf7ad2b5415012ce046e5b603c7185aea027a3))
+
+
+## v0.26.30 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`0af435b`](https://github.com/pelukron/hermes-scripts/commit/0af435b6589b134734790c235918acfc5539875b))
+
+- **deps**: Bump github/codeql-action/analyze from 4.38.1 to 4.38.2
+  ([#453](https://github.com/pelukron/hermes-scripts/pull/453),
+  [`9ea717f`](https://github.com/pelukron/hermes-scripts/commit/9ea717f92fd294fce9931c6352c0311e506dc76f))
+
+
+## v0.26.29 (2026-10-10)
+
+### 🐛 Fixes
+
+- Las 4 fuentes caídas del diario global leen RSS vivo (#454)
+  ([#455](https://github.com/pelukron/hermes-scripts/pull/455),
+  [`04eae3d`](https://github.com/pelukron/hermes-scripts/commit/04eae3d995b83dc2d65eaac9b0dabf0c643d1ad9))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`01de9bb`](https://github.com/pelukron/hermes-scripts/commit/01de9bbf527faadcd07f1f8f8480dcc42950bafd))
+
+
 ## v0.26.28 (2026-10-09)
 
 ### 🐛 Fixes

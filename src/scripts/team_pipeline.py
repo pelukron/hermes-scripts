@@ -204,7 +204,28 @@ def _official_items(
 def _official_failed(items: list) -> bool:
     if len(items) != 1:
         return False
-    return str(getattr(items[0], "title", "")).startswith("[Error")
+    return str(getattr(items[0], "title", "")).startswith(ERROR_TITLE_PREFIX)
+
+
+ERROR_TITLE_PREFIX = "[Error"
+"""Single owner of the official-fetcher failure sentinel (#431)."""
+
+
+def official_error(source: str, exc: Exception) -> list[news_utils.NewsItem]:
+    """Error item for a failed official fetch, built by the pipeline.
+
+    Same shape the scripts used to build by hand: prefixed title with the
+    message cut at 80 chars, `confirmadas` category. `_official_failed`
+    recognizes exactly these items.
+    """
+    return [
+        news_utils.NewsItem(
+            title=f"{ERROR_TITLE_PREFIX} {source}: {str(exc)[:80]}",
+            source=source,
+            origin=source,
+            category="confirmadas",
+        )
+    ]
 
 
 def _without_history(history_path: str, items: list) -> list:
