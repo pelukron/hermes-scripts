@@ -20,6 +20,10 @@ out/
 .coverage.*
 htmlcov/
 
+# Artefactos del gate (#463): XML de pytest y de cobertura del último run, que el CI sube.
+# Se regeneran con `bash bin/gate.sh` y se borran con `make clean`.
+.artifacts/
+
 # Worktrees por ticket (#368): dentro del repo para no pedir permisos externos;
 # pytest los ignora por norecursedirs (`.*`) y ruff por este gitignore.
 .worktrees/
