@@ -8,15 +8,13 @@ from __future__ import annotations
 
 import logging
 import re
-import subprocess
-import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import hermes_common
-from hermes_common import delivery, filter_by_max_age, news_utils, uv_bin
+from hermes_common import delivery, filter_by_max_age, news_utils, retry_request
 
 log = logging.getLogger("hermes")
 
@@ -139,32 +137,6 @@ class TeamConfig:
     # Tigres no cambian.
     exclude_keywords: list[str] = field(default_factory=list)
     extra_section: Optional[ExtraSection] = None
-
-
-def ensure_news_deps() -> None:
-    """Instala feedparser/bs4 si el cron arrancó sin ellas. No-op si ya están."""
-    try:
-        import bs4  # noqa: F401
-        import feedparser  # noqa: F401
-    except ModuleNotFoundError:
-        uv = uv_bin()
-        try:
-            subprocess.check_call(
-                [
-                    uv,
-                    "pip",
-                    "install",
-                    "--python",
-                    sys.executable,
-                    "feedparser",
-                    "requests",
-                    "beautifulsoup4",
-                    "lxml",
-                ]
-            )
-        except subprocess.CalledProcessError as exc:
-            log.warning("Failed to install runtime deps: %s", exc)
-            raise
 
 
 def fetch_detail(link: str, timeout: int, request: Request, label: str) -> tuple:
@@ -514,14 +486,64 @@ def _render(
     return bloques
 
 
+def history_path(config: TeamConfig) -> str:
+    """State file for this team, resolved when the report runs."""
+    return str(hermes_common.state_dir() / config.history_name)
+
+
+def google_news_for(config: TeamConfig) -> GoogleFetch:
+    """Google News fetch bound to this team's sites, keywords, and edition."""
+
+    def fetch(query: str, category: str) -> list:
+        return news_utils.fetch_google_news(
+            query,
+            category,
+            config.sitios_oficiales,
+            config.sitios_confiables,
+            config.rumor_keywords,
+            config.edition,
+        )
+
+    return fetch
+
+
+def rss_for(config: TeamConfig) -> RssFetch:
+    """Direct RSS fetch bound to this team's sites and rumor keywords."""
+
+    def fetch(url: str, source: str, category: str) -> list:
+        return news_utils.fetch_rss_feed(
+            url,
+            source,
+            category,
+            config.sitios_oficiales,
+            config.sitios_confiables,
+            config.rumor_keywords,
+        )
+
+    return fetch
+
+
+def enrich_for(config: TeamConfig) -> Enrich:
+    """Detail enrichment with the shared retry and the team's official site."""
+    label = config.sitios_oficiales[0] if config.sitios_oficiales else "oficial"
+
+    def fetch_one(link: str, timeout: int = 10) -> tuple:
+        return fetch_detail(link, timeout, retry_request, label)
+
+    def enrich(items: list) -> list:
+        return news_utils.enrich_from_detail(items, fetch_one)
+
+    return enrich
+
+
 def build_report(
     config: TeamConfig,
     *,
     history_path: str,
-    fetch_google_news: GoogleFetch,
     fetch_official: OfficialFetch,
-    enrich_official: Enrich,
-    fetch_rss: RssFetch = news_utils.fetch_rss_feed,
+    fetch_google_news: Optional[GoogleFetch] = None,
+    enrich_official: Optional[Enrich] = None,
+    fetch_rss: Optional[RssFetch] = None,
 ) -> list[str]:
     """Ensambla los bloques de Telegram para un equipo.
 
@@ -529,7 +551,17 @@ def build_report(
     ella, la liga viaja en el mismo historial y la misma clasificación, pero se
     parte a su bloque propio antes del render: el dedupe por título corre sobre
     los tres juntos y nada sale repetido entre liga y equipo.
+
+    Google News, the direct feeds, and detail enrichment bind to ``config``
+    when the caller does not pass them. The official fetcher stays with the
+    team script.
     """
+    if fetch_google_news is None:
+        fetch_google_news = google_news_for(config)
+    if enrich_official is None:
+        enrich_official = enrich_for(config)
+    if fetch_rss is None:
+        fetch_rss = rss_for(config)
     google = _sin_ruido(_google_items(config, fetch_google_news), config)
     official = _sin_ruido(_official_items(config, fetch_official, enrich_official), config)
     extra = _sin_ruido(_extra_items(config, fetch_google_news, fetch_rss), config)
@@ -549,128 +581,6 @@ def build_report(
     confirmadas = [i for i in confirmadas if i.link not in enlaces_liga]
     rumores = [i for i in rumores if i.link not in enlaces_liga]
     return _render(config, confirmadas, rumores, liga=liga)
-
-
-_REEXPORTS = (
-    "NewsItem",
-    "build_google_news_url",
-    "canonical_title",
-    "clean_title",
-    "clean_url",
-    "dedupe",
-    "dedupe_by_title",
-    "domain_of",
-    "enrich_from_detail",
-    "format_item_line",
-    "normalize",
-    "normalize_urls",
-    "now_str",
-    "parse_detail_page",
-    "parse_fecha_es",
-    "resolve_url",
-    "title_similar",
-)
-
-
-def expose(
-    ns: dict[str, Any],
-    config: TeamConfig,
-    *,
-    request: Request,
-    official_impl: Callable[[Request], list],
-    detail_label: str,
-    official_name: str,
-    detail_name: str,
-    enrich_name: str,
-) -> None:
-    """Cuelga en el script los nombres que los tests parchean, sin copiar el ensamble."""
-    ns["retry_request"] = request
-    ns["QUERIES"] = config.queries
-    ns["SITIOS_OFICIALES"] = config.sitios_oficiales
-    ns["SITIOS_CONFIABLES"] = config.sitios_confiables
-    ns["RUMOR_KEYWORDS"] = config.rumor_keywords
-    ns["TELEGRAM_MAX_CHARS"] = config.telegram_max_chars
-    ns["MAX_ITEMS_POR_SECCION"] = config.max_items
-    for name in _REEXPORTS:
-        ns[name] = getattr(news_utils, name)
-    ensure_news_deps()
-    import feedparser
-
-    ns["feedparser"] = feedparser
-
-    def is_oficial(url: str) -> bool:
-        return news_utils.is_oficial(url, config.sitios_oficiales)
-
-    def is_confiable_by_url(url: str) -> bool:
-        return news_utils.is_confiable_by_url(
-            url, config.sitios_oficiales, config.sitios_confiables
-        )
-
-    def is_confiable(source: str, url: str) -> bool:
-        return news_utils.is_confiable(
-            source, url, config.sitios_oficiales, config.sitios_confiables
-        )
-
-    def smells_like_rumor(title: str) -> bool:
-        return news_utils.smells_like_rumor(title, config.rumor_keywords)
-
-    def fetch_google_news(query: str, category: str) -> list:
-        return news_utils.fetch_google_news(
-            query,
-            category,
-            config.sitios_oficiales,
-            config.sitios_confiables,
-            config.rumor_keywords,
-            config.edition,
-        )
-
-    def fetch_rss(url: str, source: str, category: str) -> list:
-        return news_utils.fetch_rss_feed(
-            url,
-            source,
-            category,
-            config.sitios_oficiales,
-            config.sitios_confiables,
-            config.rumor_keywords,
-        )
-
-    def fetch_official() -> list:
-        return official_impl(ns["retry_request"])
-
-    def fetch_one(link: str, timeout: int = 10) -> tuple:
-        return fetch_detail(link, timeout, ns["retry_request"], detail_label)
-
-    def enrich(items: list, max_details: int = 12) -> list:
-        return news_utils.enrich_from_detail(items, ns[detail_name], max_details)
-
-    def classify(all_items: list) -> tuple:
-        return news_utils.classify(all_items, config.sitios_oficiales, config.sitios_confiables)
-
-    def historial_path() -> str:
-        return str(hermes_common.state_dir() / config.history_name)
-
-    def build_report_blocks() -> list[str]:
-        return build_report(
-            config,
-            history_path=ns["historial_path"](),
-            fetch_google_news=ns["fetch_google_news"],
-            fetch_official=ns[official_name],
-            enrich_official=ns[enrich_name],
-            fetch_rss=ns["fetch_rss"],
-        )
-
-    ns["is_oficial"] = is_oficial
-    ns["is_confiable_by_url"] = is_confiable_by_url
-    ns["is_confiable"] = is_confiable
-    ns["smells_like_rumor"] = smells_like_rumor
-    ns["fetch_google_news"] = fetch_google_news
-    ns["fetch_rss"] = fetch_rss
-    ns[official_name] = fetch_official
-    ns[detail_name] = fetch_one
-    ns[enrich_name] = enrich
-    ns["classify"] = classify
-    ns["historial_path"] = historial_path
-    ns["build_report_blocks"] = build_report_blocks
 
 
 def publish(blocks_fn: Callable[[], list[str]], limit: int = TELEGRAM_MAX_CHARS) -> None:
