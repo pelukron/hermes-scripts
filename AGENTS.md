@@ -15,7 +15,8 @@
 - El gate es **un comando**, no una lista de pasos que alguien mantiene en paralelo: lo corren local,
   CI y la noche (`adopted-sha-audit`) con `bash bin/gate.sh`. Incluye `shellcheck` (requiere el binario
   en el PATH; en CI entra por apt) y `pip-audit` con su excepción documentada en el Makefile.
-  `GATE_JUNIT=<ruta>` escribe el XML que lee la noche; sin la variable no hay XML.
+  `GATE_JUNIT=<ruta>` manda ese XML a la ruta que le pases (lo que hace la noche); sin la variable
+  cae en `.artifacts/junit.xml`, junto al de cobertura, y ese directorio es lo que el CI sube.
 - `src/` no invoca herramientas externas por nombre relativo: `["uv", …]` o `["gh", …]` no resuelven en
   el cron (PATH mínimo) y el fallo aparece a la hora del job, no en CI. Usa `uv_bin()` / `gh_bin()` de
   `hermes_common` o una ruta absoluta; `tests/test_relpath_guard.py` lo hace cumplir (allow-list corta:
