@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.42 (2026-10-10)
+
+### 🐛 Fixes
+
+- El Makefile recupera el doctor phony y su prereq en shellcheck (#465)
+  ([#467](https://github.com/pelukron/hermes-scripts/pull/467),
+  [`80e81ce`](https://github.com/pelukron/hermes-scripts/commit/80e81ce0b9ddb1b053be000fea05a7eff704b436))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`9cef99d`](https://github.com/pelukron/hermes-scripts/commit/9cef99d69b4c0dde0a706719b4100dad4a8b7f92))
+
+
 ## v0.26.41 (2026-10-10)
 
 ### 🤖 CI
