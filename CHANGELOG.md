@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.41 (2026-10-10)
+
+### 🤖 CI
+
+- Cada etapa del gate imprime su nombre y deja artefactos del run (#463)
+  ([#464](https://github.com/pelukron/hermes-scripts/pull/464),
+  [`880dc8a`](https://github.com/pelukron/hermes-scripts/commit/880dc8a46b53aa6caa571efaff654810f6b768cc))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`e04cdc3`](https://github.com/pelukron/hermes-scripts/commit/e04cdc37156e6edb8836ded48535720536b77060))
+
+
 ## v0.26.40 (2026-10-10)
 
 ### ✅ Tests
