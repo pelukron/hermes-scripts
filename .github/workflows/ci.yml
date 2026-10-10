@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Disparo manual (#462): permite validar el gate sin abrir un PR. El chequeo del
+  # CHANGELOG se salta solo, porque su `if:` exige `github.event_name == 'pull_request'`.
+  workflow_dispatch:
 
 # Mínimo privilegio: los jobs solo leen el repo.
 permissions:
@@ -30,6 +33,11 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          # Cache del entorno de uv entre runs (#462): la llave la fija uv.lock, así que
+          # un cambio de dependencias invalida la caché en vez de servir un entorno viejo.
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
@@ -60,6 +68,22 @@ jobs:
 
       - name: Gate
         run: bash bin/gate.sh
+
+      - name: Artefactos del gate
+        # `if: always()`: el interés está justo en el run que murió, que es cuando el
+        # `bash bin/gate.sh` de arriba no llega al final.
+        # `if-no-files-found: warn` mantiene el paso verde si el gate no escribió nada
+        # (un rojo en `lint` o en `typecheck` no produce XML). Por eso el DoD se comprueba
+        # por la API de artefactos, no por el check verde: un upload vacío pasa igual.
+        # `include-hidden-files`: `.artifacts/` es un directorio oculto y el action excluye
+        # los archivos ocultos por defecto; sin esto puede subir 0 archivos en silencio.
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-artifacts-${{ matrix.python-version }}
+          path: .artifacts/
+          if-no-files-found: warn
+          include-hidden-files: true
 
   notify:
     needs: [test]
