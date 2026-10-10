@@ -1,6 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -15,3 +15,9 @@ updates:
       interval: "monthly"
     labels:
       - "🤖 automation"
+    # `init`, `autobuild` y `analyze` de CodeQL son un contrato de versión: `init` escribe la
+    # configuración que `analyze` lee. Sueltas, un bump que llega sólo tumba main (#453 → #458).
+    groups:
+      codeql:
+        patterns:
+          - "github/codeql-action*"

@@ -4,6 +4,180 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.38 (2026-10-10)
+
+### 📝 Docs
+
+- Indice versionado del track de epicas
+  ([#447](https://github.com/pelukron/hermes-scripts/pull/447),
+  [`e2c4b25`](https://github.com/pelukron/hermes-scripts/commit/e2c4b257a9e83e9b444c1a40407fd4911c33880c))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d21c423`](https://github.com/pelukron/hermes-scripts/commit/d21c42332b78b918291449192a1a85cf3590e8fa))
+
+
+## v0.26.37 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`daf1c3c`](https://github.com/pelukron/hermes-scripts/commit/daf1c3cd0c8c3dba745a2d0ed48e05de8145c8d6))
+
+- **deps**: Bump astral-sh/setup-uv from 7.6.0 to 10.2.0
+  ([#448](https://github.com/pelukron/hermes-scripts/pull/448),
+  [`b9395f5`](https://github.com/pelukron/hermes-scripts/commit/b9395f5fb6e4a650e059e7f4187a15ecf05c4b35))
+
+
+## v0.26.36 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`751b7c2`](https://github.com/pelukron/hermes-scripts/commit/751b7c2be3dfed0eef39b3ba5773798b0412782a))
+
+- **deps-dev**: Bump pre-commit from 4.6.0 to 4.6.2
+  ([#449](https://github.com/pelukron/hermes-scripts/pull/449),
+  [`9a95202`](https://github.com/pelukron/hermes-scripts/commit/9a95202de1aac704722169ec4627c0b084848e40))
+
+
+## v0.26.35 (2026-10-10)
+
+### 🐛 Fixes
+
+- Remove unused imports expose and official_error from team scripts
+  ([`3b1f553`](https://github.com/pelukron/hermes-scripts/commit/3b1f553dba17370e364ea1ba40ed70b7ef51d736))
+
+### ♻️ Refactor
+
+- El script de equipo deja de colgar el catálogo de news_utils (#436)
+  ([#437](https://github.com/pelukron/hermes-scripts/pull/437),
+  [`c2bbd35`](https://github.com/pelukron/hermes-scripts/commit/c2bbd358d4323d00ccfb003cf8ccd1bb63dad59b))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`255a51b`](https://github.com/pelukron/hermes-scripts/commit/255a51b3a50b12334b365f742096f4772816ae23))
+
+
+## v0.26.34 (2026-10-10)
+
+### ♻️ Refactor
+
+- El protocolo de fallo del fetcher oficial deja de ser texto
+  ([#451](https://github.com/pelukron/hermes-scripts/pull/451),
+  [`26c894d`](https://github.com/pelukron/hermes-scripts/commit/26c894d8547fba6d7607729f36922139e1e64871))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`851fcb5`](https://github.com/pelukron/hermes-scripts/commit/851fcb5b1077dd691f5d386ef7cb7290f97eb5f7))
+
+
+## v0.26.33 (2026-10-10)
+
+### 📦 Chores
+
+- El trío de CodeQL llega en un PR y las acciones van pinadas por SHA (#458)
+  ([#459](https://github.com/pelukron/hermes-scripts/pull/459),
+  [`d751a35`](https://github.com/pelukron/hermes-scripts/commit/d751a350902f3ced07bd32f258d4535c2da30991))
+
+- Sync uv.lock tras release [skip ci]
+  ([`adc1e94`](https://github.com/pelukron/hermes-scripts/commit/adc1e94802c27461433210986d261264ad687c42))
+
+
+## v0.26.32 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`a298a36`](https://github.com/pelukron/hermes-scripts/commit/a298a366d824cf0428654feff3d026af36e2f71f))
+
+- **deps**: Bump github/codeql-action/autobuild from 4.38.1 to 4.38.2
+  ([#452](https://github.com/pelukron/hermes-scripts/pull/452),
+  [`2bba83b`](https://github.com/pelukron/hermes-scripts/commit/2bba83b65c777983a4d0e5372b58daf3de00af11))
+
+
+## v0.26.31 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`354a21f`](https://github.com/pelukron/hermes-scripts/commit/354a21f2b9317152cf72065457c91b7c96e076a3))
+
+- **deps**: Bump github/codeql-action/init from 4.38.1 to 4.38.2
+  ([#450](https://github.com/pelukron/hermes-scripts/pull/450),
+  [`3cdf7ad`](https://github.com/pelukron/hermes-scripts/commit/3cdf7ad2b5415012ce046e5b603c7185aea027a3))
+
+
+## v0.26.30 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`0af435b`](https://github.com/pelukron/hermes-scripts/commit/0af435b6589b134734790c235918acfc5539875b))
+
+- **deps**: Bump github/codeql-action/analyze from 4.38.1 to 4.38.2
+  ([#453](https://github.com/pelukron/hermes-scripts/pull/453),
+  [`9ea717f`](https://github.com/pelukron/hermes-scripts/commit/9ea717f92fd294fce9931c6352c0311e506dc76f))
+
+
+## v0.26.29 (2026-10-10)
+
+### 🐛 Fixes
+
+- Las 4 fuentes caídas del diario global leen RSS vivo (#454)
+  ([#455](https://github.com/pelukron/hermes-scripts/pull/455),
+  [`04eae3d`](https://github.com/pelukron/hermes-scripts/commit/04eae3d995b83dc2d65eaac9b0dabf0c643d1ad9))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`01de9bb`](https://github.com/pelukron/hermes-scripts/commit/01de9bbf527faadcd07f1f8f8480dcc42950bafd))
+
+
+## v0.26.28 (2026-10-09)
+
+### 🐛 Fixes
+
+- La sección de equipo es dueña de la última línea (#434)
+  ([#435](https://github.com/pelukron/hermes-scripts/pull/435),
+  [`b47cec1`](https://github.com/pelukron/hermes-scripts/commit/b47cec101e90cd62dc07119390ae888a204a73c5))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`7afdd65`](https://github.com/pelukron/hermes-scripts/commit/7afdd65a8ac8fd4f7e5aef2fa7bbca283409347b))
+
+
+## v0.26.27 (2026-10-09)
+
+### ♻️ Refactor
+
+- El diario global mide el presupuesto en UTF-16 (#423)
+  ([#428](https://github.com/pelukron/hermes-scripts/pull/428),
+  [`bd7ec84`](https://github.com/pelukron/hermes-scripts/commit/bd7ec8465ddcd116d4946c33a35b3da9be29e496))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d703493`](https://github.com/pelukron/hermes-scripts/commit/d703493713cf65dfbd81838058615405eee4d073))
+
+
+## v0.26.26 (2026-10-09)
+
+### 🔧 Infra
+
+- Dependabot a ecosistema uv para que el bump traiga el lock
+  ([`ce01a04`](https://github.com/pelukron/hermes-scripts/commit/ce01a044f7ac2cb9fa7e7bc72a3c87f9eef36427))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`4997a3e`](https://github.com/pelukron/hermes-scripts/commit/4997a3e59963265cbb87da18c85f6c59502e6317))
+
+
 ## v0.26.25 (2026-10-09)
 
 ### 🔧 Infra
