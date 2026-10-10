@@ -4,6 +4,18 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.37 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`daf1c3c`](https://github.com/pelukron/hermes-scripts/commit/daf1c3cd0c8c3dba745a2d0ed48e05de8145c8d6))
+
+- **deps**: Bump astral-sh/setup-uv from 7.6.0 to 10.2.0
+  ([#448](https://github.com/pelukron/hermes-scripts/pull/448),
+  [`b9395f5`](https://github.com/pelukron/hermes-scripts/commit/b9395f5fb6e4a650e059e7f4187a15ecf05c4b35))
+
+
 ## v0.26.36 (2026-10-10)
 
 ### 📦 Chores
