@@ -4,6 +4,20 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.40 (2026-10-10)
+
+### ✅ Tests
+
+- Vocabulario unico de tipos de commit con un seam de test
+  ([#439](https://github.com/pelukron/hermes-scripts/pull/439),
+  [`d0927a2`](https://github.com/pelukron/hermes-scripts/commit/d0927a2061f4736af961505d9e991882fe3934d2))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`35d8c98`](https://github.com/pelukron/hermes-scripts/commit/35d8c9823a279d6d55da1c45be0eb363ff5d0d9c))
+
+
 ## v0.26.39 (2026-10-10)
 
 ### 🔧 Infra
