@@ -4,6 +4,18 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.30 (2026-10-10)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`0af435b`](https://github.com/pelukron/hermes-scripts/commit/0af435b6589b134734790c235918acfc5539875b))
+
+- **deps**: Bump github/codeql-action/analyze from 4.38.1 to 4.38.2
+  ([#453](https://github.com/pelukron/hermes-scripts/pull/453),
+  [`9ea717f`](https://github.com/pelukron/hermes-scripts/commit/9ea717f92fd294fce9931c6352c0311e506dc76f))
+
+
 ## v0.26.29 (2026-10-10)
 
 ### 🐛 Fixes
