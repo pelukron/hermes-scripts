@@ -1,4 +1,4 @@
-.PHONY: test lint format format-check typecheck security audit shellcheck lock-check run sync lock clean check
+.PHONY: test lint format format-check typecheck security audit shellcheck lock-check doctor run sync lock clean check
 
 ## Directorio de artefactos del run (#463): lo crea el gate, pytest escribe ahí y
 ## `clean` lo borra. Ignorado por git (`.gitignore`) y por pytest/ruff (directorio oculto).
@@ -23,6 +23,7 @@ lock:
 # shellcheck instalado coincide. Primer paso del gate: falla ruidoso con la
 # instruccion de arreglo en vez de romper un check posterior.
 doctor:
+	@echo "==> doctor"
 	uv run python bin/gate-doctor.py
 
 ## Afirmar que uv.lock corresponde a los pins de pyproject.toml (no lo reescribe)
@@ -58,13 +59,9 @@ format-check:
 	uv run ruff format --check .
 
 ## Shellcheck de los scripts bash (mismo alcance que CI)
-# Entra al comando (#265): local y CI corren el mismo paso. Requiere `shellcheck` en
-# el PATH; en CI llega por apt, en local `sudo apt-fast install -y shellcheck`.
-shellcheck:
+# La presencia y la version las afirma el doctor (primer paso del gate).
+shellcheck: doctor
 	@echo "==> shellcheck"
-	@command -v shellcheck >/dev/null 2>&1 || { \
-		echo "❌ falta shellcheck en el PATH: sudo apt-fast install -y shellcheck"; \
-		exit 1; }
 	shellcheck bin/*.sh .githooks/pre-push
 
 ## Type check con mypy
@@ -96,5 +93,8 @@ clean:
 	find . -type d -name __pycache__ -delete
 
 ## Correr todos los checks (CI local)
+# La lista vive aquí y en un solo sitio: `bin/gate.sh` la ejecuta con `exec make check` y el
+# CI llama al script, así que ni el YAML ni el script repiten los pasos (#265/#463). Cada
+# etapa imprime su nombre para que un rojo diga en qué fase murió sin leer el log entero.
 check: doctor lock-check lint format-check shellcheck typecheck security audit test
 	@echo "✅ Todos los checks pasaron"
