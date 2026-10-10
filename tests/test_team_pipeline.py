@@ -600,6 +600,30 @@ def test_sin_feeds_ni_query_la_seccion_sale_vacia(tmp_path):
     assert "Sin novedades de la liga" in jornada
 
 
+def test_la_jornada_sin_linea_que_quepa_declara_el_corte(tmp_path):
+    """La liga usa la misma regla: hubo items, no cupo ninguno, no es vacía."""
+    presupuesto = 100
+    blocks = _report_jornada(
+        _config_jornada(
+            history_name="jornada-presupuesto.json",
+            announce_overflow=True,
+            max_items=None,
+            telegram_max_chars=presupuesto,
+        ),
+        _notas(1),
+        _notas_jornada(3),
+        tmp_path,
+    )
+    jornada = next(b for b in blocks if "JORNADA" in b)
+    assert jornada.splitlines() == [
+        "**🏈 JORNADA** (0 de 3)",
+        "*Contexto de la liga*",
+        "… +3 fuera",
+    ]
+    assert "Sin novedades" not in jornada
+    _ya_cabe(jornada, presupuesto)
+
+
 def test_sin_techo_el_bloque_llena_el_presupuesto(tmp_path):
     """max_items=None (#386): el techo lo pone el presupuesto del mensaje."""
     notas = [_item(f"Asunto-{i:04d}-abc relleno corto") for i in range(20)]
@@ -625,6 +649,129 @@ def test_con_techo_declarado_el_recorte_no_cambia(tmp_path):
     seccion = _confirmado(blocks)
     assert len(_renglones(seccion)) == 8
     assert seccion.splitlines()[0].startswith("**✅ CONFIRMADO** (8 de 20)")
+
+
+def _ya_cabe(bloque: str, presupuesto: int) -> None:
+    """El bloque que cruza el seam ya cabe: prepare no le quita líneas."""
+    (ajustado,) = delivery.prepare([bloque], message_budget=presupuesto)
+    assert ajustado.dropped == 0
+    assert ajustado.text == bloque
+    assert delivery.utf16_len(bloque) <= presupuesto
+
+
+def test_el_presupuesto_suelta_la_confirmada_y_conserva_el_rumor(tmp_path):
+    """549 es el primer presupuesto donde el bloque aún trae el rumor reservado.
+
+    El recorte desde el final se lleva ese rumor. La sección suelta la
+    confirmada del final y el rumor se queda.
+    """
+    presupuesto = 549
+    confirmadas = [_item(f"C{i}-" + "x" * 80) for i in range(8)]
+    rumores = [
+        _item("Rumor uno", categoria="rumores"),
+        _item("Rumor dos", categoria="rumores"),
+    ]
+    blocks = _report_dos_listas(
+        _config(
+            history_name="reserva-presupuesto.json",
+            single_section=True,
+            announce_overflow=True,
+            max_items=None,
+            telegram_max_chars=presupuesto,
+        ),
+        confirmadas,
+        rumores,
+        tmp_path,
+    )
+    seccion = _seccion_equipo(blocks)
+    renglones = _renglones(seccion)
+    assert [linea.split("](")[0] for linea in renglones] == [
+        "- ✓ **Medio**: [C0-" + "x" * 80,
+        "- ✓ **Medio**: [C1-" + "x" * 80,
+        "- 📰 **Medio**: [Rumor dos",
+    ]
+    assert seccion.splitlines()[0].startswith("**🏈 EL EQUIPO** (3 de 10)")
+    assert "fuera" not in seccion
+    _ya_cabe(seccion, presupuesto)
+
+
+def test_si_no_cabe_ninguna_linea_el_cuerpo_es_la_nota(tmp_path):
+    """205 todavía elige una confirmada y el bloque montado mide 208.
+
+    Esa línea no cabe. El cuerpo declara el corte; no dice que no hubo noticias.
+    """
+    presupuesto = 205
+    confirmadas = [_item(f"C{i}-" + "x" * 80) for i in range(8)]
+    rumores = [
+        _item("Rumor uno", categoria="rumores"),
+        _item("Rumor dos", categoria="rumores"),
+    ]
+    blocks = _report_dos_listas(
+        _config(
+            history_name="ninguna-cabe.json",
+            single_section=True,
+            announce_overflow=True,
+            max_items=None,
+            telegram_max_chars=presupuesto,
+        ),
+        confirmadas,
+        rumores,
+        tmp_path,
+    )
+    seccion = _seccion_equipo(blocks)
+    assert seccion.splitlines() == [
+        "**🏈 EL EQUIPO** (0 de 10)",
+        "*🎽 oficial · ✓ confirmado · 📰 rumor*",
+        "… +10 fuera",
+    ]
+    assert "No se encontraron" not in seccion
+    _ya_cabe(seccion, presupuesto)
+
+
+def test_sin_anunciar_el_parcial_no_escribe_la_nota(tmp_path):
+    """Rayados cuenta el total. Si alguna línea sale, el corte no se repite."""
+    presupuesto = 200
+    blocks = _report(
+        _config(
+            history_name="rayados-parcial.json",
+            announce_overflow=False,
+            telegram_max_chars=presupuesto,
+        ),
+        _notas(12),
+        tmp_path,
+    )
+    seccion = _confirmado(blocks)
+    header = seccion.splitlines()[0]
+    assert header == "**✅ CONFIRMADO** (12)"
+    assert " de " not in header
+    assert [linea.split("](")[0] for linea in _renglones(seccion)] == [
+        "- ✓ **Medio**: [Asunto-0000-abc relleno que no colapsa",
+    ]
+    assert "fuera" not in seccion
+    _ya_cabe(seccion, presupuesto)
+
+
+def test_sin_anunciar_si_no_cabe_nada_la_nota_si_sale(tmp_path):
+    """Rayados no dice «de». Con cero líneas, la nota es la única declaración."""
+    presupuesto = 100
+    blocks = _report(
+        _config(
+            history_name="rayados-vacio.json",
+            announce_overflow=False,
+            telegram_max_chars=presupuesto,
+        ),
+        _notas(12),
+        tmp_path,
+    )
+    seccion = _confirmado(blocks)
+    assert seccion.splitlines() == [
+        "**✅ CONFIRMADO** (12)",
+        "*Fuentes oficiales y medios establecidos*",
+        "… +12 fuera",
+    ]
+    assert " de " not in seccion.splitlines()[0]
+    assert "No se encontraron" not in seccion
+    _ya_cabe(seccion, presupuesto)
 
 
 # el filtro de titulares que el equipo no quiere ver (#386)
