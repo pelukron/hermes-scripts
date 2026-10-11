@@ -440,6 +440,20 @@ class TestNoticieroGlobal:
         assert nota.startswith("*fuera de cuota: 12 ítems en 12 subsecciones")
         assert len(nota.strip()) <= mod.MAX_CHARS_LINEA
 
+    def test_el_recorte_de_nombres_tiene_tope(self):
+        """#471: el recorte no puede dar más vueltas que candidatas (MAX_SUBSECTIONS_IN_NOTE)."""
+        original = mod._linea_de_cuota
+        llamadas: list = []
+
+        def contando(*args, **kwargs):
+            llamadas.append(args)
+            return original(*args, **kwargs)
+
+        descartes = [(f"Subsección {i} con nombre largo", "Fuente") for i in range(50)]
+        with patch.object(mod, "_linea_de_cuota", contando):
+            mod.nota_de_cuota(descartes)
+        assert len(llamadas) <= mod.MAX_SUBSECTIONS_IN_NOTE + 1, len(llamadas)
+
     def test_dedupe_cross_seccion(self):
         seen: set = set()
         sources_a = [("Reuters", "https://reuters.example/rss")]

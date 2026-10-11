@@ -395,6 +395,21 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
     return omitidas
 
 
+def _linea_de_cuota(total: int, subsecciones: int, nombradas: list) -> str:
+    """The quota note for a given list of named subsections.
+
+    `subsecciones` is how many subsections lost items in the whole report, so the
+    `+N más` marker counts what the line left out without depending on `candidatas`
+    (which is capped at `MAX_SUBSECTIONS_IN_NOTE`).
+    """
+    resto = subsecciones - len(nombradas)
+    marca = f" +{resto} más" if resto else ""
+    cola = f" — {', '.join(nombradas)}{marca}" if nombradas else ""
+    sustantivo = "subsección" if subsecciones == 1 else "subsecciones"
+    unidad = "ítem" if total == 1 else "ítems"
+    return f"*fuera de cuota: {total} {unidad} en {subsecciones} {sustantivo}{cola}*"
+
+
 def nota_de_cuota(descartes: list) -> str:
     """One line declaring what did not fit, counted per subsection (#469).
 
@@ -405,8 +420,10 @@ def nota_de_cuota(descartes: list) -> str:
     much) for 120 u16: measured on the same run, 982 -> 120.
 
     Empty when nothing was dropped: the cron delivers stdout, so a line of its own would
-    be a false declaration. Italics with `*`, never `_`. If the line cannot fit in
-    `MAX_CHARS_LINEA` it drops names — never splits — and states the count anyway.
+    be a false declaration. Italics with `*`, never `_`. The count is the declaration and
+    always goes out; names are added while they fit and dropped from the tail of the list
+    when they do not, never splitting a line. The `for` over the candidates is the bound:
+    no round can be added or removed without changing `MAX_SUBSECTIONS_IN_NOTE`.
     """
     if not descartes:
         return ""
@@ -414,21 +431,18 @@ def nota_de_cuota(descartes: list) -> str:
     for sub, _fuente in descartes:
         conteo[sub] = conteo.get(sub, 0) + 1
     total = sum(conteo.values())
-    ordenadas = [
+    candidatas = [
         f"{sin_parentesis(sub)} {n}"
         for sub, n in sorted(conteo.items(), key=lambda par: (-par[1], par[0]))
-    ]
-    nombradas = ordenadas[:MAX_SUBSECTIONS_IN_NOTE]
-    sustantivo = "subsección" if len(conteo) == 1 else "subsecciones"
-    unidad = "ítem" if total == 1 else "ítems"
-    while True:
-        resto = len(ordenadas) - len(nombradas)
-        marca = f" +{resto} más" if resto else ""
-        cola = f" — {', '.join(nombradas)}{marca}" if nombradas else ""
-        linea = f"*fuera de cuota: {total} {unidad} en {len(conteo)} {sustantivo}{cola}*"
-        if delivery.utf16_len(linea) <= MAX_CHARS_LINEA or not nombradas:
-            return linea + "\n"
-        nombradas = nombradas[:-1]
+    ][:MAX_SUBSECTIONS_IN_NOTE]
+    # The count-only line is the floor: it fits by construction and is never the one dropped.
+    linea = _linea_de_cuota(total, len(conteo), [])
+    for corte in range(1, len(candidatas) + 1):
+        candidata = _linea_de_cuota(total, len(conteo), candidatas[:corte])
+        if delivery.utf16_len(candidata) > MAX_CHARS_LINEA:
+            break
+        linea = candidata
+    return linea + "\n"
 
 
 def nota_de_recorte(omitidas):
