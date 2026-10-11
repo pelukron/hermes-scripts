@@ -180,6 +180,32 @@ def setup_logging(level=None):
     return logger
 
 
+def log_to_file_only(message: str, level: int = logging.WARNING) -> None:
+    """Write a diagnostic to the rotated audit log only, never to stdout.
+
+    A `no_agent` cron job delivers its stdout, so anything that reaches the
+    stream handler travels inside the message: measured, `Polymarket failed: …`
+    landed between two sections of the daily digest for three runs in a row
+    (#457, #470). Diagnostics belong to the audit file; the message belongs to
+    the reader.
+
+    Silent by design: with no file handler configured (`HERMES_LOG_FILE=0`)
+    nothing is written anywhere, and a diagnostic never raises.
+
+    Args:
+        message: Diagnostic text, already formatted.
+        level: Level of the record (default WARNING).
+    """
+    try:
+        logger = logging.getLogger("hermes")
+        record = logger.makeRecord(logger.name, level, "diagnostic", 0, message, (), None)
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                handler.handle(record)
+    except Exception:
+        pass
+
+
 def report_failure(exc: BaseException) -> int:
     """Digest de fallo inesperado (port del patron empleo#158).
 

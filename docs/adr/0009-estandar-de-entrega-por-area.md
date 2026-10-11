@@ -63,7 +63,9 @@ Silencio si verde, rc 0 con hallazgos, rc 2 sólo si el guard no pudo correr.
 _fuentes caídas: El Financiero (0 items)_
 ```
 
-Cuota por sección = presupuesto // nº de secciones; si algo no cabe, se dice en el mensaje («… +4 más»).
+Cuota por sección = `max(presupuesto // nº de secciones, lo que queda // secciones pendientes)`: la cuota
+fija es el **suelo** y el sobrante de una sección que no la llena pasa a las pendientes (#470). Si algo no
+cabe, se dice en el mensaje («… +4 más»).
 
 ## Lo que se mide hoy (stdout real, 2026-09-27)
 
