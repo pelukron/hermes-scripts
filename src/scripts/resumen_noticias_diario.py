@@ -339,22 +339,25 @@ def build_subsection_block(
 
 
 def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descartes=None):
-    """Emite las secciones que caben en el presupuesto de entrega (#212, #278).
+    """Emit the sections that fit the delivery budget (#212, #278).
 
     Args:
-        feeds: salida de `load_feeds()`.
-        fetch: `callable(sources) -> items`; en producción `fetch_all_rss`.
-        emit: `callable(str)`; en producción `log.info`.
-        presupuesto: máximo de caracteres de secciones a emitir (sin contar
-            encabezado, pie ni mercados).
+        feeds: output of `load_feeds()`.
+        fetch: `callable(sources) -> items`; `fetch_all_rss` in production.
+        emit: `callable(str)`; `log.info` in production.
+        presupuesto: maximum characters of sections to emit; header, footer and
+            markets excluded.
 
     Returns:
-        list[str]: nombres de las secciones omitidas, en orden de aparición.
-            El presupuesto se reparte en una cuota por sección y, dentro de la sección,
-            en una cuota por subsección que se redistribuye entre las que faltan: sin ese
-            reparto la primera subsección se come el techo y los demás encuadres no salen
-            —así se entregaba el 2026-09-23, con solo `Mainstream / Wires` publicado—.
-            Una sección cuyo contenido no cabe se omite y sus fuentes no se piden.
+        list[str]: names of the omitted sections, in order of appearance. The budget is
+            shared twice: a section's share is `max(fixed share, what is left //
+            sections pending)` — the fixed share alone stranded whatever a section did
+            not use (measured 2026-10-10: 968 u16) — and inside the section the share is
+            redistributed among the subsections still pending. Without that split the
+            first subsection ate the ceiling and the other framings never came out:
+            that is how the 2026-09-23 report shipped with only `Mainstream / Wires`. A
+            section whose content does not fit is omitted and its sources are not
+            fetched.
     """
     seen_urls: set = set()
     usado = 0
@@ -370,9 +373,9 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
         # 152 u16 free — 968 in total) and the next section cannot borrow it, so adding
         # sources rotates who shows instead of adding coverage. Same rule the subsection
         # split already applies below, one level up.
-        cuota_seccion = max(cuota, restante // max(1, len(feeds) - index))
+        section_share = max(cuota, restante // max(1, len(feeds) - index))
         encabezado = f"**{section_name}**"
-        disponible = min(cuota_seccion, restante) - delivery.utf16_len(encabezado) - 1
+        disponible = min(section_share, restante) - delivery.utf16_len(encabezado) - 1
         section_lines = [encabezado]
         for indice, (sub_name, sources) in enumerate(subsections):
             cuota_sub = disponible // (len(subsections) - indice)
@@ -395,19 +398,19 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
     return omitidas
 
 
-def _linea_de_cuota(total: int, subsecciones: int, nombradas: list) -> str:
+def _quota_note_line(total: int, subsections: int, named: list) -> str:
     """The quota note for a given list of named subsections.
 
-    `subsecciones` is how many subsections lost items in the whole report, so the
-    `+N más` marker counts what the line left out without depending on `candidatas`
+    `subsections` is how many subsections lost items in the whole report, so the
+    `+N más` marker counts what the line left out without depending on `candidates`
     (which is capped at `MAX_SUBSECTIONS_IN_NOTE`).
     """
-    resto = subsecciones - len(nombradas)
-    marca = f" +{resto} más" if resto else ""
-    cola = f" — {', '.join(nombradas)}{marca}" if nombradas else ""
-    sustantivo = "subsección" if subsecciones == 1 else "subsecciones"
-    unidad = "ítem" if total == 1 else "ítems"
-    return f"*fuera de cuota: {total} {unidad} en {subsecciones} {sustantivo}{cola}*"
+    omitted = subsections - len(named)
+    more = f" +{omitted} más" if omitted else ""
+    tail = f" — {', '.join(named)}{more}" if named else ""
+    noun = "subsección" if subsections == 1 else "subsecciones"
+    unit = "ítem" if total == 1 else "ítems"
+    return f"*fuera de cuota: {total} {unit} en {subsections} {noun}{tail}*"
 
 
 def nota_de_cuota(descartes: list) -> str:
@@ -427,22 +430,22 @@ def nota_de_cuota(descartes: list) -> str:
     """
     if not descartes:
         return ""
-    conteo: dict[str, int] = {}
-    for sub, _fuente in descartes:
-        conteo[sub] = conteo.get(sub, 0) + 1
-    total = sum(conteo.values())
-    candidatas = [
+    counts: dict[str, int] = {}
+    for sub, _source in descartes:
+        counts[sub] = counts.get(sub, 0) + 1
+    total = sum(counts.values())
+    candidates = [
         f"{sin_parentesis(sub)} {n}"
-        for sub, n in sorted(conteo.items(), key=lambda par: (-par[1], par[0]))
+        for sub, n in sorted(counts.items(), key=lambda par: (-par[1], par[0]))
     ][:MAX_SUBSECTIONS_IN_NOTE]
     # The count-only line is the floor: it fits by construction and is never the one dropped.
-    linea = _linea_de_cuota(total, len(conteo), [])
-    for corte in range(1, len(candidatas) + 1):
-        candidata = _linea_de_cuota(total, len(conteo), candidatas[:corte])
-        if delivery.utf16_len(candidata) > MAX_CHARS_LINEA:
+    line = _quota_note_line(total, len(counts), [])
+    for cut in range(1, len(candidates) + 1):
+        candidate = _quota_note_line(total, len(counts), candidates[:cut])
+        if delivery.utf16_len(candidate) > MAX_CHARS_LINEA:
             break
-        linea = candidata
-    return linea + "\n"
+        line = candidate
+    return line + "\n"
 
 
 def nota_de_recorte(omitidas):

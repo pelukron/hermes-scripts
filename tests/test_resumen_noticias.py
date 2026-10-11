@@ -384,8 +384,8 @@ class TestNoticieroGlobal:
         assert "Corto" in block
         assert "• *Reuters*" in block
 
-    def test_el_item_que_no_cabe_queda_declarado(self):
-        """#355: la ronda siguiente salva la fuente; #469: la nota cuenta por subsección."""
+    def test_the_dropped_item_is_declared(self):
+        """#355: the next round saves the source; #469: the note counts per subsection."""
         sources = [("Reuters", "https://reuters.example/rss"), ("AP", "https://ap.example/rss")]
         enorme = "Titular enorme " + "x" * 200
         fetched = [
@@ -405,10 +405,10 @@ class TestNoticieroGlobal:
         assert nota.strip().count("\n") == 0
         assert len(nota.strip()) <= mod.MAX_CHARS_LINEA
 
-    def test_sin_descartes_la_nota_calla(self):
+    def test_without_drops_the_note_is_silent(self):
         assert mod.nota_de_cuota([]) == ""
 
-    def test_la_nota_nombra_las_subsecciones_mas_recortadas(self):
+    def test_the_note_names_the_most_cut_subsections(self):
         """#469: con la cuota repartida, quien pierde ítems es la subsección, no la fuente."""
         descartes = (
             [("Mainstream / Wires", "Reuters")] * 9
@@ -421,10 +421,10 @@ class TestNoticieroGlobal:
         assert nota.startswith("*fuera de cuota: 18 ítems en 5 subsecciones — ")
         assert nota.index("Mainstream / Wires 9") < nota.index("Multipolar / Contrarian 5")
         assert nota.index("Multipolar / Contrarian 5") < nota.index("Vanguardia 2")
-        assert "NFL 1" not in nota  # sólo caben MAX_SUBSECTIONS_IN_NOTE nombres
+        assert "NFL 1" not in nota  # only MAX_SUBSECTIONS_IN_NOTE names fit
         assert "+1 más" in nota
 
-    def test_la_nota_no_pasa_el_tope_de_linea(self):
+    def test_the_note_never_passes_the_line_budget(self):
         pares = [(f"Sección {i} con nombre largo", f"Fuente {i}") for i in range(400)]
         nota = mod.nota_de_cuota(pares)
         assert len(nota.strip()) <= mod.MAX_CHARS_LINEA
@@ -433,26 +433,26 @@ class TestNoticieroGlobal:
         assert nota.startswith("*fuera de cuota:")
         assert nota.strip().endswith("*")
 
-    def test_la_nota_declara_el_total_aunque_no_quepa_un_nombre(self):
-        """La nota es una declaración: pierde nombres, nunca el conteo."""
+    def test_the_note_states_the_count_with_no_room_for_names(self):
+        """The note is a declaration: it drops names, never the count."""
         largos = [("Sub " + "L" * 900 + f" {i}", "Fuente") for i in range(12)]
         nota = mod.nota_de_cuota(largos)
         assert nota.startswith("*fuera de cuota: 12 ítems en 12 subsecciones")
         assert len(nota.strip()) <= mod.MAX_CHARS_LINEA
 
-    def test_el_recorte_de_nombres_tiene_tope(self):
-        """#471: el recorte no puede dar más vueltas que candidatas (MAX_SUBSECTIONS_IN_NOTE)."""
-        original = mod._linea_de_cuota
-        llamadas: list = []
+    def test_the_name_cut_is_bounded(self):
+        """#471: the cut cannot take more rounds than candidates (MAX_SUBSECTIONS_IN_NOTE)."""
+        original = mod._quota_note_line
+        calls: list = []
 
-        def contando(*args, **kwargs):
-            llamadas.append(args)
+        def recording(*args, **kwargs):
+            calls.append(args)
             return original(*args, **kwargs)
 
         descartes = [(f"Subsección {i} con nombre largo", "Fuente") for i in range(50)]
-        with patch.object(mod, "_linea_de_cuota", contando):
+        with patch.object(mod, "_quota_note_line", recording):
             mod.nota_de_cuota(descartes)
-        assert len(llamadas) <= mod.MAX_SUBSECTIONS_IN_NOTE + 1, len(llamadas)
+        assert len(calls) <= mod.MAX_SUBSECTIONS_IN_NOTE + 1, len(calls)
 
     def test_dedupe_cross_seccion(self):
         seen: set = set()
@@ -572,7 +572,7 @@ class TestPresupuestoDeEntrega:
         assert mod.MAX_CHARS_REPORTE + mod.RESERVA_FUERA_DE_SECCIONES <= 2 * 4096 - 300
 
 
-class TestCuotaDinamicaPorSeccion:
+class TestDynamicSectionQuota:
     """#470: a fixed `presupuesto // secciones` share strands what a section does not use.
 
     Measured on the 2026-10-10 run: GEOPOLITICA left 162 u16 free, AMERICAS 347, DEPORTES 152 —
@@ -583,8 +583,8 @@ class TestCuotaDinamicaPorSeccion:
     @staticmethod
     def _feeds():
         return [
-            (nombre, [("sub", [(f"F{nombre}", f"https://s.example/{nombre}")])])
-            for nombre in ("A", "B", "C")
+            (name, [("sub", [(f"F{name}", f"https://s.example/{name}")])])
+            for name in ("A", "B", "C")
         ]
 
     @staticmethod
@@ -599,33 +599,31 @@ class TestCuotaDinamicaPorSeccion:
             "FC": [("Corto C", "https://example.com/c1")],
         }
 
-    def _emitir(self, presupuesto):
-        datos = self._items()
-        emitidos: list = []
+    def _emit(self, budget):
+        data = self._items()
+        emitted: list = []
 
         def fetch(sources):
-            return [datos[nombre] for nombre, _ in sources]
+            return [data[name] for name, _ in sources]
 
-        omitidas = mod.emitir_secciones(
-            self._feeds(), fetch, emitidos.append, presupuesto=presupuesto
-        )
-        return emitidos, omitidas
+        omitted = mod.emitir_secciones(self._feeds(), fetch, emitted.append, presupuesto=budget)
+        return emitted, omitted
 
-    def test_el_sobrante_de_una_seccion_lo_usa_la_siguiente(self):
-        presupuesto = 900
-        emitidos, _ = self._emitir(presupuesto)
-        bloque_b = next(e for e in emitidos if "**B**" in e)
-        assert mod.delivery.utf16_len(bloque_b) > presupuesto // 3, bloque_b
+    def test_the_leftover_of_a_section_reaches_the_next_one(self):
+        budget = 900
+        emitted, _ = self._emit(budget)
+        block_b = next(e for e in emitted if "**B**" in e)
+        assert mod.delivery.utf16_len(block_b) > budget // 3, block_b
 
-    def test_la_cuota_fija_sigue_siendo_el_suelo(self):
-        # Una sección nunca sale con menos presupuesto que antes del cambio.
-        emitidos, _ = self._emitir(900)
-        bloque_a = next(e for e in emitidos if "**A**" in e)
-        assert "Corto A" in bloque_a
+    def test_the_fixed_share_is_still_the_floor(self):
+        # A section never leaves with less budget than before the change.
+        emitted, _ = self._emit(900)
+        block_a = next(e for e in emitted if "**A**" in e)
+        assert "Corto A" in block_a
 
-    def test_el_reparto_no_pasa_el_presupuesto(self):
-        emitidos, _ = self._emitir(900)
-        assert sum(mod.delivery.utf16_len(e) + 1 for e in emitidos) <= 900
+    def test_the_split_never_passes_the_budget(self):
+        emitted, _ = self._emit(900)
+        assert sum(mod.delivery.utf16_len(e) + 1 for e in emitted) <= 900
 
 
 class TestTituloDeItem:
@@ -834,9 +832,9 @@ class TestPolymarketSection:
         assert "encabezado" in emitidos
         assert any("+1 fuera" in linea for linea in emitidos)
 
-    def test_si_falla_el_diagnostico_no_viaja_en_el_mensaje(self, capsys, tmp_path, monkeypatch):
-        """#457/#470: un job `no_agent` entrega su stdout, así que el aviso de un bloque
-        auxiliar caído llegaba en crudo entre dos secciones del reporte entregado."""
+    def test_a_failed_helper_does_not_reach_the_channel(self, capsys, tmp_path, monkeypatch):
+        """#457/#470: a `no_agent` job delivers its stdout, so the warning of a failed
+        helper used to arrive raw between two sections of the delivered report."""
         monkeypatch.setenv("HERMES_HOME", str(tmp_path))
         monkeypatch.delenv("HERMES_LOG_FILE", raising=False)
         mod.setup_logging()
@@ -850,8 +848,8 @@ class TestPolymarketSection:
         assert captured.out == "", captured.out
         assert "Polymarket failed" not in captured.out
 
-    def test_el_diagnostico_queda_en_el_log_de_auditoria(self, tmp_path, monkeypatch):
-        # La consecuencia del fallo no desaparece: cambia de canal.
+    def test_the_diagnostic_lands_in_the_audit_log(self, tmp_path, monkeypatch):
+        # The failure keeps its consequence: it changes channel.
         monkeypatch.setenv("HERMES_HOME", str(tmp_path))
         monkeypatch.delenv("HERMES_LOG_FILE", raising=False)
         mod.setup_logging()
@@ -861,8 +859,8 @@ class TestPolymarketSection:
             side_effect=RuntimeError("Body de 9 bytes excede 8 bytes"),
         ):
             mod.emit_polymarket_block()
-        contenido = (tmp_path / "logs" / "hermes-scripts.log").read_text(encoding="utf-8")
-        assert "Polymarket failed: Body de 9 bytes excede 8 bytes" in contenido
+        content = (tmp_path / "logs" / "hermes-scripts.log").read_text(encoding="utf-8")
+        assert "Polymarket failed: Body de 9 bytes excede 8 bytes" in content
 
     def test_sin_subprocess_para_este_caso(self):
         fuente = Path(__file__).resolve().parent.parent / "src" / "scripts"
