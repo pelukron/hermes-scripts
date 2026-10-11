@@ -4,6 +4,34 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.27.0 (2026-10-11)
+
+### ✨ Features
+
+- El diario reparte el sobrante del presupuesto y saca el diagnóstico del cuerpo (#470)
+  ([#471](https://github.com/pelukron/hermes-scripts/pull/471),
+  [`a311ad6`](https://github.com/pelukron/hermes-scripts/commit/a311ad6231d74c570b97bb12a9d18f33e7bb939b))
+
+### ♻️ Refactor
+
+- El código nuevo de la nota y su test van en inglés (ADR 0011)
+  ([`a91e8b7`](https://github.com/pelukron/hermes-scripts/commit/a91e8b75e8daf6a21cf9f8a11302c1c1aa536b2b))
+
+- La nota de cuota acota el recorte con un bucle con tope
+  ([`992ef8b`](https://github.com/pelukron/hermes-scripts/commit/992ef8b3786019b219ad3c726fedc881b4001bf8))
+
+### 📝 Docs
+
+- El reparto del sobrante entra en los ADR 0005 y 0009
+  ([#470](https://github.com/pelukron/hermes-scripts/pull/470),
+  [`df9dc48`](https://github.com/pelukron/hermes-scripts/commit/df9dc48b1b8f03d16bd5c3f711c98ad96e8babf7))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`7ab4d82`](https://github.com/pelukron/hermes-scripts/commit/7ab4d82bb39580484e74a51910e6de46ba107eff))
+
+
 ## v0.26.43 (2026-10-11)
 
 ### 🤖 CI
