@@ -50,8 +50,12 @@ que rompía el enlace, no el chunker.
    primer item y una línea jamás se parte. Un item que no cupo **no** se marca como visto: puede
    salir en una sección siguiente si allí queda presupuesto.
 3. **La cuota de la sección se reparte entre subsecciones** (reparto equitativo del sobrante,
-   `disponible // pendientes`). Un solo encuadre no puede comerse el techo: el diario existe para
-   contrastar `Mainstream / Wires` con `Multipolar / Contrarian` y con `Estatal / Pro-Kremlin`.
+   `disponible // pendientes`). La misma regla rige un nivel arriba: la cuota de una **sección** es
+   `max(presupuesto // secciones, restante // secciones pendientes)`, así que el sobrante de una sección
+   que no llena la suya pasa a las siguientes en vez de morir en el presupuesto (medido el 2026-10-10:
+   968 u16 sin usar y `💻 TECNOLOGÍA` sin poder mostrar una cuarta fuente; #470). Un solo encuadre no
+   puede comerse el techo: el diario existe para contrastar `Mainstream / Wires` con
+   `Multipolar / Contrarian` y con `Estatal / Pro-Kremlin`.
 4. **Dialecto: Markdown estándar.** `**negrita**`, `*itálica*`, `[t](url)`. `_itálica_` no: Hermes
    escapa `_` en el texto plano y se entrega con los guiones bajos a la vista (#278).
 5. **El guard afirma el contrato nuevo**: una línea con corchetes o paréntesis sin cerrar rompe el PR
