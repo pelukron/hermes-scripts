@@ -12,6 +12,7 @@ import defusedxml.ElementTree as ET  # noqa: N817
 
 from hermes_common import (
     delivery,
+    log_to_file_only,
     news_utils,
     repo_root,
     retry_request,
@@ -30,6 +31,11 @@ ITEMS_POR_FUENTE = 3
 # Cuota de subsección (#423): vive aquí, al lado del diario, porque no es el
 # tope de Telegram — solo el diario la lee como techo por subsección.
 MAX_CHARS_POR_SUBSECCION = 3000
+# Items dropped per subsection, not per source (#469): enumerating every source grew the
+# note to ~1000 u16 (a third of a message, measured 2026-10-10) while the cuts happen in the
+# sections that are the report's point. Naming the subsections that lost the most says the
+# same for 120 u16. The cap is a declaration, not an audit: the count is always stated.
+MAX_SUBSECTIONS_IN_NOTE = 4
 
 # Presupuesto de entrega (#278, medido 2026-09-23): el chunker de Hermes
 # (gateway/platforms/base.py `truncate_message`) parte en el último '\n' del bloque, así que
@@ -59,6 +65,7 @@ clean_title = news_utils.clean_title
 __all__ = [
     "ITEMS_POR_FUENTE",
     "MAX_CHARS_POR_SUBSECCION",
+    "MAX_SUBSECTIONS_IN_NOTE",
     "MAX_CHARS_REPORTE",
     "MAX_CHARS_LINEA",
     "MAX_CHARS_TITULO",
@@ -353,13 +360,19 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
     usado = 0
     omitidas: list = []
     cuota = max(MIN_CHARS_SECCION, presupuesto // max(1, len(feeds)))
-    for section_name, subsections in feeds:
+    for index, (section_name, subsections) in enumerate(feeds):
         restante = presupuesto - usado
         if restante < MIN_CHARS_SECCION:
             omitidas.append(section_name)
             continue
+        # Dynamic share (#470): the fixed `presupuesto // sections` share strands whatever a
+        # section does not use (measured 2026-10-10: GEOPOLITICA 162, AMERICAS 347, DEPORTES
+        # 152 u16 free — 968 in total) and the next section cannot borrow it, so adding
+        # sources rotates who shows instead of adding coverage. Same rule the subsection
+        # split already applies below, one level up.
+        cuota_seccion = max(cuota, restante // max(1, len(feeds) - index))
         encabezado = f"**{section_name}**"
-        disponible = min(cuota, restante) - delivery.utf16_len(encabezado) - 1
+        disponible = min(cuota_seccion, restante) - delivery.utf16_len(encabezado) - 1
         section_lines = [encabezado]
         for indice, (sub_name, sources) in enumerate(subsections):
             cuota_sub = disponible // (len(subsections) - indice)
@@ -383,39 +396,39 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
 
 
 def nota_de_cuota(descartes: list) -> str:
-    """Una línea con los ítems que no cupieron, por subsección y fuente.
+    """One line declaring what did not fit, counted per subsection (#469).
 
-    Vacío si no se descartó nada: el cron entrega stdout y una línea de más
-    sería un aviso falso. Itálicas con `*`, nunca `_`. Si no cabe en
-    `MAX_CHARS_LINEA`, cierra con `+N más` en vez de partir la línea.
+    It used to enumerate every source that lost an item (`Reuters 3, FT 3, AP 2`) and
+    reached 982 u16 on the 2026-10-10 run — a third of a message describing cuts in the
+    sections that are the report's point. Counting per subsection and naming the
+    subsections that lost the most answers the same question (where was the cut, how
+    much) for 120 u16: measured on the same run, 982 -> 120.
+
+    Empty when nothing was dropped: the cron delivers stdout, so a line of its own would
+    be a false declaration. Italics with `*`, never `_`. If the line cannot fit in
+    `MAX_CHARS_LINEA` it drops names — never splits — and states the count anyway.
     """
     if not descartes:
         return ""
-    orden_sub: list[str] = []
-    por_sub: dict[str, list[str]] = {}
-    conteo: dict[tuple[str, str], int] = {}
-    for sub, fuente in descartes:
-        clave = (sub, fuente)
-        if clave not in conteo:
-            conteo[clave] = 0
-            if sub not in por_sub:
-                orden_sub.append(sub)
-                por_sub[sub] = []
-            por_sub[sub].append(fuente)
-        conteo[clave] += 1
-    partes = []
-    for sub in orden_sub:
-        fuentes = ", ".join(f"{fuente} {conteo[(sub, fuente)]}" for fuente in por_sub[sub])
-        partes.append(f"{sin_parentesis(sub)} — {fuentes}")
-    corte = list(partes)
-    while corte:
-        resto = len(partes) - len(corte)
+    conteo: dict[str, int] = {}
+    for sub, _fuente in descartes:
+        conteo[sub] = conteo.get(sub, 0) + 1
+    total = sum(conteo.values())
+    ordenadas = [
+        f"{sin_parentesis(sub)} {n}"
+        for sub, n in sorted(conteo.items(), key=lambda par: (-par[1], par[0]))
+    ]
+    nombradas = ordenadas[:MAX_SUBSECTIONS_IN_NOTE]
+    sustantivo = "subsección" if len(conteo) == 1 else "subsecciones"
+    unidad = "ítem" if total == 1 else "ítems"
+    while True:
+        resto = len(ordenadas) - len(nombradas)
         marca = f" +{resto} más" if resto else ""
-        linea = f"*fuera de cuota: {'; '.join(corte)}{marca}*"
-        if delivery.utf16_len(linea) <= MAX_CHARS_LINEA:
+        cola = f" — {', '.join(nombradas)}{marca}" if nombradas else ""
+        linea = f"*fuera de cuota: {total} {unidad} en {len(conteo)} {sustantivo}{cola}*"
+        if delivery.utf16_len(linea) <= MAX_CHARS_LINEA or not nombradas:
             return linea + "\n"
-        corte.pop()
-    return ""
+        nombradas = nombradas[:-1]
 
 
 def nota_de_recorte(omitidas):
@@ -427,17 +440,21 @@ def nota_de_recorte(omitidas):
 
 
 def emit_polymarket_block():
-    """Emit the Polymarket block through the parent logger (in-process since #422).
+    """Emit the Polymarket block, or leave the digest untouched when it fails.
 
     The block used to arrive as a child process whose stdout nobody read, so it
-    never reached the delivery channel. Now the digest fetches, renders and
-    logs it itself; a failure warns and the digest goes on without it.
+    never reached the delivery channel. The digest now fetches, renders and
+    logs it itself (in-process since #422). A failure is a diagnostic for the
+    audit log, never a line of the message (#457, #470): `log.info` and
+    `log.warning` write to stdout, and for a `no_agent` job that stdout IS the
+    delivered body, so a raw `Polymarket failed: …` reaches the reader between
+    two sections.
     """
     try:
         cats, total_volume = polymarket_diario.fetch_classified_markets()
         block = polymarket_diario.build_block(cats, total_volume)
     except Exception as e:
-        log.warning("Polymarket failed: %s", e)
+        log_to_file_only(f"Polymarket failed: {e}")
         return
     fitted = delivery.prepare([block])
     text = fitted[0].text if fitted else ""

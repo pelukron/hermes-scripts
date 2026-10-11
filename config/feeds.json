@@ -196,6 +196,18 @@
             {
               "name": "Xataka",
               "url": "https://feeds.weblogssl.com/xataka2"
+            },
+            {
+              "name": "XDA Developers",
+              "url": "https://www.xda-developers.com/feed/"
+            },
+            {
+              "name": "The Verge",
+              "url": "https://www.theverge.com/rss/index.xml"
+            },
+            {
+              "name": "Phoronix",
+              "url": "https://www.phoronix.com/rss.php"
             }
           ]
         }
