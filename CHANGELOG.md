@@ -4,6 +4,23 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.26.43 (2026-10-11)
+
+### 🤖 CI
+
+- Trigger manual, cache de uv y artefactos del gate (#462)
+  ([#468](https://github.com/pelukron/hermes-scripts/pull/468),
+  [`4ff6b8a`](https://github.com/pelukron/hermes-scripts/commit/4ff6b8a0ec6da0ad9ec28b525ee8924c4e182953))
+
+- Trigger manual, cache de uv y artefactos del gate en el workflow
+  ([`45e3f0f`](https://github.com/pelukron/hermes-scripts/commit/45e3f0f1f18ef5fcce0a07a15e1772707d2add6e))
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`6bdb301`](https://github.com/pelukron/hermes-scripts/commit/6bdb3013edc8342510515f79bcf5bd78c728ddd8))
+
+
 ## v0.26.42 (2026-10-10)
 
 ### 🐛 Fixes
