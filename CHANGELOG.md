@@ -4,6 +4,18 @@ Todos los cambios notables se documentan aqui. Formato basado en [Keep a Changel
 
 ## [0.5.5] - 2026-09-15
 
+## v0.27.1 (2026-10-17)
+
+### 📦 Chores
+
+- Sync uv.lock tras release [skip ci]
+  ([`d22c629`](https://github.com/pelukron/hermes-scripts/commit/d22c629fc2e9c3b06a129bf823fc9183e91d6870))
+
+- **deps-dev**: Bump ruff from 0.16.10 to 0.17.0
+  ([#472](https://github.com/pelukron/hermes-scripts/pull/472),
+  [`57b7885`](https://github.com/pelukron/hermes-scripts/commit/57b78855292a7ddb5aadd045121d825ccb6c92f1))
+
+
 ## v0.27.0 (2026-10-11)
 
 ### ✨ Features
