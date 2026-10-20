@@ -552,6 +552,26 @@ class TestLoadFeeds:
         assert fuentes[0][0]  # nombre de la fuente
         assert fuentes[0][1].startswith("http")  # url
 
+    def test_geopolitica_keeps_native_rss_only_where_it_is_alive(self):
+        """#476: FT, SCMP and ZeroHedge leave Google News. Reuters and AP stay.
+
+        Measured 2026-10-20: Reuters and AP have no live native feed. Al Jazeera
+        was already native. The Asia-Pacific SCMP proxy is a later block of #364.
+        """
+        feeds = mod.load_feeds()
+        section = dict(feeds)["🌍 GEOPOLÍTICA & GLOBAL"]
+        wires = dict(dict(section)["Mainstream / Wires"])
+        contrarian = dict(dict(section)["Multipolar / Contrarian"])
+        assert wires["Reuters"].startswith("https://news.google.com/rss/search?q=site:reuters.com")
+        assert wires["AP"].startswith("https://news.google.com/rss/search?q=site:apnews.com")
+        assert wires["Financial Times"] == "https://www.ft.com/world?format=rss"
+        assert contrarian["Al Jazeera"] == "https://www.aljazeera.com/xml/rss/all.xml"
+        assert contrarian["SCMP (HK/CN)"] == "https://www.scmp.com/rss/91/feed/"
+        assert contrarian["ZeroHedge"] == "https://cms.zerohedge.com/fullrss2.xml"
+        asia = dict(dict(feeds)["🌏 ASIA-PACÍFICO"])
+        pacific = dict(asia["Asia-Pacífico"])
+        assert pacific["SCMP (🇭🇰)"].startswith("https://news.google.com/rss/search?q=site:scmp.com")
+
 
 # ═══════════════════════════════════════════
 # Presupuesto global de entrega (#212)
