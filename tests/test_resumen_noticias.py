@@ -570,7 +570,7 @@ class TestLoadFeeds:
         assert contrarian["ZeroHedge"] == "https://cms.zerohedge.com/fullrss2.xml"
         asia = dict(dict(feeds)["🌏 ASIA-PACÍFICO"])
         pacific = dict(asia["Asia-Pacífico"])
-        assert "news.google.com" in pacific["SCMP (🇭🇰)"]
+        assert pacific["SCMP (🇭🇰)"].startswith("https://news.google.com/rss/search?q=site:scmp.com")
 
 
 # ═══════════════════════════════════════════
