@@ -273,9 +273,10 @@ def build_subsection_block(
     subsecciones entregaban una sola fuente y ~1000 chars del presupuesto quedaban sin usar).
 
     Toma hasta ITEMS_POR_FUENTE por fuente (top por fecha), omite URLs ya vistas en
-    el run (dedupe cross-sección) y recorta **por item completo**: el bullet se
-    vuelve a emitir cuando cambia la fuente emitida, viaja con ese ítem (nunca
-    huérfano) y ninguna línea se parte por la mitad.
+    el run (dedupe cross-sección) y recorta **por item completo**: ninguna línea se
+    parte por la mitad.
+    The bullet is emitted again when the emitted source changes and travels with
+    that item, so it is never left orphaned.
     Partir una línea caía dentro de la URL de Google News (208-244 chars) y dejaba el
     enlace sin cerrar; Telegram lo entregaba como texto plano, con la URL a la vista
     (#278: 4 de 10 enlaces así).
@@ -317,7 +318,7 @@ def build_subsection_block(
             )
     rondas = max((len(fuente["items"]) for fuente in candidatas), default=0)
     # Last source that actually emitted. A dropped item must not move it (#469).
-    ultima = None
+    last_emitted = None
     for ronda in range(rondas):
         for fuente in candidatas:
             if ronda >= len(fuente["items"]):
@@ -326,19 +327,19 @@ def build_subsection_block(
             # Re-charge the bullet when the emitted source changes. Consecutive
             # items of the same source share one. Bullet and item are one cost:
             # if they do not fit, neither is emitted.
-            extra = 1 if ultima is fuente else delivery.utf16_len(fuente["bullet"]) + 1
+            extra = 1 if last_emitted is fuente else delivery.utf16_len(fuente["bullet"]) + 1
             if usado + extra + delivery.utf16_len(linea) + 1 > tope:
                 # No cabe este ítem. La ronda siguiente prueba el que sigue (#361);
                 # el que se quedó fuera se cuenta para que el mensaje lo diga (#355).
                 if descartes is not None:
                     descartes.append((sub_name, fuente["nombre"]))
                 continue
-            if ultima is not fuente:
+            if last_emitted is not fuente:
                 lineas.append(fuente["bullet"])
             lineas.append(linea)
             seen_urls.add(url)
             usado += extra + delivery.utf16_len(linea) + 1
-            ultima = fuente
+            last_emitted = fuente
     return "\n".join(lineas) if len(lineas) > 1 else ""
 
 
