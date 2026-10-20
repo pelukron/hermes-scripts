@@ -556,7 +556,7 @@ class TestLoadFeeds:
         """#476: FT, SCMP and ZeroHedge leave Google News. Reuters and AP stay.
 
         Measured 2026-10-20: Reuters and AP have no live native feed. Al Jazeera
-        was already native. The Asia-Pacific SCMP proxy is a later block of #364.
+        was already native. Asia-Pacific SCMP is pinned by the block-2 test.
         """
         feeds = mod.load_feeds()
         section = dict(feeds)["🌍 GEOPOLÍTICA & GLOBAL"]
@@ -568,9 +568,65 @@ class TestLoadFeeds:
         assert contrarian["Al Jazeera"] == "https://www.aljazeera.com/xml/rss/all.xml"
         assert contrarian["SCMP (HK/CN)"] == "https://www.scmp.com/rss/91/feed/"
         assert contrarian["ZeroHedge"] == "https://cms.zerohedge.com/fullrss2.xml"
+
+    def test_region_block_keeps_native_rss_only_where_it_is_alive(self):
+        """#478: six proxies leave Google News. Sputnik, NHK World and Xinhua stay.
+
+        Measured 2026-10-20. Europa has no Google News rows. Asia SCMP uses
+        feed 3 because feed 91 already belongs to geopolitics and feed 6
+        redirects there.
+        """
+        feeds = mod.load_feeds()
+        europe = dict(dict(feeds)["🇪🇺 EUROPA"])
+        pro_eu = dict(europe["Pro-UE / Centrista"])
+        alt = dict(europe["Euroescéptica / Alt"])
+        assert pro_eu["France 24 (🇫🇷)"] == "https://www.france24.com/en/rss"
+        assert pro_eu["Le Monde EN (🇫🇷)"] == "https://www.lemonde.fr/en/rss/une.xml"
+        assert pro_eu["DW (🇩🇪)"] == "https://rss.dw.com/rdf/rss-en-all"
+        assert pro_eu["The Guardian (🇬🇧)"] == "https://www.theguardian.com/world/rss"
+        assert pro_eu["BBC Mundo"] == "http://feeds.bbci.co.uk/mundo/rss.xml"
+        assert pro_eu["Euronews"] == "https://feeds.feedburner.com/euronews/en/news"
+        assert alt["RT"] == "https://actualidad.rt.com/rss"
+
+        americas = dict(dict(feeds)["🇺🇸 AMÉRICAS"])
+        mainstream = dict(americas["Mainstream US"])
+        right = dict(americas["Derecha / Conservador"])
+        left = dict(americas["Izquierda Radical"])
+        latam = dict(americas["Latinoamérica"])
+        assert mainstream["NYT"] == "https://rss.nytimes.com/services/xml/rss/nyt/US.xml"
+        assert mainstream["WaPo"] == "https://www.washingtonpost.com/arcio/rss/"
+        assert right["Breitbart"] == "https://www.breitbart.com/feed/"
+        assert right["Fox News"] == "https://moxie.foxnews.com/google-publisher/politics.xml"
+        assert left["WSWS"] == "https://www.wsws.org/en/rss.xml"
+        assert (
+            latam["El País (🇪🇸)"]
+            == "https://feeds.elpais.com/mrss-s/pages/ep/site/english.elpais.com/portada"
+        )
+
+        russia = dict(dict(feeds)["🇷🇺 RUSIA"])
+        kremlin = dict(russia["Estatal / Pro-Kremlin"])
+        assert kremlin["RT EN"] == "https://www.rt.com/rss/"
+        assert kremlin["Sputnik"].startswith(
+            "https://news.google.com/rss/search?q=site:sputnikglobe.com"
+        )
+
         asia = dict(dict(feeds)["🌏 ASIA-PACÍFICO"])
         pacific = dict(asia["Asia-Pacífico"])
-        assert pacific["SCMP (🇭🇰)"].startswith("https://news.google.com/rss/search?q=site:scmp.com")
+        assert pacific["SCMP (🇭🇰)"] == "https://www.scmp.com/rss/3/feed/"
+        assert pacific["Nikkei Asia (🇯🇵)"] == "https://asia.nikkei.com/rss/feed/nar"
+        assert pacific["NHK World (🇯🇵)"].startswith(
+            "https://news.google.com/rss/search?q=site:nhk.or.jp"
+        )
+        assert (
+            pacific["Times of India (🇮🇳)"]
+            == "https://timesofindia.indiatimes.com/rssfeedstopstories.cms"
+        )
+        assert pacific["Xinhua (🇨🇳)"].startswith(
+            "https://news.google.com/rss/search?q=site:xinhuanet.com"
+        )
+        geopolitics = dict(dict(feeds)["🌍 GEOPOLÍTICA & GLOBAL"])
+        contrarian = dict(geopolitics["Multipolar / Contrarian"])
+        assert contrarian["SCMP (HK/CN)"] == "https://www.scmp.com/rss/91/feed/"
 
 
 # ═══════════════════════════════════════════
