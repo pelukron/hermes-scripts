@@ -6,7 +6,7 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 import defusedxml.ElementTree as ET  # noqa: N817
 
@@ -484,11 +484,49 @@ def emit_polymarket_block():
         log.info(line)
 
 
+# Public-domain sayings. The cron does not fetch them. The index is the day
+# of the year, so 1 January is always the first line and the list repeats
+# every fourteen days.
+DAILY_PHRASES = (
+    "La verdad es hija del tiempo.",
+    "Del dicho al hecho hay mucho trecho.",
+    "No hay mal que por bien no venga.",
+    "El que mucho abarca poco aprieta.",
+    "Más vale tarde que nunca.",
+    "Quien siembra vientos recoge tempestades.",
+    "El hábito no hace al monje.",
+    "Agua pasada no mueve molino.",
+    "No por mucho madrugar amanece más temprano.",
+    "A caballo regalado no se le mira el diente.",
+    "Cada quien habla de la feria según le va en ella.",
+    "El que no oye consejo no llega a viejo.",
+    "Ojos que no ven, corazón que no siente.",
+    "Más vale pájaro en mano que ciento volando.",
+)
+
+
+def phrase_line(day: date) -> str:
+    """One italic saying for this day of the year.
+
+    Italics use `*`, never `_`: Hermes delivers underscores as visible
+    characters (ADR 0005). The line stays out of the section budget.
+    """
+    index = (day - day.replace(month=1, day=1)).days % len(DAILY_PHRASES)
+    return f"*{DAILY_PHRASES[index]}* — refrán"
+
+
+def masthead(when: datetime) -> str:
+    """Title, one date, and the day's saying. One message, before the sections."""
+    return (
+        "🪨 **DIARIO GLOBAL HERMES** 🪨\n"
+        f"*Fecha: {when.strftime('%Y-%m-%d %H:%M')}*\n"
+        f"{phrase_line(when.date())}\n"
+    )
+
+
 def main():
     setup_logging()
-    log.info(
-        f"🪨 **DIARIO GLOBAL HERMES** 🪨\n*Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}*\n"
-    )
+    log.info(masthead(datetime.now()))
     time.sleep(0.5)
 
     feeds = load_feeds()
