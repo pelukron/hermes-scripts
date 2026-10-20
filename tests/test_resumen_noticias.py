@@ -629,6 +629,27 @@ class TestLoadFeeds:
         contrarian = dict(geopolitics["Multipolar / Contrarian"])
         assert contrarian["SCMP (HK/CN)"] == "https://www.scmp.com/rss/91/feed/"
 
+    def test_mexico_keeps_native_rss_only_where_it_is_alive(self):
+        """#482: Reforma, La Jornada and El Norte leave Google News.
+
+        Measured 2026-10-20. SinEmbargo's own feed answers 403. El Financiero
+        was already native. The front page is the whole paper, not one desk.
+        """
+        feeds = mod.load_feeds()
+        mexico = dict(dict(feeds)["🇲🇽 MÉXICO"])
+        markets = dict(mexico["Crítica / Mercados"])
+        official = dict(mexico["Oficialista"])
+        local = dict(mexico["Local MTY"])
+        assert markets["Reforma"] == "https://www.reforma.com/rss/portada.xml"
+        assert markets["El Financiero"] == (
+            "https://www.elfinanciero.com.mx/arc/outboundfeeds/rss/?outputType=xml"
+        )
+        assert official["La Jornada"] == "https://www.jornada.com.mx/rss/edicion.xml"
+        assert official["SinEmbargo"].startswith(
+            "https://news.google.com/rss/search?q=site:sinembargo.mx"
+        )
+        assert local["El Norte"] == "https://www.elnorte.com/rss/portada.xml"
+
 
 # ═══════════════════════════════════════════
 # Presupuesto global de entrega (#212)
