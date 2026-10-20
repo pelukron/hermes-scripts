@@ -372,6 +372,59 @@ class TestNoticieroGlobal:
         assert "• *Reuters*" in block and "• *AP*" in block
         assert block.count("\n  [") == 2  # un item por fuente, no los dos de la primera
 
+    def test_bullet_reopens_on_each_round_when_both_sources_stay_alive(self):
+        """#469: two sources, three items each, room for every line.
+
+        Round-robin alternates, so each emitted item is a source change and
+        brings its own bullet. One bullet per source would park later items
+        under the other source.
+        """
+        sources = [("Alpha", "https://a.example/rss"), ("Beta", "https://b.example/rss")]
+        fetched = [
+            [(f"A{i}", f"https://a.example/{i}") for i in (1, 2, 3)],
+            [(f"B{i}", f"https://b.example/{i}") for i in (1, 2, 3)],
+        ]
+        block = mod.build_subsection_block("Subs", sources, fetched, set(), cuota=3000)
+        assert block.splitlines() == [
+            "*Subs*",
+            "• *Alpha*",
+            "  [A1](https://a.example/1)",
+            "• *Beta*",
+            "  [B1](https://b.example/1)",
+            "• *Alpha*",
+            "  [A2](https://a.example/2)",
+            "• *Beta*",
+            "  [B2](https://b.example/2)",
+            "• *Alpha*",
+            "  [A3](https://a.example/3)",
+            "• *Beta*",
+            "  [B3](https://b.example/3)",
+        ]
+
+    def test_consecutive_items_of_the_same_source_share_one_bullet(self):
+        """#469: a source that outlasts the other reopens once, then shares.
+
+        Two items against one still changes source on every emitted line, so
+        that shape cannot tell "bullet on change" from "bullet on every item".
+        Three against one can: A2 reopens after Beta, and A3 does not.
+        """
+        sources = [("Alpha", "https://a.example/rss"), ("Beta", "https://b.example/rss")]
+        fetched = [
+            [(f"A{i}", f"https://a.example/{i}") for i in (1, 2, 3)],
+            [("B1", "https://b.example/1")],
+        ]
+        block = mod.build_subsection_block("Subs", sources, fetched, set(), cuota=3000)
+        assert block.splitlines() == [
+            "*Subs*",
+            "• *Alpha*",
+            "  [A1](https://a.example/1)",
+            "• *Beta*",
+            "  [B1](https://b.example/1)",
+            "• *Alpha*",
+            "  [A2](https://a.example/2)",
+            "  [A3](https://a.example/3)",
+        ]
+
     def test_una_fuente_cuya_primera_no_cabe_entra_por_la_siguiente(self):
         """Un primer item enorme no condena a su fuente: la ronda siguiente prueba el siguiente."""
         sources = [("Reuters", "https://reuters.example/rss")]
