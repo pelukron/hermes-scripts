@@ -90,11 +90,11 @@
           "sources": [
             {
               "name": "NYT",
-              "url": "https://news.google.com/rss/search?q=site:nytimes.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+              "url": "https://rss.nytimes.com/services/xml/rss/nyt/US.xml"
             },
             {
               "name": "WaPo",
-              "url": "https://news.google.com/rss/search?q=site:washingtonpost.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+              "url": "https://www.washingtonpost.com/arcio/rss/"
             }
           ]
         },
@@ -107,7 +107,7 @@
             },
             {
               "name": "Fox News",
-              "url": "https://news.google.com/rss/search?q=site:foxnews.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+              "url": "https://moxie.foxnews.com/google-publisher/politics.xml"
             }
           ]
         },
@@ -125,7 +125,7 @@
           "sources": [
             {
               "name": "El País (🇪🇸)",
-              "url": "https://news.google.com/rss/search?q=site:english.elpais.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+              "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/english.elpais.com/portada"
             }
           ]
         }
@@ -157,11 +157,11 @@
           "sources": [
             {
               "name": "SCMP (🇭🇰)",
-              "url": "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+              "url": "https://www.scmp.com/rss/3/feed/"
             },
             {
               "name": "Nikkei Asia (🇯🇵)",
-              "url": "https://news.google.com/rss/search?q=site:nikkei.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+              "url": "https://asia.nikkei.com/rss/feed/nar"
             },
             {
               "name": "NHK World (🇯🇵)",
