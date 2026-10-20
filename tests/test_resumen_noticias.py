@@ -3,6 +3,7 @@
 import importlib.util  # noqa: E402
 import os
 import threading
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 from urllib.parse import urlparse
@@ -995,3 +996,58 @@ class TestPolymarketSection:
         fuente = Path(__file__).resolve().parent.parent / "src" / "scripts"
         texto = (fuente / "resumen_noticias_diario.py").read_text(encoding="utf-8")
         assert "subprocess" not in texto
+
+
+# ═══════════════════════════════════════════
+# Frase del día (#480)
+# ═══════════════════════════════════════════
+
+
+class TestMastheadPhrase:
+    """The saying sits in the masthead, outside the section budget (#480)."""
+
+    def test_new_year_opens_on_the_first_saying(self):
+        text = mod.masthead(datetime(2026, 1, 1, 8, 30))
+        assert text.splitlines() == [
+            "🪨 **DIARIO GLOBAL HERMES** 🪨",
+            "*Fecha: 2026-01-01 08:30*",
+            "*La verdad es hija del tiempo.* — refrán",
+        ]
+
+    def test_the_next_day_rotates_and_the_fifteenth_returns(self):
+        second = mod.masthead(datetime(2026, 1, 2, 8, 30)).splitlines()[2]
+        assert second == "*Del dicho al hecho hay mucho trecho.* — refrán"
+        back = mod.masthead(datetime(2026, 1, 15, 8, 30)).splitlines()[2]
+        assert back == "*La verdad es hija del tiempo.* — refrán"
+
+    def test_every_saying_is_one_italic_line_inside_the_line_budget(self):
+        seen = set()
+        for offset in range(14):
+            when = datetime(2026, 1, 1, 8, 30) + timedelta(days=offset)
+            lines = mod.masthead(when).splitlines()
+            assert lines[1] == f"*Fecha: {when.strftime('%Y-%m-%d %H:%M')}*"
+            line = lines[2]
+            assert line.count("*") == 2
+            assert line.endswith(" — refrán")
+            assert "_" not in line
+            assert mod.delivery.utf16_len(line) <= mod.MAX_CHARS_LINEA
+            assert mod.delivery.markdown_v2_link_issues(line) == []
+            seen.add(line)
+        assert len(seen) == 14
+
+    def test_main_logs_the_masthead_before_the_sections(self):
+        when = datetime(2026, 1, 1, 8, 30)
+        with (
+            patch.object(mod, "datetime") as clock,
+            patch.object(mod, "setup_logging"),
+            patch.object(mod, "load_feeds", return_value=[]),
+            patch.object(mod, "emitir_secciones", return_value=[]),
+            patch.object(mod, "emit_polymarket_block"),
+            patch.object(mod, "fetch_crypto", return_value=[]),
+            patch.object(mod, "fetch_currencies", return_value=[]),
+            patch.object(mod.time, "sleep"),
+            patch.object(mod.log, "info") as info,
+        ):
+            clock.now.return_value = when
+            mod.main()
+        assert info.call_args_list[0].args[0] == mod.masthead(when)
