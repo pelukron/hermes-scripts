@@ -16,7 +16,7 @@
             },
             {
               "name": "Financial Times",
-              "url": "https://news.google.com/rss/search?q=site:ft.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+              "url": "https://www.ft.com/world?format=rss"
             }
           ]
         },
@@ -29,11 +29,11 @@
             },
             {
               "name": "SCMP (HK/CN)",
-              "url": "https://news.google.com/rss/search?q=site:scmp.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+              "url": "https://www.scmp.com/rss/91/feed/"
             },
             {
               "name": "ZeroHedge",
-              "url": "https://news.google.com/rss/search?q=site:zerohedge.com+when:24h&hl=en-US&gl=US&ceid=US:en"
+              "url": "https://cms.zerohedge.com/fullrss2.xml"
             }
           ]
         }
