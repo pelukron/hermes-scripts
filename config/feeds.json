@@ -253,7 +253,7 @@
           "sources": [
             {
               "name": "Reforma",
-              "url": "https://news.google.com/rss/search?q=site:reforma.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+              "url": "https://www.reforma.com/rss/portada.xml"
             },
             {
               "name": "El Financiero",
@@ -266,7 +266,7 @@
           "sources": [
             {
               "name": "La Jornada",
-              "url": "https://news.google.com/rss/search?q=site:jornada.com.mx+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+              "url": "https://www.jornada.com.mx/rss/edicion.xml"
             },
             {
               "name": "SinEmbargo",
@@ -279,7 +279,7 @@
           "sources": [
             {
               "name": "El Norte",
-              "url": "https://news.google.com/rss/search?q=site:elnorte.com+when:24h&hl=es-419&gl=MX&ceid=MX:es-419"
+              "url": "https://www.elnorte.com/rss/portada.xml"
             }
           ]
         }
