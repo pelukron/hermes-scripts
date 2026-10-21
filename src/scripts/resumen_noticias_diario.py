@@ -290,7 +290,7 @@ def build_subsection_block(
         sources: Lista de (nombre, url).
         fetched: Lista de items por fuente, mismo orden que sources.
         seen_urls: Set de URLs ya emitidas; se actualiza in-place con lo que sí se emite.
-        cuota: Presupuesto de caracteres del bloque, cabecera incluida.
+        cuota: Inclusive UTF-16 length of the joined block, header included.
 
     Returns:
         str: Bloque Markdown, o "" si no cabe ni un item.
@@ -298,7 +298,6 @@ def build_subsection_block(
     tope = MAX_CHARS_POR_SUBSECCION if cuota is None else cuota
     encabezado = f"*{sin_parentesis(sub_name)}*"
     lineas = [encabezado]
-    usado = delivery.utf16_len(encabezado) + 1
     candidatas: list = []
     for (source_name, _url), items in zip(sources, fetched):
         candidatos = []
@@ -324,21 +323,21 @@ def build_subsection_block(
             if ronda >= len(fuente["items"]):
                 continue
             linea, url = fuente["items"][ronda]
-            # Re-charge the bullet when the emitted source changes. Consecutive
+            # Re-open the bullet when the emitted source changes. Consecutive
             # items of the same source share one. Bullet and item are one cost:
-            # if they do not fit, neither is emitted.
-            extra = 1 if last_emitted is fuente else delivery.utf16_len(fuente["bullet"]) + 1
-            if usado + extra + delivery.utf16_len(linea) + 1 > tope:
+            # if the joined block does not fit, neither is emitted.
+            propuesta = list(lineas)
+            if last_emitted is not fuente:
+                propuesta.append(fuente["bullet"])
+            propuesta.append(linea)
+            if delivery.utf16_len("\n".join(propuesta)) > tope:
                 # No cabe este ítem. La ronda siguiente prueba el que sigue (#361);
                 # el que se quedó fuera se cuenta para que el mensaje lo diga (#355).
                 if descartes is not None:
                     descartes.append((sub_name, fuente["nombre"]))
                 continue
-            if last_emitted is not fuente:
-                lineas.append(fuente["bullet"])
-            lineas.append(linea)
+            lineas = propuesta
             seen_urls.add(url)
-            usado += extra + delivery.utf16_len(linea) + 1
             last_emitted = fuente
     return "\n".join(lineas) if len(lineas) > 1 else ""
 
@@ -350,8 +349,9 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
         feeds: output of `load_feeds()`.
         fetch: `callable(sources) -> items`; `fetch_all_rss` in production.
         emit: `callable(str)`; `log.info` in production.
-        presupuesto: maximum characters of sections to emit; header, footer and
-            markets excluded.
+        presupuesto: maximum UTF-16 length of the emitted sections, including
+            the blank line after each one. The masthead, footer and markets
+            are outside this budget.
 
     Returns:
         list[str]: names of the omitted sections, in order of appearance. The budget is
@@ -380,10 +380,15 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
         # split already applies below, one level up.
         section_share = max(cuota, restante // max(1, len(feeds) - index))
         encabezado = f"**{section_name}**"
-        disponible = min(section_share, restante) - delivery.utf16_len(encabezado) - 1
+        cap = min(section_share, restante)
         section_lines = [encabezado]
         for indice, (sub_name, sources) in enumerate(subsections):
-            cuota_sub = disponible // (len(subsections) - indice)
+            # Room left in the cap after the lines already chosen and the
+            # blank line that follows the section. One unit of each share is
+            # the newline that joins the next block.
+            pending = len(subsections) - indice
+            room = cap - (delivery.utf16_len("\n".join(section_lines)) + 1)
+            cuota_sub = room // pending - 1
             if cuota_sub <= 0:
                 continue
             fetched = fetch(sources)
@@ -392,7 +397,6 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
             )
             if block:
                 section_lines.append(block)
-                disponible -= delivery.utf16_len(block) + 1
         if len(section_lines) == 1:
             continue
         texto = "\n".join(section_lines)
