@@ -47,7 +47,6 @@ MAX_SUBSECTIONS_IN_NOTE = 4
 # Fuente única (#423): los dos topes viven en `delivery` (REPORT_BUDGET y
 # LINE_BUDGET); aquí solo se reexportan los nombres que ya usan los tests.
 MAX_CHARS_REPORTE = delivery.REPORT_BUDGET
-RESERVA_FUERA_DE_SECCIONES = 600
 # Tope de una línea emitida: 4096 (Telegram) − marco del cron (~200) − indicador de chunk (10).
 MAX_CHARS_LINEA = delivery.LINE_BUDGET
 # Una sección por debajo de esto no vale el viaje: encabezado + nombre de fuente
@@ -69,7 +68,6 @@ __all__ = [
     "MAX_CHARS_REPORTE",
     "MAX_CHARS_LINEA",
     "MAX_CHARS_TITULO",
-    "RESERVA_FUERA_DE_SECCIONES",
     "build_subsection_block",
     "clean_title",
     "emitir_secciones",
@@ -403,7 +401,6 @@ def emitir_secciones(feeds, fetch, emit, presupuesto=MAX_CHARS_REPORTE, descarte
         emit(texto)
         emit("")
         usado += delivery.utf16_len(texto) + 1
-        time.sleep(1)
     return omitidas
 
 
@@ -528,26 +525,48 @@ def masthead(when: datetime) -> str:
     )
 
 
-def main():
-    setup_logging()
-    log.info(masthead(datetime.now()))
-    time.sleep(0.5)
+def assemble_digest(
+    when: datetime,
+    *,
+    feeds=None,
+    fetch=None,
+    presupuesto: int | None = None,
+    crypto=None,
+    currencies=None,
+) -> list[tuple[str, float]]:
+    """Lines to log, each with the pause that follows it.
 
-    feeds = load_feeds()
-    # Ojo: aquí NO se sanea la línea completa. `sin_parentesis` sobre el texto
-    # emitido se come los paréntesis del enlace `[titulo](url)` y lo rompe: el
-    # saneo vive en titulares, nombres de fuente y subsección (#212).
+    Order is the masthead, the sections, the cut notes, the source footer and
+    the markets. The 7100 budget stays inside ``emitir_secciones``. Polymarket
+    is not here: ``main`` logs it afterwards, through its own prepare.
+    """
+    if feeds is None:
+        feeds = load_feeds()
+    if fetch is None:
+        fetch = fetch_all_rss
+    if presupuesto is None:
+        presupuesto = MAX_CHARS_REPORTE
+
+    pieces: list[tuple[str, float]] = [(masthead(when), 0.5)]
+    emitted: list[str] = []
     descartes: list = []
-    omitidas = emitir_secciones(feeds, fetch_all_rss, log.info, descartes=descartes)
+    omitidas = emitir_secciones(
+        feeds,
+        fetch,
+        emitted.append,
+        presupuesto=presupuesto,
+        descartes=descartes,
+    )
+    for text in emitted:
+        # The blank line after a section is the pause point. The section
+        # text itself is logged and the run moves on.
+        pieces.append((text, 1.0 if text == "" else 0.0))
     if omitidas:
-        log.info(nota_de_recorte(omitidas))
-        time.sleep(1)
+        pieces.append((nota_de_recorte(omitidas), 1.0))
     nota = nota_de_cuota(descartes)
     if nota:
-        log.info(nota)
-        time.sleep(1)
+        pieces.append((nota, 1.0))
 
-    # Footer stats
     total_sources = _stats.ok + _stats.fail
     if total_sources > 0:
         status = "✅" if _stats.fail == 0 else "⚠️"
@@ -559,22 +578,32 @@ def main():
             footer_line += f" {_stats.fail} fallos: {failed_list}"
         footer_line += "\n"
         footer_line += version_footer() + "\n"
-        log.info(footer_line)
-        time.sleep(1)
+        pieces.append((footer_line, 1.0))
 
-    # Polymarket predictions (in-process since #422: the child stdout
-    # went nowhere, so the block never reached the delivery channel)
-    emit_polymarket_block()
-
-    # Markets
-    crypto = fetch_crypto()
-    curr = fetch_currencies()
-    if crypto or curr:
-        log.info("**💰 MERCADOS**\n")
+    if crypto is None:
+        crypto = fetch_crypto()
+    if currencies is None:
+        currencies = fetch_currencies()
+    if crypto or currencies:
+        pieces.append(("**💰 MERCADOS**\n", 0.0))
         for sym, price, change, emoji in crypto:
-            log.info(f"• {emoji} {sym}: ${price:,.2f} {change:+.2f}%")
-        for label, rate, note in curr:
-            log.info(f"• {label}: ${rate:,.2f} {note}")
+            pieces.append((f"• {emoji} {sym}: ${price:,.2f} {change:+.2f}%", 0.0))
+        for label, rate, note in currencies:
+            pieces.append((f"• {label}: ${rate:,.2f} {note}", 0.0))
+    return pieces
+
+
+def main():
+    setup_logging()
+    # Do not run sin_parentesis on a full line. It eats the parentheses of
+    # `[title](url)` and breaks the link (#212).
+    for text, pause in assemble_digest(datetime.now()):
+        log.info(text)
+        if pause:
+            time.sleep(pause)
+    # Polymarket stays out of the list. prepare() already caps that block,
+    # and a failure must not become a digest line (#422, #470).
+    emit_polymarket_block()
 
 
 if __name__ == "__main__":
