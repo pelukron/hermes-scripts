@@ -317,17 +317,22 @@ class TestNoticieroGlobal:
         assert mod.MAX_CHARS_POR_SUBSECCION == 3000
 
     def test_suplementario_mide_en_utf16(self):
-        """🛒 = 1 code point y 2 unidades UTF-16: cabe para len() y no para el seam."""
+        """The cuota is the joined block's UTF-16 length, inclusive.
+
+        🛒 is 1 code point and 2 UTF-16 units. A block whose joined length
+        equals the cuota fits; one unit less rejects it.
+        """
         from hermes_common import delivery
 
         sources = [("Reuters", "https://reuters.example/rss")]
         fetched = [[("Oferta 🛒 hoy", "https://example.com/1")]]
         linea = "  [Oferta 🛒 hoy](https://example.com/1)"
         assert delivery.utf16_len(linea) == len(linea) + 1
-        cuota = len("*Subs*") + 1 + len("• *Reuters*") + 1 + len(linea) + 1
-        assert mod.build_subsection_block("Subs", sources, fetched, set(), cuota=cuota) == ""
-        control = mod.build_subsection_block("Subs", sources, fetched, set(), cuota=cuota + 1)
-        assert "Oferta 🛒 hoy" in control
+        cuota = delivery.utf16_len(f"*Subs*\n• *Reuters*\n{linea}")
+        block = mod.build_subsection_block("Subs", sources, fetched, set(), cuota=cuota)
+        assert delivery.utf16_len(block) == cuota
+        assert "Oferta 🛒 hoy" in block
+        assert mod.build_subsection_block("Subs", sources, fetched, set(), cuota=cuota - 1) == ""
 
     def test_tres_items_por_fuente_top_por_fecha(self):
         sources = [("Reuters", "https://reuters.example/rss")]
@@ -924,6 +929,37 @@ class TestRepartoDeSeccion:
         corto, _ = self._emitidos(900)
         largo, _ = self._emitidos(2400)
         assert len(largo) > len(corto)
+
+    def test_la_seccion_emitida_mide_igual_que_el_presupuesto(self):
+        """#484: the emitted section, blank line included, fits the budget.
+
+        A budget equal to that UTF-16 length emits the item. One unit less
+        does not, and nothing emitted exceeds the budget.
+        """
+        from hermes_common import delivery
+
+        title = "Rayo medido"
+        url = "https://example.com/" + "a" * 220
+        feeds = [("SECCION", [("Sub", [("Fuente", "http://rss")])])]
+
+        def fetch(_sources):
+            return [[(title, url)]]
+
+        def run(presupuesto):
+            emitidos: list[str] = []
+            with patch.object(mod.time, "sleep", lambda *_a, **_k: None):
+                mod.emitir_secciones(feeds, fetch, emitidos.append, presupuesto=presupuesto)
+            return "\n".join(emitidos)
+
+        loose = run(2000)
+        exact = delivery.utf16_len(loose)
+        assert exact >= mod.MIN_CHARS_SECCION
+        fitted = run(exact)
+        assert title in fitted
+        assert delivery.utf16_len(fitted) == exact
+        short = run(exact - 1)
+        assert title not in short
+        assert delivery.utf16_len(short) <= exact - 1
 
 
 class TestDialectoMarkdown:
