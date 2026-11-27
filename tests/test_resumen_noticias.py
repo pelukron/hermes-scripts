@@ -720,12 +720,64 @@ class TestPresupuestoDeEntrega:
         assert "*Por presupuesto" in nota
         assert "_Por presupuesto" not in nota
 
-    def test_el_reporte_cabe_en_dos_mensajes(self):
-        # Medido (#278): el chunker de Hermes (gateway/platforms/base.py `truncate_message`)
-        # corta en el último '\n' del bloque, así que el techo es por MENSAJE y no por corrida.
-        # #212 había fijado 1 mensaje (3200) y ese techo forzó el corte que rompió el diseño.
-        # 2 mensajes de 4096 menos el marco del cron (~200) y el indicador de chunk (10).
-        assert mod.MAX_CHARS_REPORTE + mod.RESERVA_FUERA_DE_SECCIONES <= 2 * 4096 - 300
+
+class TestDigestPieces:
+    """#488: main logs a list. The 600 reserve is not a budget."""
+
+    @staticmethod
+    def _pieces(*, presupuesto=None, ok=0, crypto=None, currencies=None):
+        feeds = [("SECCION", [("Sub", [("Fuente", "http://rss")])])]
+
+        def fetch(_sources):
+            return [[("Titular", "https://example.com/1")]]
+
+        mod._stats.ok = ok
+        mod._stats.fail = 0
+        mod._stats.failed.clear()
+        kwargs = {
+            "feeds": feeds,
+            "fetch": fetch,
+            "crypto": [("BTC", 1.0, 0.5, "🟢")] if crypto is None else crypto,
+            "currencies": [("USD/MXN", 18.5, "cierre")] if currencies is None else currencies,
+        }
+        if presupuesto is not None:
+            kwargs["presupuesto"] = presupuesto
+        try:
+            return mod.assemble_digest(datetime(2026, 1, 1, 8, 0), **kwargs)
+        finally:
+            mod._stats.ok = 0
+            mod._stats.fail = 0
+            mod._stats.failed.clear()
+
+    def test_la_lista_sale_en_orden_con_las_pausas(self):
+        pieces = self._pieces(ok=1)
+        texts = [text for text, _pause in pieces]
+        pauses = [pause for _text, pause in pieces]
+        assert texts[0] == mod.masthead(datetime(2026, 1, 1, 8, 0))
+        assert pauses[0] == 0.5
+        assert texts[1].startswith("**SECCION**")
+        assert pauses[1] == 0
+        assert texts[2] == ""
+        assert pauses[2] == 1
+        assert "Fuentes:" in texts[3]
+        assert pauses[3] == 1
+        assert texts[4] == "**💰 MERCADOS**\n"
+        assert pauses[4] == 0
+        assert texts[5].startswith("• 🟢 BTC:")
+        assert pauses[5] == 0
+        assert texts[6].startswith("• USD/MXN:")
+        assert pauses[6] == 0
+        assert all("Polymarket" not in text for text in texts)
+
+    def test_sin_presupuesto_la_nota_de_recorte_va_antes_del_pie(self):
+        pieces = self._pieces(presupuesto=100, crypto=[], currencies=[])
+        assert len(pieces) == 2
+        assert pieces[0][1] == 0.5
+        assert "SECCION" in pieces[1][0]
+        assert pieces[1][1] == 1
+
+    def test_la_reserva_de_600_no_existe(self):
+        assert not hasattr(mod, "RESERVA_FUERA_DE_SECCIONES")
 
 
 class TestDynamicSectionQuota:
